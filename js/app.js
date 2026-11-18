@@ -8,7 +8,7 @@ import { chatJson, testConnection } from './llm.js';
 import * as P from './prompts.js';
 import * as scoring from './scoring.js';
 import { addVocab, tierBadge, practiceVocab } from './words.js';
-import { speak, englishVoices, canListen, onVoicesChanged, checkVoice } from './speech.js';
+import { speak, rankedVoices, voiceLabel, canListen, onVoicesChanged, checkVoice, IS_ANDROID } from './speech.js';
 import { practicePronunciation } from './pronounce.js';
 import { review as startReview } from './review.js';
 import { essentials } from './essentials.js';
@@ -33,7 +33,7 @@ import * as recap from './recap.js';
 import { vocabScreen as openVocab, rememberSuggestions, pendingSuggestions } from './vocab.js';
 import { setPeopleNav, characterSheet, contactsScreen, relationLine, levelFraction, nextDiscovery } from './people.js';
 setPeopleNav({ home, chooseMission, isOpen: p => coins.isPlaceOpen(store.get(), p) });
-import { NATURAL_VOICES, loadNatural, naturalStatus, onNaturalStatus, unlockAudio } from './natural-voice.js';
+import { NATURAL_VOICES, loadNatural, disableNatural, naturalStatus, onNaturalStatus, unlockAudio } from './natural-voice.js';
 
 // ---------------- Bienvenida ----------------
 function onboarding() {
@@ -355,6 +355,28 @@ function lockedPlaceSheet(p) {
     h('p.muted', {}, `O ábralo ya por ${price} 🪙. Tiene ${s.coins}.`),
     h('button.primary.wide', { disabled: s.coins < price, onclick: () => buyPlaceFlow(p) },
       s.coins < price ? `Le faltan ${price - s.coins} 🪙` : `Abrir por ${price} 🪙`)));
+}
+
+// Guía para que el teléfono tenga voces buenas (gratis): las de Google se descargan en Android.
+function betterVoicesGuide() {
+  const android = [
+    'Abra los <b>Ajustes</b> del teléfono y busque <b>«Salida de texto a voz»</b> (suele estar en Sistema → Idiomas, o en Accesibilidad).',
+    'En <b>Motor preferido</b> elija <b>Servicios de voz de Google</b> (en Samsung viene el de Samsung, que suena peor). Si no aparece, instale «Servicios de voz de Google» desde la Play Store.',
+    'Toque el engranaje ⚙ junto al motor → <b>Instalar datos de voz</b> → <b>English (United States)</b> → descárguelo.',
+    'Dentro de English (United States) toque <b>Voz</b>, pruebe varias (I, II, III, IV…) y deje la que más le guste.',
+    'Vuelva a Charla, cierre la app del todo y ábrala otra vez. En esta lista elija «Automática» o la voz con ⭐.',
+  ];
+  const other = [
+    '<b>iPhone:</b> Ajustes → Accesibilidad → Contenido leído → Voces → English → descargue una voz <b>Mejorada</b> o <b>Premium</b> (Ava, Zoe, Evan…).',
+    '<b>Windows:</b> Microsoft Edge trae voces «Online (Natural)» que suenan muy bien: abra Charla en Edge y elija una con ⭐.',
+    '<b>Chrome de computador:</b> elija una voz «Google US English».',
+  ];
+  const list = items => h('ol.steps', {}, items.map(t => h('li', { html: t })));
+  return h('details.voice-guide', { open: false },
+    h('summary', {}, '🗣️ ¿Las voces suenan robóticas? Instale las buenas (gratis)'),
+    IS_ANDROID ? list(android) : h('div', {}, h('p', {}, h('b', {}, 'En Android:')), list(android)),
+    h('p.muted', {}, 'Otros equipos:'),
+    h('ul.steps', {}, other.map(t => h('li', { html: t }))));
 }
 
 function slownessText(x) {
@@ -727,8 +749,8 @@ function settings() {
   const baseUrl = h('input', { value: s.settings.baseUrl });
   const levelEd = levelEditor(s);
   const plan = planEditor(s);
-  const voiceOptions = () => [h('option', { value: '' }, 'Automática según el personaje'),
-    ...englishVoices().map(v => h('option', { value: v.voiceURI, selected: v.voiceURI === store.get().settings.voiceURI }, `${v.name} (${v.lang})`))];
+  const voiceOptions = () => [h('option', { value: '' }, 'Automática: la mejor según el personaje'),
+    ...rankedVoices().map(({ v, q }) => h('option', { value: v.voiceURI, selected: v.voiceURI === store.get().settings.voiceURI }, voiceLabel(v, q)))];
   const voiceSel = h('select', {}, voiceOptions());
   const engineSel = h('select', {},
     h('option', { value: 'phone', selected: s.settings.voiceEngine !== 'natural' }, 'Voz del teléfono (inmediata)'),
@@ -738,7 +760,8 @@ function settings() {
   const naturalOut = h('p.muted', {}, '');
   const naturalBox = h('div', {}, h('label', {}, 'Voz natural'), naturalSel, naturalOut);
   const phoneBox = h('div', {}, h('label', {}, 'Voz del teléfono'), voiceSel,
-    h('p.muted', {}, 'En Android puede mejorarla en Ajustes del teléfono → Idioma → Salida de texto a voz → Servicios de voz de Google → instalar «Inglés (Estados Unidos)» y elegir la voz.'));
+    h('p.muted', {}, 'Ordenadas de la que mejor suena a la peor. ⭐ = voz natural.'),
+    betterVoicesGuide());
   const paintNatural = st => {
     if (!naturalOut.isConnected && naturalOut.dataset.mounted) return stopNatural();
     naturalOut.dataset.mounted = '1';
@@ -758,6 +781,7 @@ function settings() {
     naturalBox.classList.toggle('hidden', !nat);
     phoneBox.classList.toggle('hidden', nat);
     if (nat) loadNatural();
+    else disableNatural(); // libera la memoria del modelo
   };
   engineSel.onchange = showEngine;
   showEngine();

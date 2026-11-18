@@ -39,8 +39,10 @@ export const naturalReady = () => status.state === 'ready';
 export function onNaturalStatus(f) { listeners.add(f); return () => listeners.delete(f); }
 
 // Empieza la descarga (la primera vez) y la carga del modelo en el worker.
+let wanted = false;
 export function loadNatural() {
   if (!supported || worker) return;
+  wanted = true;
   set({ state: 'loading', error: '' });
   worker = new Worker(new URL('./natural-worker.js', import.meta.url), { type: 'module' });
   worker.onmessage = ({ data }) => {
@@ -55,8 +57,60 @@ export function loadNatural() {
   worker.postMessage({ type: 'load' });
 }
 
+// Si la app queda en segundo plano un rato, se suelta el modelo (ocupa mucha memoria y el teléfono
+// se pone lento con otras apps). Al volver se carga otra vez desde lo guardado: tarda unos segundos.
+const RELEASE_AFTER_MS = 2 * 60 * 1000;
+let hiddenTimer = null;
+export function releaseNatural() {
+  if (!worker) return;
+  current?.stop();
+  worker.terminate();
+  worker = null;
+  set({ state: 'idle', pct: 0 });
+}
+// El usuario volvió a la voz del teléfono: se libera la memoria y no se vuelve a cargar sola.
+export function disableNatural() { wanted = false; releaseNatural(); }
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    clearTimeout(hiddenTimer);
+    if (document.hidden) {
+      hiddenTimer = setTimeout(releaseNatural, RELEASE_AFTER_MS);
+      idleAudio(0);
+    } else if (wanted && !worker) loadNatural();
+  });
+}
+
+// Frases ya generadas (el personaje repite, "escuchar otra vez", frases de práctica): se tocan al instante.
+// Máximo ~60 s de audio en total para no llenar la memoria del teléfono.
+const cache = new Map();
+const CACHE_MAX_SAMPLES = 24000 * 60;
+let cacheSamples = 0;
+const cacheKey = (text, voice, speed) => `${voice}|${speed}|${String(text).trim()}`;
+export function cacheGet(key) {
+  const hit = cache.get(key);
+  if (hit) { cache.delete(key); cache.set(key, hit); } // al final = usado hace poco
+  return hit;
+}
+export function cachePut(key, chunks) {
+  const n = chunks.reduce((a, c) => a + c.pcm.length, 0);
+  if (!n || n > CACHE_MAX_SAMPLES / 2 || cache.has(key)) return;
+  cache.set(key, chunks);
+  cacheSamples += n;
+  for (const [k, v] of cache) {
+    if (cacheSamples <= CACHE_MAX_SAMPLES) break;
+    cache.delete(k);
+    cacheSamples -= v.reduce((a, c) => a + c.pcm.length, 0);
+  }
+}
+export const cacheSize = () => ({ phrases: cache.size, samples: cacheSamples });
+
 // ---------- Audio ----------
-let ctx = null, analyser = null;
+let ctx = null, analyser = null, idleTimer = null;
+// Con el audio "despierto" el teléfono gasta batería y procesador: se duerme cuando no habla.
+function idleAudio(ms = 4000) {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { if (ctx && !current && ctx.state === 'running') ctx.suspend().catch(() => {}); }, ms);
+}
 function audio() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -68,8 +122,14 @@ function audio() {
 }
 // Los teléfonos solo dejan sonar audio después de un toque del usuario: se "despierta" en el primer toque.
 export function unlockAudio() {
-  if (!supported) return;
-  try { const c = audio(); if (c.state === 'suspended') c.resume(); } catch {}
+  if (!supported || !wanted) return;
+  try { const c = audio(); if (c.state === 'suspended') c.resume().then(() => idleAudio()).catch(() => {}); } catch {}
+}
+// Despierta el audio; si en 1,5 s no se pudo (falta un toque), avisa para usar la voz del teléfono.
+function wake(c) {
+  clearTimeout(idleTimer);
+  if (c.state === 'running') return Promise.resolve(true);
+  return Promise.race([c.resume().then(() => c.state === 'running', () => false), new Promise(r => setTimeout(() => r(false), 1500))]);
 }
 
 const jobs = new Map();
@@ -79,14 +139,20 @@ let current = null;
 export function stopNatural() { current?.stop(); }
 
 // Lee el texto con la voz natural. Rechaza si no pudo empezar (para usar la voz del teléfono).
-export function speakNatural(text, { voice, speed = 1, onStart, onLevel, onEnd } = {}) {
+export async function speakNatural(text, opts = {}) {
+  if (!naturalReady() || !worker) throw new Error('voz natural no lista');
+  current?.stop();
+  const c = audio();
+  // Sin un toque previo el teléfono no deja sonar el audio: mejor la voz del teléfono que quedarse callado.
+  if (!await wake(c)) { idleAudio(); throw new Error('el audio está bloqueado hasta que toque la pantalla'); }
+  return playNatural(c, text, opts);
+}
+
+function playNatural(c, text, { voice, speed = 1, onStart, onLevel, onEnd } = {}) {
   return new Promise((resolve, reject) => {
-    if (!naturalReady() || !worker) return reject(new Error('voz natural no lista'));
-    current?.stop();
-    const c = audio();
-    if (c.state === 'suspended') c.resume();
-    // Sin un toque previo el teléfono no deja sonar el audio: mejor la voz del teléfono que quedarse callado.
-    if (c.state !== 'running') return reject(new Error('el audio está bloqueado hasta que toque la pantalla'));
+    const key = cacheKey(text, voice, speed);
+    const cached = cacheGet(key);
+    const got = [];
     const id = nextId++;
     const sources = new Set();
     const buf = new Float32Array(analyser.fftSize);
@@ -100,6 +166,8 @@ export function speakNatural(text, { voice, speed = 1, onStart, onLevel, onEnd }
       clearTimeout(endTimer);
       jobs.delete(id);
       if (current === job) current = null;
+      if (generated && !cached && got.length) cachePut(key, got);
+      idleAudio();
       onLevel?.(0);
       onEnd?.();
       resolve();
@@ -110,22 +178,25 @@ export function speakNatural(text, { voice, speed = 1, onStart, onLevel, onEnd }
       clearTimeout(firstChunkTimer);
       jobs.delete(id);
       if (current === job) current = null;
+      idleAudio();
       reject(err);
     };
     const job = {
       stop() {
-        worker?.postMessage({ type: 'cancel', id });
+        if (!cached) worker?.postMessage({ type: 'cancel', id });
+        generated = false; // cortada a la mitad: no se guarda incompleta
         sources.forEach(s => { try { s.stop(); } catch {} });
         finish();
       },
     };
     current = job;
     // Si el teléfono es muy lento y no llega la primera frase, se usa la voz del teléfono.
-    const firstChunkTimer = setTimeout(() => { worker?.postMessage({ type: 'cancel', id }); fail(new Error('la voz natural tardó demasiado')); }, 25000);
+    const firstChunkTimer = cached ? null : setTimeout(() => { worker?.postMessage({ type: 'cancel', id }); fail(new Error('la voz natural tardó demasiado')); }, 25000);
 
-    jobs.set(id, data => {
+    const onData = data => {
       if (finished) return;
       if (data.type === 'chunk') {
+        if (!cached) got.push({ pcm: data.pcm.slice(), rate: data.rate });
         const b = c.createBuffer(1, data.pcm.length, data.rate);
         b.copyToChannel(data.pcm, 0);
         const src = c.createBufferSource();
@@ -155,9 +226,16 @@ export function speakNatural(text, { voice, speed = 1, onStart, onLevel, onEnd }
         else endTimer = setTimeout(finish, Math.max(0, endAt - c.currentTime) * 1000 + 1500);
       } else if (data.type === 'fail') {
         generated = true;
+        got.length = 0;
         if (!sources.size) fail(new Error(data.message));
       }
-    });
-    worker.postMessage({ type: 'speak', id, text, voice, speed });
+    };
+    if (cached) {
+      cached.forEach(ch => onData({ type: 'chunk', pcm: ch.pcm, rate: ch.rate }));
+      onData({ type: 'done' });
+    } else {
+      jobs.set(id, onData);
+      worker.postMessage({ type: 'speak', id, text, voice, speed });
+    }
   });
 }

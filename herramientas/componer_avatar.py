@@ -120,6 +120,9 @@ def main():
     for name, im in frames.items():
         out = cv2.resize(im, (a.tam, a.tam), interpolation=cv2.INTER_AREA)
         cv2.imwrite(os.path.join(a.salida, f'{name}.webp'), out, [cv2.IMWRITE_WEBP_QUALITY, 88])
+    # Copia pequeña para las listas (fotos de 64 px): mucho menos memoria en el teléfono.
+    mini = cv2.resize(frames['neutral'], (192, 192), interpolation=cv2.INTER_AREA)
+    cv2.imwrite(os.path.join(a.salida, 'mini.webp'), mini, [cv2.IMWRITE_WEBP_QUALITY, 82])
     if a.vista:
         strip = np.hstack([frames[k] for k in ('neutral', 'talk', 'blink', 'happy')])
         cv2.imwrite(os.path.join(a.salida, 'vista.png'), strip)

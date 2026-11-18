@@ -10,7 +10,12 @@ let queue = Promise.resolve(); // una frase a la vez: el modelo no puede generar
 
 // Con tarjeta gráfica (WebGPU) es mucho más rápida, pero necesita el modelo completo (~330 MB).
 // Sin ella se usa el procesador con el modelo comprimido (~90 MB).
+// En celulares siempre el comprimido: el completo ocupa demasiada memoria y pone lento todo el teléfono.
+export function isMobile(nav = self.navigator) {
+  return !!(nav?.userAgentData?.mobile || /Android|iPhone|iPad|iPod|Mobile/i.test(nav?.userAgent || ''));
+}
 async function pickDevice() {
+  if (isMobile()) return { device: 'wasm', dtype: 'q8' };
   try { if (self.navigator?.gpu && await navigator.gpu.requestAdapter()) return { device: 'webgpu', dtype: 'fp32' }; } catch {}
   return { device: 'wasm', dtype: 'q8' };
 }
@@ -33,13 +38,13 @@ function load(opts = {}) {
         if (pct !== last) { last = pct; postMessage({ type: 'progress', pct, mb: Math.round(total / 1e6) }); }
       },
     });
-    // Calentamiento: la primera frase siempre es la más lenta. Se mide la velocidad del equipo
-    // (segundos que tarda por cada segundo de voz) para avisarle al usuario.
+    // Calentamiento: la primera frase siempre es la más lenta. Con una muy corta basta; la segunda
+    // mide la velocidad del equipo (segundos que tarda por cada segundo de voz) para avisarle al usuario.
     postMessage({ type: 'warming' });
     const t0 = performance.now();
-    const a = await tts.generate('Hello there, nice to meet you.', { voice: 'af_heart' });
+    const a = await tts.generate('Hi.', { voice: 'af_heart' });
     const t1 = performance.now();
-    const b = await tts.generate('How are you today?', { voice: 'af_heart' });
+    const b = await tts.generate('How are you?', { voice: 'af_heart' });
     const slow = ((performance.now() - t1) / 1000) / (b.audio.length / b.sampling_rate);
     postMessage({ type: 'ready', device, dtype, slowness: +slow.toFixed(2), warmupMs: Math.round(t1 - t0), check: a.audio.length > 0 });
     return tts;

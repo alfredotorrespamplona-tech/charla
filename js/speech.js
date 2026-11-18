@@ -5,7 +5,7 @@ import { naturalReady, speakNatural, stopNatural, naturalVoiceFor } from './natu
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 export const canListen = !!SR;
 export const canSpeak = 'speechSynthesis' in window;
-const IS_ANDROID = /Android/i.test(navigator.userAgent || '');
+export const IS_ANDROID = /Android/i.test(navigator.userAgent || '');
 
 // Espera antes de dar el turno por terminado: más larga mientras no ha empezado a hablar (está pensando).
 export const WAIT_FIRST_WORD_MS = 8000;
@@ -127,12 +127,24 @@ export function voiceQuality(v) {
   const n = `${v.name} ${v.voiceURI}`;
   let q = 0;
   if (/natural|neural|online|premium|enhanced|wavenet|studio|journey/i.test(n)) q += 6;
+  if (/-network\b/i.test(n)) q += 4;          // Android: voces de Google "de red", más naturales que las -local
   if (/google/i.test(n)) q += 3;
   if (v.localService === false) q += 2;
   if (/^en-US/i.test(v.lang)) q += 1;
   if (/espeak|compact|robot|novelty|bad news|bells|whisper|zarvox|trinoids|albert|bahh|boing|bubbles|cellos|jester|organ|superstar/i.test(n)) q -= 10;
   if (/microsoft (david|zira|mark|hazel|george|susan)\b/i.test(n) && !/natural|online/i.test(n)) q -= 3;
   return q;
+}
+
+// Las voces en inglés de la mejor a la peor, para la lista de Ajustes.
+export function rankedVoices() {
+  return englishVoices().map(v => ({ v, q: voiceQuality(v) })).sort((a, b) => b.q - a.q || a.v.name.localeCompare(b.v.name));
+}
+
+// Nombre para mostrar en la lista: ⭐ = de las que mejor suenan.
+export function voiceLabel(v, q = voiceQuality(v)) {
+  const name = v.name.replace(/\s+/g, ' ');
+  return `${q >= 6 ? '⭐ ' : ''}${name} (${v.lang})${v.localService === false ? ' · en línea' : ''}`;
 }
 
 export function voiceFor(character) {

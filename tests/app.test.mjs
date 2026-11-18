@@ -259,7 +259,7 @@ test('contenido: personajes, lugares y misiones son coherentes', () => {
 
 test('contenido: cada avatar con imágenes tiene sus 4 cuadros', () => {
   for (const id of data.WITH_IMAGES) {
-    for (const f of ['neutral', 'talk', 'blink', 'happy']) {
+    for (const f of ['neutral', 'talk', 'blink', 'happy', 'mini']) {
       assert.ok(existsSync(join(ROOT, 'avatars', id, `${f}.webp`)), `falta avatars/${id}/${f}.webp`);
     }
   }
@@ -311,6 +311,35 @@ test('voz del teléfono: prefiere las naturales y evita las robóticas', async (
   assert.ok(voiceQuality(v('Microsoft Ava Online (Natural) - English (United States)', 'en-US', false)) > voiceQuality(v('Google US English', 'en-US', false)));
   assert.ok(voiceQuality(v('Google US English', 'en-US', false)) > voiceQuality(v('Microsoft Zira - English (United States)')));
   assert.ok(voiceQuality(v('Microsoft David - English (United States)')) > voiceQuality(v('eSpeak English')));
+  // Android: la voz "de red" de Google suena mejor que la local.
+  assert.ok(voiceQuality(v('en-us-x-iol-network', 'en-US', false)) > voiceQuality(v('en-us-x-iol-local')));
+  const { voiceLabel } = await import('../js/speech.js');
+  assert.match(voiceLabel(v('Microsoft Ava Online (Natural) - English (United States)', 'en-US', false)), /^⭐ .*en línea$/);
+  assert.doesNotMatch(voiceLabel(v('eSpeak English')), /⭐/);
+});
+
+test('voz natural: guarda frases ya dichas sin pasarse de memoria', async () => {
+  const nv = await import('../js/natural-voice.js');
+  const ch = n => [{ pcm: new Float32Array(n), rate: 24000 }];
+  nv.cachePut('a', ch(24000 * 20));
+  nv.cachePut('b', ch(24000 * 20));
+  assert.ok(nv.cacheGet('a'));                 // 'a' recién usada: queda al final
+  nv.cachePut('c', ch(24000 * 25));            // se pasa de 60 s: sale la menos usada ('b')
+  assert.equal(nv.cacheGet('b'), undefined);
+  assert.ok(nv.cacheGet('a') && nv.cacheGet('c'));
+  assert.ok(nv.cacheSize().samples <= 24000 * 60);
+  nv.cachePut('enorme', ch(24000 * 40));       // una sola frase de más de 30 s no se guarda
+  assert.equal(nv.cacheGet('enorme'), undefined);
+});
+
+test('voz natural: en celulares usa el modelo liviano', async () => {
+  const src = (await import('node:fs')).readFileSync(join(ROOT, 'js/natural-worker.js'), 'utf8');
+  const body = src.slice(src.indexOf('export function isMobile'), src.indexOf('async function pickDevice'));
+  const isMobile = new Function(`return (${body.replace('export function isMobile', 'function')})`)();
+  assert.ok(isMobile({ userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-A546E) Chrome/131 Mobile Safari/537.36' }));
+  assert.ok(isMobile({ userAgentData: { mobile: true }, userAgent: '' }));
+  assert.ok(!isMobile({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131 Safari/537.36' }));
+  assert.match(src, /if \(isMobile\(\)\) return \{ device: 'wasm', dtype: 'q8' \}/);
 });
 
 test('voz natural: cada personaje tiene una voz buena de Kokoro', async () => {

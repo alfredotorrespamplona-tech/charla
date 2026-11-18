@@ -3,7 +3,8 @@
 Si un personaje no tiene imágenes, la app le dibuja un avatar sencillo por código.
 
 Cada avatar con imagen tiene 4 cuadros en `avatars/<id>/`: `neutral.webp`, `talk.webp` (boca abierta),
-`blink.webp` (ojos cerrados) y `happy.webp` (sonrisa). Para que la app los use, el id debe estar en la lista
+`blink.webp` (ojos cerrados) y `happy.webp` (sonrisa), más `mini.webp` (192 px, para las listas; el programa
+la crea solo). Para que la app los use, el id debe estar en la lista
 `WITH_IMAGES` de `js/data.js`.
 
 ## 1. Pedir a ChatGPT una hoja 2x2

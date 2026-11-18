@@ -24,14 +24,34 @@ export class Avatar {
     this.mode = 'img';
     this.frames = {};
     for (const f of conf.frames) this.frames[f] = `${base}${f}.${conf.ext || 'png'}`;
-    // precargar para que el cambio de cuadro no parpadee
-    await Promise.all(Object.values(this.frames).map(src => new Promise(r => { const i = new Image(); i.onload = i.onerror = r; i.src = src; })));
-    this.img = document.createElement('img');
-    this.img.className = 'avatar-img';
-    this.img.alt = this.c.name;
-    this.img.src = this.frames.neutral;
-    this.el.appendChild(this.img);
+    // Todas las caras quedan una encima de otra y solo se muestra una. Cambiar de cara es solo
+    // cambiar cuál se ve (no se vuelve a decodificar ni a pintar la imagen): mucho más liviano en el teléfono.
+    this.imgs = {};
+    const box = document.createElement('div');
+    box.className = 'avatar-frames';
+    await Promise.all(Object.entries(this.frames).map(([name, src]) => new Promise(r => {
+      const i = new Image();
+      i.className = 'avatar-img';
+      i.alt = name === 'neutral' ? this.c.name : '';
+      i.decoding = 'async';
+      i.onload = i.onerror = r;
+      i.src = src;
+      this.imgs[name] = i;
+      box.appendChild(i);
+    })));
+    this.el.appendChild(box);
+    this.shown = null;
+    this.show('neutral');
     return true;
+  }
+
+  // Muestra una cara (neutral, talk, talk2, blink, happy) solo si cambió.
+  show(name) {
+    if (!this.imgs[name]) name = 'neutral';
+    if (name === this.shown) return;
+    this.imgs[this.shown]?.classList.remove('on');
+    this.imgs[name].classList.add('on');
+    this.shown = name;
   }
 
   drawSvg() {
@@ -87,24 +107,23 @@ export class Avatar {
   blink() {
     if (this.mode === 'img') {
       if (!this.frames.blink || this.level > 0.05) return;
-      this.img.src = this.frames.blink;
-      setTimeout(() => { if (this.level <= 0.05) this.img.src = this.currentRest(); }, 140);
+      this.show('blink');
+      setTimeout(() => { if (this.level <= 0.05) this.show(this.currentRest()); }, 140);
     } else if (this.eyes) {
       this.eyes.style.transform = 'scaleY(0.1)';
       setTimeout(() => { this.eyes.style.transform = ''; }, 130);
     }
   }
 
-  currentRest() { return this.mood > 0.6 && this.frames.happy ? this.frames.happy : this.frames.neutral; }
+  currentRest() { return this.mood > 0.6 && this.frames.happy ? 'happy' : 'neutral'; }
 
   // level 0..1 = qué tan abierta está la boca
   setLevel(level) {
     this.level = level;
     if (this.mode === 'img') {
-      if (level < 0.08) this.img.src = this.currentRest();
-      else if (level > 0.55 && this.frames.talk2) this.img.src = this.frames.talk2;
-      else this.img.src = this.frames.talk || this.frames.neutral;
-      this.el.style.transform = `translateY(${-level * 2}px)`;
+      if (level < 0.08) this.show(this.currentRest());
+      else if (level > 0.55 && this.frames.talk2) this.show('talk2');
+      else this.show('talk');
     } else if (this.open) {
       this.open.setAttribute('ry', (level * 9).toFixed(1));
       this.smile.style.opacity = level > 0.15 ? 0.35 : 1;
@@ -121,8 +140,8 @@ export class Avatar {
       const lift = m < -0.2 ? 6 : 0;
       bl.setAttribute('d', `M68 ${80 - lift / 2} Q78 ${74 + lift} 88 80`);
       br.setAttribute('d', `M112 80 Q122 ${74 + lift} 132 ${80 - lift / 2}`);
-    } else if (this.mode === 'img' && this.level < 0.08) {
-      this.img.src = this.currentRest();
+    } else if (this.mode === 'img' && this.imgs && this.level < 0.08) {
+      this.show(this.currentRest());
     }
   }
 
@@ -139,7 +158,11 @@ export function miniAvatar(character) {
   const conf = character.images;
   if (conf?.frames?.includes('neutral')) {
     const img = new Image();
-    img.src = `avatars/${character.id}/neutral.${conf.ext || 'png'}`;
+    // mini.webp = copia de 192 px; la grande (640 px) solo si falta la pequeña.
+    img.decoding = 'async';
+    img.loading = 'lazy';
+    img.onerror = () => { img.onerror = null; img.src = `avatars/${character.id}/neutral.${conf.ext || 'png'}`; };
+    img.src = `avatars/${character.id}/mini.webp`;
     img.alt = '';
     d.appendChild(img);
   } else {

@@ -175,12 +175,26 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
 - **Mi plan** incluye también su género, para que los personajes le hablen bien.
 - **Dos tipos de voz, las dos gratis y sin clave** (Ajustes → Tipo de voz):
   - *Voz del teléfono*: responde al instante. La app elige la mejor voz instalada y no le cambia el tono.
-    En Android se mejora instalando «Inglés (Estados Unidos)» en Ajustes del teléfono → Idioma → Salida de
-    texto a voz → Servicios de voz de Google.
+    La lista de Ajustes las ordena de la que mejor suena a la peor (⭐ = natural; en Android las voces
+    «-network» de Google ganan a las «-local»).
+  - **Cómo tener voces buenas gratis** (también está en Ajustes → «¿Las voces suenan robóticas?»):
+    - *Android*: Ajustes del teléfono → buscar «Salida de texto a voz» → Motor preferido: **Servicios de voz
+      de Google** (en Samsung viene el de Samsung, que suena peor) → ⚙ → Instalar datos de voz → **English
+      (United States)** → en «Voz» pruebe I, II, III, IV… y deje la que más le guste. Cierre Charla del todo
+      y ábrala otra vez.
+    - *iPhone*: Ajustes → Accesibilidad → Contenido leído → Voces → English → descargue una voz
+      **Mejorada** o **Premium**.
+    - *Windows*: abra Charla en **Microsoft Edge**, que trae voces «Online (Natural)» muy buenas.
   - *Natural Kokoro*: un modelo de voz de código abierto (Apache 2.0, `vendor/kokoro/`) que corre en el
     propio equipo. Suena mucho más humana y cada personaje tiene su voz, pero tarda unos segundos antes de
-    cada respuesta (más en teléfonos). Se descarga una vez (90 MB, o 330 MB si el equipo tiene tarjeta
-    gráfica) y Ajustes muestra cuánto tarda en su equipo.
+    cada respuesta (más en teléfonos). Se descarga una vez (90 MB; en computadores con tarjeta gráfica,
+    330 MB) y Ajustes muestra cuánto tarda en su equipo. Para no poner lento el teléfono: en celulares
+    siempre usa el modelo liviano, guarda las frases que ya dijo (repetirlas es instantáneo, hasta ~60 s de
+    audio), duerme el audio cuando no habla y suelta el modelo si la app pasa 2 minutos en segundo plano.
+    Al volver a «Voz del teléfono» se libera la memoria.
+- **Liviana en el teléfono**: el personaje tiene sus caras apiladas y solo cambia cuál se ve (antes la
+  imagen y su sombra se volvían a pintar unas 15 veces por segundo mientras hablaba). Las listas usan
+  fotos pequeñas (`avatars/<id>/mini.webp`, 192 px) en vez de las de 640 px.
 - **Ajustes → Micrófono y voz**: revisa si el teléfono puede usar el micrófono y si tiene voces en inglés,
   y dice qué hacer si algo falla. Trae botones para probar la voz y el micrófono.
 - El micrófono espera hasta 8 s a que usted empiece a hablar (tiempo para pensar) y, cuando ya habló,
