@@ -47,7 +47,7 @@ if (models && !models.includes(model)) console.log(`\n⚠ El modelo configurado 
 // 1. Charla: apertura, respuesta, análisis, despedida
 const place = data.PLACES[0], character = data.CHARACTERS[place.characters[0]], mission = place.missions[0];
 const rel = { level: 0, memory: [], facts: {} };
-const system = P.characterSystem({ character, place, mission, rankId: 2, rel, learnerName: 'Alfredo', learner: { interests: ['Cooking'] } });
+const system = P.characterSystem({ character, place, mission, rankId: 2, rel, learnerName: 'Prueba', learner: { interests: ['Cooking'] } });
 const opening = await run('opening (saludo del personaje)', () => chatJson('opening', [{ role: 'system', content: system }, { role: 'user', content: P.openingUser() }], { maxTokens: 200 }), o => need(o, ['reply']));
 const history = [{ role: 'character', text: opening?.reply || 'Hi! What can I get you?' }, { role: 'learner', text: 'Hi, I want a coffee with milk and a croissant please' }];
 const base = () => [{ role: 'system', content: system }, ...history.map(m => ({ role: m.role === 'character' ? 'assistant' : 'user', content: m.role === 'character' ? JSON.stringify({ reply: m.text }) : m.text }))];

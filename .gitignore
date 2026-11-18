@@ -15,3 +15,13 @@ desktop.ini
 .env
 *.key
 charla-respaldo-*.json
+
+# Android (APK): lo que se genera al compilar y la llave de firma
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/*.keystore
+*.apk
+*.aab
+*.idsig
