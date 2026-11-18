@@ -1,0 +1,17 @@
+# Hojas originales de los avatares (pesadas; la app usa los recortes de avatars/)
+avatars/_hojas/
+
+# Python / Node
+__pycache__/
+*.pyc
+node_modules/
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Nunca subir claves ni respaldos personales
+.env
+*.key
+charla-respaldo-*.json

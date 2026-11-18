@@ -1,0 +1,304 @@
+# Charla — practique inglés hablando (uso personal)
+
+App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), con:
+- **DeepSeek** como cerebro (usted paga solo los tokens).
+- **Voz del teléfono** para escuchar y hablar (gratis).
+- **Avatares animados** para los 29 personajes y **escenas de fondo** para los 19 lugares, todos hechos con
+  ChatGPT (ver `avatars/LEEME.md` para agregar más). El avatar dibujado por código queda solo de respaldo.
+
+## Qué hace
+- 19 lugares (cafetería, aeropuerto, hotel, oficina, parque, restaurante, consultorio, calle, tienda,
+  gimnasio, fiesta, entrevista de trabajo, **tu barrio, supermercado, ayuntamiento, banco, escuela de
+  idiomas, centro comercial y peluquería**) con 72 misiones, que se desbloquean por nivel (A1…C2).
+  Los 7 últimos salen debajo del mapa («Más lugares»).
+- **48 temas de conversación** en 8 grupos (día a día, amigos y ocio, familia y hogar, trabajo, estudio,
+  viajes, salud, actualidad y cultura), que sirven con cualquier personaje. Al elegir misión, una de las
+  opciones sorteadas es un tema, y «Todos los temas de conversación» los muestra todos.
+- Cada misión cambia según su nivel: versión principiante (A1–A2), intermedia (B1) y avanzada (B2–C2).
+- **Nivel de cada misión**: cada estrella ganada en una misión suma; cada 4 estrellas la misión sube de
+  nivel (+5 🪙). Al sumar niveles de misión se ven más misiones por lugar: 3 al empezar, 4 con nivel
+  total 8 y 5 con nivel total 20.
+- **Mi plan** (en la bienvenida, en Ajustes o tocando la meta del inicio): para qué quiere el inglés,
+  meta diaria (5, 10, 20 o 30 min, con su avance en el inicio), edad y temas que le gustan; los
+  personajes los usan en la charla. Al terminar la primera charla le dice cuánto habló y cuántas palabras usó.
+- Personajes con personalidad, que **recuerdan** lo que usted les contó en charlas anteriores, y una
+  relación que va subiendo (Desconocido → Conocido → Amigo → Mejor amigo).
+- Misiones con objetivos que se marcan solos, más charla libre y **tema propio** (usted describe la
+  situación en español).
+- En cada frase suya: un punto verde/amarillo/rojo con la corrección, una versión más natural y la
+  explicación en español.
+- **↩️ Repetir**: si el teléfono entendió mal su frase, bórrela (con la respuesta del personaje) y dígala
+  otra vez. Los puntos y objetivos de ese turno se descuentan.
+- **🎤 Práctica de pronunciación**: en las palabras, en los ejemplos, en la versión «más natural» y en su
+  vocabulario. Le marca en verde las palabras que se entendieron y en rojo las que debe repetir.
+  No gasta tokens. Si dice bien una palabra guardada, sube su familiaridad.
+- Los personajes saben la hora y el día reales («Good morning» por la mañana).
+- Ayudas: sugerencias de respuesta, «¿cómo se dice?» (escribe en español y le da el inglés),
+  traducir, tocar cualquier palabra para ver significado, pronunciación y guardarla.
+- Resumen con puntos, 3 estrellas, palabras por minuto, demora al responder, palabras distintas,
+  % de sugerencias, racha diaria, comentario del coach y palabras útiles para guardar.
+- Vocabulario con niveles de familiaridad (Visto → Conocido → Practicado → Dominado) que suben al usar
+  las palabras hablando y en el **Repaso**, con 3 tipos de tarjeta según qué tan bien conoce la palabra:
+  elegir su significado dentro de una frase, completar la frase y, al final, decirla en inglés hablando.
+  Las que falla vuelven una vez al final, con la pista a la vista.
+- **🧠 Repaso espaciado**: cada tarjeta vuelve cuando toca, no todas a la vez.
+  - Si acierta, vuelve cada vez más tarde: mañana, en 3 días, en 1 semana, 2 semanas, 1 mes, 2 y 4 meses.
+  - Con pista, vuelve antes. Si falla, vuelve mañana.
+  - En el inicio, «Repaso de hoy» dice cuántas tarjetas tocan.
+  - Al terminar, «📅 Cuándo vuelven» muestra la fecha de cada una.
+  - Si está al día, le dice cuándo es el próximo repaso; con «Practicar igual» repasa las más próximas.
+- **📚 Frases esenciales** (botón «Frases» del inicio): 120 frases muy usadas del inglés en 12 paquetes
+  (saludos, cortesía, no entender, pedir, tiempo, sentimientos, reacciones, invitar, opiniones, día a día,
+  problemas y conectores), de A1 a B1.
+  - Se aprenden en tandas de 5: escuchar (🔊 o 🐢 despacio) y repetir en voz alta (🎤), luego recordarlas
+    enseguida con tarjetas.
+  - Después entran al repaso espaciado.
+  - Máximo 10 nuevas al día.
+  - Estas tarjetas no gastan tokens: se arman en el teléfono.
+- **🧠 Paquetes de su cerebro de inglés** (en la misma pantalla de Frases, debajo de las esenciales):
+  - **Frases cotidianas** (28) e **Idioms** (23): las de su wiki. En los idioms, una de las opciones falsas
+    es la traducción palabra por palabra, para entrenar a no caer en ella.
+  - **Verbos** (7 paquetes por categoría, 332 frases): de su Repeat and Juggle, cada verbo en 3 frases:
+    ayer (*I was*), he… (*I have been*) y había… (*I had been*). Al completar la frase, las opciones son
+    las otras formas del mismo verbo: justo el error de su bitácora (have/had + participio).
+  - **Las 1000 palabras más usadas** (Refold, 10 paquetes de 100): la frase de ejemplo de cada palabra,
+    con la palabra como hueco.
+  - **🎯 Mis errores (bitácora)** (23): las correcciones de su `bitacora/errores.md`, primero las que
+    todavía fallan. Al completar la frase, lo que usted dijo mal es una de las opciones falsas.
+  - Las frases que ya estaban en las esenciales no se repiten.
+- **🧑‍🏫 El coach corrige como usted pidió en su cerebro** (CLAUDE.md, «Enseñanza y corrección en vivo»):
+  - sin jerga gramatical: dice qué palabra falló, por qué en una frase corta, y la versión correcta;
+  - vigila los errores de su bitácora que no están resueltos. Si repite uno, la corrección muestra
+    «🔁 Otra vez un error de su bitácora» y el comentario final lo menciona;
+  - **❓ No entiendo** (en la corrección): explicación de emergencia con el método de Pablo Bolen: la frase
+    en español, partida en piezas, cada pieza en inglés y luego armada;
+  - **📒 Guardar en mi bitácora** (en el resumen de la charla): guarda los errores de esa charla en la
+    **bitácora del teléfono**, y el coach los vigila desde la charla siguiente, sin pasar por el PC.
+  - **📒 Mi bitácora** (Ajustes): los errores de sus charlas y los de su cerebro juntos. Cada uno se puede
+    escuchar, mandar al repaso, marcar como **✓ Resuelto** (el coach deja de vigilarlo) o reactivar.
+    **📋 Enviar para el cerebro** abre «Compartir» (WhatsApp, correo…) con los errores nuevos ya en el
+    formato de la tabla de `bitacora/errores.md`. En el PC péguelos al final de esa tabla y corra
+    `herramientas\publicar.ps1`: el cerebro y Charla quedan iguales (un error que ya llegó al cerebro
+    no se muestra dos veces).
+  - Si cambia el cerebro, vuelva a generarlos (lo ya aprendido no se pierde):
+    `python herramientas/importar_cerebro.py "C:/Users/leoab/Documents/ingles cerebro"`
+- **🧩 Taller de frases** (botón «Taller» en el inicio): dos técnicas para practicar gramática sin estudiarla.
+  - **🔁 Repeat and Juggle** (de su cerebro): escuche y repita una frase igual, y luego cámbiele una sola
+    pieza (otra palabra, ayer / he… / había… / mañana, pregunta o negativa). Trae 12 ejercicios propios y
+    los 111 verbos de su mazo, por categoría.
+  - **🧩 Skeleton swapping**: de una frase útil se queda el esqueleto (las palabras fijas, en negrita) y se
+    cambia el relleno (los huecos punteados). 20 esqueletos en 5 grupos: repetir el modelo, 3 frases en
+    español para decir con el mismo esqueleto y una frase suya.
+  - **Con DeepSeek:** «✨ Crear desde una frase» arma un Repeat and Juggle o un esqueleto con cualquier frase
+    (también una idea en español); revisa las respuestas que no son idénticas y las frases libres, sin jerga y
+    con sus reglas de corrección; y «✨ 3 cambios nuevos» inventa más práctica según sus intereses.
+  - En la corrección de una charla, **🧩 Al taller** guarda la versión natural para practicarla después.
+  - Sin clave, los ejercicios guiados se revisan en el teléfono (acepta contracciones y números dichos).
+    Al terminar uno, su frase pasa al vocabulario y al repaso espaciado.
+- **Lo que faltaba de LingoLooper** (todo con texto propio):
+  - **👋 Despedirse:** al tocar 🏁 puede pedirle al personaje que cierre la charla él mismo.
+    **⏳ Necesito un momento** le da hasta 90 s para pensar sin que lo apure.
+  - **🎙 Manos libres** (arriba en la charla): el micrófono se abre solo y, cuando usted calla, muestra
+    2,5 s para cancelar, seguir hablando o enviar ya.
+  - **🔊 Escuchar todo** en Vocabulario: cada palabra en inglés, una pausa para repetirla y su traducción.
+  - El explorador de palabras muestra el **nivel** (A1–C2), si es **formal o informal** y qué tan útil es.
+  - **📊 Su semana**: una tarjeta en el inicio con la semana pasada. **✨ Su año en Charla** en Estadísticas.
+  - **Avisos de racha** en el inicio: si se pierde esta noche o si un protector la está salvando.
+  - **Temas de temporada** (Navidad, Halloween, año nuevo…): en sus fechas salen primero en las misiones.
+    Los personajes también saben la fecha y la estación.
+  - **Tutorial** en la primera charla (se puede saltar; Ajustes → «🧭 Ver otra vez el tutorial»).
+  - **Ajustes → Charlas:** modo comedia (personajes más graciosos) y vibración.
+- **6 niveles** (A1 → C2), como en LingoLooper: al subir, el personaje habla con frases más largas y un
+  inglés más avanzado (también las sugerencias), más rápido, y la ayuda aparece más tarde (el texto
+  primero palabra por palabra, luego después de escuchar, luego oculto; las sugerencias al final solo
+  con 💡). Toque «Nivel N/6» en el inicio para ver qué trae cada uno.
+- Su primera charla ajusta el nivel que eligió al empezar. Para subir, junte 6 estrellas con charlas de
+  2★ o más; entonces se le propone subir («Subir de nivel» o «Aún no»). Si le cuesta mucho, le propone
+  bajar uno.
+- **🗣️ Pistas de pronunciación**: debajo de cada palabra en inglés aparece cómo suena escrita con letras
+  del español («cappuccino» → «ka-pu-CHI-nou»; en MAYÚSCULAS la sílaba fuerte). En los niveles 1 y 2 salen
+  solas; desde el 3, tocando 🗣️ en la respuesta, en la sugerencia elegida o en la versión «más natural».
+- En Ajustes → Nivel de inglés puede **personalizar** velocidad, texto, sugerencias, traducciones,
+  pistas de pronunciación y corrección: lo más difícil da más puntos, lo más fácil menos.
+- **Monedas 🪙** (toque 🪙 en el inicio para abrir la tienda): gana 1 por cada estrella y 5 más cuando
+  una misión sube de nivel. Sirven para:
+  - abrir un lugar antes de llegar a su nivel (15 🪙 por cada nivel que le falte: A2 = 15, B1 = 30, B2 = 45);
+  - volver a sortear las misiones (1 vez gratis al día, después 1 🪙);
+  - comprar el protector de racha 🧊 (15 🪙, máximo 2), que salva la racha un día que no practique.
+- En el Repaso puede reportar una tarjeta (🚩) y decir qué tiene de malo; con «No quiero aprender esta
+  palabra» deja de salir en el repaso.
+- **🎯 Practicar antes de enviar**: al elegir una sugerencia, tóquela en «Practicar». Cada palabra sale en
+  verde (se entendió), ámbar (casi) o rojo; toque una palabra para practicarla sola y, cuando suene bien,
+  «📤 Enviar» se la dice al personaje.
+- **📜 Transcripción**: durante la charla (botón 📜), en el resumen y en el historial (toque una charla).
+  Cada línea se puede escuchar, traducir y practicar; sus frases muestran la corrección. «📋 Copiar» la
+  copia como texto. Se guardan las últimas 60 charlas.
+- **La relación también baja**: si trata mal a un personaje pasa a Enemigo y luego a Némesis, y él le
+  habla más seco. Siempre dice cuánto falta («+6 de cariño para ser Conocido»).
+- **Ficha de cada personaje** (botón «Ficha» o desde el resumen): rasgos, intereses, desde cuándo se
+  conocen, lo que recuerda de usted y **20 cosas por descubrir** (de dónde es, su familia, su sueño, su
+  miedo, su secreto…), que se abren con más charlas y más amistad. Se puede borrar su memoria o quitarlo
+  de contactos.
+- **👥 Contactos**: las personas con las que ha hablado y «Conozca a alguien nuevo», que propone primero a
+  quien comparte sus intereses.
+- **📒 Vocabulario**: ordenar (recientes, familiaridad, usadas hace poco o hace tiempo, A–Z), filtrar por
+  familiaridad y por tipo de palabra, archivar (deja de salir en el repaso), copiar todo como texto y
+  «💡 Palabras sugeridas» del coach para guardar con un toque.
+- **📊 Estadísticas** por semana, mes y año (puntos, charlas, minutos, tiempo hablado, demora, palabras
+  por minuto, palabras distintas, estrellas) con gráfico, y **calendario de la racha** (🔥 practicó,
+  🧊 salvado con protector), también en la hoja de la racha.
+- **✍️ Temas propios guardados**: el modelo revisa el tema, le pone nombre, ícono, el papel del personaje
+  y 3 objetivos. Quedan guardados con las veces jugados; se pueden editar y borrar.
+- **⏸️ Charlas a medias**: ✕ pausa la charla y queda en el inicio para «▶️ Continuar» (también si se
+  cierra la app). 🏁 pregunta antes de terminar, y si el personaje se despide puede «↩️ Seguir hablando».
+- **¡Su turno!**: si se queda callado unos 25 s, el personaje lo anima a hablar. La grabación dura hasta
+  45 s, avisa en los últimos 10 y envía lo que alcanzó a decir (también si se corta).
+- **💌 Mensajes de los personajes**: al abrir la app, como máximo uno al día, de alguien que ya conoce
+  (más secos si está molesto). Si lo responde conversando antes de 24 h gana +3 🪙. Sin servidor no hay
+  notificaciones en el teléfono: aparecen al abrir la app.
+- **Mi plan** incluye también su género, para que los personajes le hablen bien.
+- **Dos tipos de voz, las dos gratis y sin clave** (Ajustes → Tipo de voz):
+  - *Voz del teléfono*: responde al instante. La app elige la mejor voz instalada y no le cambia el tono.
+    En Android se mejora instalando «Inglés (Estados Unidos)» en Ajustes del teléfono → Idioma → Salida de
+    texto a voz → Servicios de voz de Google.
+  - *Natural Kokoro*: un modelo de voz de código abierto (Apache 2.0, `vendor/kokoro/`) que corre en el
+    propio equipo. Suena mucho más humana y cada personaje tiene su voz, pero tarda unos segundos antes de
+    cada respuesta (más en teléfonos). Se descarga una vez (90 MB, o 330 MB si el equipo tiene tarjeta
+    gráfica) y Ajustes muestra cuánto tarda en su equipo.
+- **Ajustes → Micrófono y voz**: revisa si el teléfono puede usar el micrófono y si tiene voces en inglés,
+  y dice qué hacer si algo falla. Trae botones para probar la voz y el micrófono.
+- El micrófono espera hasta 8 s a que usted empiece a hablar (tiempo para pensar) y, cuando ya habló,
+  da el turno por terminado tras 2,2 s de silencio. También puede tocar 🎤 otra vez para terminar.
+- **Mapa ilustrado de la ciudad** en el inicio: toque un lugar para entrar (o cambie a ☰ Lista). Cada
+  lugar tiene su escena de fondo y el personaje aparece parado delante. Mapa, escenas y personajes son
+  imágenes propias hechas con ChatGPT.
+
+## Diseño
+- **Rojo y blanco.** El rojo (#d11f35) da energía y ganas de actuar, así que solo marca lo que invita a
+  hablar: el micrófono, el botón principal de cada pantalla y su propia voz en el chat. El fondo blanco y
+  los grises cálidos dan calma, para que hablar en otro idioma no se sienta como un examen. Los títulos
+  de resultado no van en rojo (no regañan) y el rojo de los errores es más oscuro que el de la marca.
+- **Formas.** Círculos y píldoras (cercanía, conversación) para lo que se toca: botones, micrófono,
+  avatares, etiquetas. Rectángulos redondeados (orden, confianza) para las tarjetas de información.
+- **Íconos.** Ya no hay emojis en la pantalla. `js/icons.js` tiene íconos de línea propios (trazo
+  parejo, toman el color del texto, se ven igual en todos los teléfonos) y cambia solo cualquier emoji del
+  texto por su ícono, así se puede seguir escribiendo «🔥 3» en el código. Una prueba avisa si se usa un
+  emoji que no tiene ícono.
+- **Íconos de los lugares y logo** hechos con ChatGPT: fichas rojas en 3D con un dibujo blanco
+  (`scenes/badges/`), en el mapa, la lista, la tienda y el título de cada lugar. Las hojas originales
+  están en `herramientas/fuentes/`; `herramientas/cortar_iconos.py` corta la hoja de 5x4 y
+  `herramientas/generar_iconos.py` hace los íconos de la app desde el logo.
+- Modo claro y oscuro (sigue el del teléfono).
+
+## Probar en el computador
+```bash
+python -m http.server 8765 --directory "C:/Users/leoab/Documents/REA/charla"
+```
+Abra http://localhost:8765 en **Chrome**. Escriba `demo` como clave para probar sin gastar tokens.
+
+En **Ajustes → 🔌 Probar conexión** puede comprobar su clave de DeepSeek y ver los modelos disponibles
+(se elige en el campo «Modelo»).
+
+## Prueba con DeepSeek de verdad
+`herramientas/probar_deepseek.mjs` llama una vez a cada tarea de la app (charla, correcciones, coach, repaso,
+temas, Taller de frases…) con su clave y dice cuáles responden bien. Gasta unos centavos. Desde `charla`:
+```powershell
+$env:DEEPSEEK_KEY = "sk-..."; node herramientas/probar_deepseek.mjs
+```
+El modelo `deepseek-flash` (DeepSeek V4.1 Flash) «piensa» antes de contestar; Charla le apaga ese razonamiento
+(`thinking: disabled`) porque gastaba el límite de la respuesta y la cortaba. Así responde en 1–2 s.
+
+## Publicar una versión nueva (un solo comando)
+Desde la carpeta `charla`, en PowerShell:
+```powershell
+powershell -ExecutionPolicy Bypass -File herramientas\publicar.ps1 -Mensaje "Lo que cambió"
+```
+Trae el cerebro de inglés, corre las pruebas (si alguna falla, se detiene), sube `CACHE` en `sw.js`
+para que los teléfonos se actualicen, revisa que ningún archivo tenga una clave `sk-…`, guarda la
+versión en git y, si ya conectó GitHub, la sube. Con `-SinCerebro` se salta el primer paso.
+
+La carpeta es un repositorio git (rama `main`). `avatars/_hojas/` (las hojas originales de los avatares)
+no se sube: está en `.gitignore`.
+
+## Pruebas automáticas
+Revisan el algoritmo (puntos, estrellas, racha, protector, nivel, familiaridad), la pronunciación y que
+el contenido sea coherente (cada personaje en un lugar, misiones sin ids repetidos, avatares completos).
+Necesita Node.js. Desde la carpeta `charla`:
+```bash
+node --test
+```
+
+## Ponerla en el celular (gratis)
+El micrófono del navegador solo funciona en páginas **https**. La forma más fácil:
+1. Entre a https://app.netlify.com/drop (cuenta gratis) y arrastre la carpeta `charla`.
+   También sirve GitHub Pages.
+2. Abra el enlace que le da en **Chrome de Android**.
+3. Menú ⋮ → **Instalar app** (o **Agregar a la pantalla principal**). Queda con su ícono, a pantalla
+   completa, y abre aunque no haya internet (para hablar con los personajes sí necesita conexión).
+4. En Ajustes ponga su clave de DeepSeek. Se guarda **solo en su teléfono**, nunca en la página.
+
+> Si después quiere un `.apk` de verdad, se puede empaquetar con Capacitor (Android Studio).
+> Hay que cambiar el reconocimiento de voz por un plugin nativo, porque la vista web de un APK
+> no trae el de Chrome.
+
+## Costos
+Cada turno hace 2 llamadas pequeñas a DeepSeek (respuesta del personaje + corrección), y hay
+llamadas extra si usa sugerencias, traducción o palabras.
+
+**💰 Tope de gasto** (Ajustes): muestra lo gastado este mes en dólares, calculado con el precio de hora
+pico (el más caro; el real es igual o menor). Al llegar al 80 % y al tope avisa una vez (y una tarjeta en
+el inicio). Si marca «pausar la IA», al pasar el tope Charla no llama a DeepSeek hasta el mes siguiente.
+Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
+
+## Su progreso está a salvo
+- Al abrir, Charla le pide al navegador **guardar los datos de forma permanente** (para que no los borre
+  si falta espacio). Ajustes → 💾 Copia de seguridad dice si lo consiguió; con la app instalada casi
+  siempre sí.
+- **Copia cada 2 semanas**: cuando ya tiene algo que perder (3 charlas o 10 palabras), el inicio le
+  recuerda guardar una copia. En el celular abre «Compartir» (Drive, WhatsApp, correo); en el PC la
+  descarga. Se puede posponer 3 días.
+- **La copia no lleva su clave de DeepSeek.** Al importarla en otro teléfono, ese teléfono conserva la suya.
+
+## Archivos
+| Archivo | Para qué |
+|---|---|
+| `js/data.js` | Lugares, personajes, misiones y los 6 niveles con sus ajustes: **aquí agrega contenido** |
+| `js/lessons.js` | Lugares nuevos, versión por nivel de cada misión, plan de aprendizaje y nivel de misión |
+| `js/coins.js` | Monedas: precio de los lugares, compra, sorteos gratis y pagados |
+| `js/people.js` | Relación que sube y baja, ficha del personaje, cosas por descubrir, contactos y gente nueva |
+| `js/vocab.js` | Pantalla de vocabulario (ordenar, filtrar, archivar, copiar, sugeridas) |
+| `js/stats.js` | Estadísticas por semana, mes y año, y calendario de la racha |
+| `js/recap.js` | Resumen de la semana, «Su año en Charla» y avisos de la racha |
+| `js/seasons.js` | Temas de temporada con sus fechas y la estación para el prompt |
+| `js/tutorial.js` | Tutorial guiado de la primera charla |
+| `js/drills.js` | Taller de frases: ejercicios de Repeat and Juggle y esqueletos, y la revisión sin IA |
+| `js/workshop.js` | Pantallas del Taller de frases y lo que hace DeepSeek ahí |
+| `js/customtopics.js` | Temas propios revisados y guardados |
+| `js/inbox.js` | Mensajes de los personajes y premio por responder a tiempo |
+| `js/topics.js` | Temas de conversación por grupo, sorteo de misiones y los lugares banco, escuela, centro comercial y peluquería |
+| `js/prompts.js` | Las instrucciones que recibe DeepSeek para cada tarea |
+| `js/scoring.js` | El algoritmo: puntos, estrellas, racha, relación, nivel, familiaridad |
+| `js/conversation.js` | El bucle de la conversación |
+| `js/speech.js` | Micrófono y voz |
+| `js/avatar.js` | Avatar animado (boca, parpadeo, ánimo) |
+| `js/pronounce.js` | Práctica de pronunciación (verde/ámbar/rojo por palabra, practicar antes de enviar) |
+| `js/review.js` | Repaso con 3 tipos de tarjeta y segundo intento; «al día» con su motivo |
+| `js/srs.js` | Repaso espaciado: cajas, intervalos y qué toca hoy |
+| `js/phrases.js` | Las 120 frases esenciales y sus tarjetas locales. **Agregue frases al final; no cambie el orden** (los ids van por posición) |
+| `js/essentials.js` | Pantalla de frases esenciales: paquetes, escuchar y repetir, límite diario |
+| `js/cerebro.js`, `herramientas/importar_cerebro.py` | Paquetes, bitácora de errores y reglas del coach sacados del cerebro de inglés (generado: no editar a mano, vuelva a correr el script) |
+| `js/transcript.js` | Transcripción de cada charla |
+| `js/hints.js` | Pistas de pronunciación |
+| `js/bitacora.js` | Bitácora de errores del teléfono: guardar, resolver, juntar con la del cerebro y enviar al PC |
+| `js/budget.js` | Gasto del mes en dólares, precios de DeepSeek y tope |
+| `js/safety.js` | Copia de seguridad (sin clave), recordatorio cada 2 semanas y avisos de gasto |
+| `herramientas/publicar.ps1` | Publica una versión nueva con un solo comando |
+| `sw.js` | Modo sin conexión. **`publicar.ps1` sube `CACHE` solo**; si publica a mano, cámbielo (charla-v24 → v25…), sobre todo si cambia imágenes: los teléfonos guardan avatares y escenas y no los vuelven a pedir |
+| `tests/` | Pruebas automáticas (`node --test`) |
+| `icons/`, `icon.svg`, `herramientas/generar_iconos.py` | Íconos de la app instalada (desde `herramientas/fuentes/logo.webp`, hecho con ChatGPT) |
+| `js/icons.js` | Íconos de línea de la interfaz y cambio automático de emojis por íconos |
+| `scenes/badges/`, `herramientas/cortar_iconos.py` | Ícono de cada lugar (ChatGPT) y la herramienta que corta la hoja |
+| `avatars/` | Imágenes de cada personaje y las hojas originales de ChatGPT |
+| `herramientas/componer_avatar.py` | Convierte una hoja 2x2 de ChatGPT en los cuadros del avatar |
+| `herramientas/quitar_fondo.py` | Quita el fondo del avatar para ponerlo encima de la escena |
+| `scenes/` | Escena de fondo de cada lugar (1200x800) y el mapa de la ciudad (`mapa.webp`). Cómo hacerlas: `avatars/LEEME.md` |
