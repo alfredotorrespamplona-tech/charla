@@ -231,7 +231,7 @@ powershell -ExecutionPolicy Bypass -File herramientas\publicar.ps1 -Mensaje "Lo 
 ```
 Trae el cerebro de inglés, corre las pruebas (si alguna falla, se detiene), sube `CACHE` en `sw.js`
 para que los teléfonos se actualicen, revisa que ningún archivo tenga una clave `sk-…`, guarda la
-versión en git y, si ya conectó GitHub, la sube. Con `-SinCerebro` se salta el primer paso.
+versión en git y la sube a GitHub (Pages la publica en 1 o 2 minutos). Con `-SinCerebro` se salta el primer paso.
 
 La carpeta es un repositorio git (rama `main`). `avatars/_hojas/` (las hojas originales de los avatares)
 no se sube: está en `.gitignore`.
@@ -245,17 +245,38 @@ node --test
 ```
 
 ## Ponerla en el celular (gratis)
-El micrófono del navegador solo funciona en páginas **https**. La forma más fácil:
-1. Entre a https://app.netlify.com/drop (cuenta gratis) y arrastre la carpeta `charla`.
-   También sirve GitHub Pages.
-2. Abra el enlace que le da en **Chrome de Android**.
-3. Menú ⋮ → **Instalar app** (o **Agregar a la pantalla principal**). Queda con su ícono, a pantalla
-   completa, y abre aunque no haya internet (para hablar con los personajes sí necesita conexión).
-4. En Ajustes ponga su clave de DeepSeek. Se guarda **solo en su teléfono**, nunca en la página.
+Está publicada en **https://alfredotorrespamplona-tech.github.io/charla/** (GitHub Pages; repositorio
+https://github.com/alfredotorrespamplona-tech/charla). Hay dos formas de tenerla en el teléfono:
 
-> Si después quiere un `.apk` de verdad, se puede empaquetar con Capacitor (Android Studio).
-> Hay que cambiar el reconocimiento de voz por un plugin nativo, porque la vista web de un APK
-> no trae el de Chrome.
+**A. Como app de Android (APK)**
+1. En el teléfono abra https://github.com/alfredotorrespamplona-tech/charla/releases y descargue
+   `Charla.apk` de la última versión.
+2. Ábralo. Android le pedirá permitir «instalar apps de origen desconocido» para Chrome (o el
+   administrador de archivos): acéptelo solo para esto.
+3. La app abre la página publicada con el motor de Chrome, a pantalla completa: micrófono, voz y
+   modo sin conexión funcionan igual que en el navegador. Si un día aparece una barra con la
+   dirección arriba, es que no encontró `assetlinks.json` (ver abajo); la app sigue funcionando.
+
+**B. Desde Chrome** (sin instalar nada): abra el enlace en **Chrome de Android** → menú ⋮ →
+**Instalar app** (o **Agregar a la pantalla principal**).
+
+En las dos, ponga su clave de DeepSeek en Ajustes. Se guarda **solo en su teléfono**, nunca en la página.
+Las actualizaciones llegan solas: al publicar una versión nueva, la app la descarga la próxima vez que abra.
+No hace falta volver a instalar el APK.
+
+### Cómo está hecho el APK
+- `android/` es una *Trusted Web Activity* generada con Bubblewrap (`android/twa-manifest.json`):
+  una app mínima que abre la página en Chrome. No es una copia de la app: el contenido viene de Pages.
+- Compilarlo otra vez (Java 17 y el SDK de Android ya están en este PC), desde `charla/android`:
+  ```powershell
+  $env:JAVA_HOME = "C:\Program Files\Java\jdk-17"; .\gradlew.bat assembleDebug
+  ```
+  Queda en `android/app/build/outputs/apk/debug/app-debug.apk`.
+- Está firmado con la llave de depuración de este PC (`%USERPROFILE%\.android\debug.keystore`). Sirve
+  para instalarlo usted, no para la Play Store. Si compila en otro PC o crea una llave propia, cambie la
+  huella en `android/assetlinks.json` y en el repositorio `alfredotorrespamplona-tech.github.io`
+  (archivo `.well-known/assetlinks.json`), que es lo que le dice a Android que la app y la página son
+  del mismo dueño.
 
 ## Costos
 Cada turno hace 2 llamadas pequeñas a DeepSeek (respuesta del personaje + corrección), y hay

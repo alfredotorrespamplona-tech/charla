@@ -58,7 +58,7 @@ android {
         minSdkVersion 24
         targetSdkVersion 36
         versionCode 1
-        versionName ""
+        versionName "1.0.0"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
@@ -76,7 +76,7 @@ android {
             // The URL the Web Manifest for the Progressive Web App that the TWA points to. This
             // is used by Chrome OS and Meta Quest to open the Web version of the PWA instead of
             // the TWA, as it will probably give a better user experience for non-mobile devices.
-            resValue "string", "webManifestUrl", 'http://localhost:8765/manifest.json'
+            resValue "string", "webManifestUrl", 'https://alfredotorrespamplona-tech.github.io/charla/manifest.json'
         
 
         

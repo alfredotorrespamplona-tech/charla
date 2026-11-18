@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.charla.ingles",
+    "sha256_cert_fingerprints": ["19:73:C3:DA:4F:82:D0:82:86:5F:56:87:F5:37:38:FA:65:B8:8C:D0:6C:67:67:F8:18:FD:AC:28:35:47:47:19"]
+  }
+}]
