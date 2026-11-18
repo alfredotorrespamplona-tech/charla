@@ -148,8 +148,21 @@ export async function speakNatural(text, opts = {}) {
   return playNatural(c, text, opts);
 }
 
-function playNatural(c, text, { voice, speed = 1, onStart, onLevel, onEnd } = {}) {
+// Dónde empieza cada trozo dentro del texto completo (Kokoro lee frase por frase).
+export function segmentOffsets(text) {
+  let cursor = 0;
+  return part => {
+    const t = String(part || '').trim();
+    let k = t ? text.indexOf(t.slice(0, 12), cursor) : -1;
+    if (k < 0) k = cursor;
+    cursor = k + t.length;
+    return { offset: k, length: t.length || text.length - k };
+  };
+}
+
+function playNatural(c, text, { voice, speed = 1, onStart, onLevel, onEnd, onSegment } = {}) {
   return new Promise((resolve, reject) => {
+    const where = segmentOffsets(text);
     const key = cacheKey(text, voice, speed);
     const cached = cacheGet(key);
     const got = [];
@@ -196,7 +209,7 @@ function playNatural(c, text, { voice, speed = 1, onStart, onLevel, onEnd } = {}
     const onData = data => {
       if (finished) return;
       if (data.type === 'chunk') {
-        if (!cached) got.push({ pcm: data.pcm.slice(), rate: data.rate });
+        if (!cached) got.push({ pcm: data.pcm.slice(), rate: data.rate, text: data.text });
         const b = c.createBuffer(1, data.pcm.length, data.rate);
         b.copyToChannel(data.pcm, 0);
         const src = c.createBufferSource();
@@ -219,6 +232,8 @@ function playNatural(c, text, { voice, speed = 1, onStart, onLevel, onEnd } = {}
             onLevel?.(Math.min(1, Math.sqrt(sum / buf.length) * 7));
           }, 60);
         }
+        // El texto de este trozo se muestra al ritmo de su audio (sabemos cuándo empieza y cuánto dura).
+        if (onSegment) onSegment({ ...where(data.text), inMs: Math.max(0, (at - c.currentTime) * 1000), durMs: b.duration * 1000 });
       } else if (data.type === 'done') {
         generated = true;
         if (!sources.size) started ? finish() : fail(new Error('sin audio'));
@@ -231,7 +246,7 @@ function playNatural(c, text, { voice, speed = 1, onStart, onLevel, onEnd } = {}
       }
     };
     if (cached) {
-      cached.forEach(ch => onData({ type: 'chunk', pcm: ch.pcm, rate: ch.rate }));
+      cached.forEach(ch => onData({ type: 'chunk', pcm: ch.pcm, rate: ch.rate, text: ch.text }));
       onData({ type: 'done' });
     } else {
       jobs.set(id, onData);

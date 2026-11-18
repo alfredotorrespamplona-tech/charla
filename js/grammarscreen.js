@@ -55,7 +55,7 @@ function lessonsTab(back) {
       return h('div', {},
         h('div.section-head', {}, h('h2', {}, `${r.code} · ${r.name}`), r.id === s.rank ? h('small.chip.sel', {}, 'su nivel') : null),
         h('div.packs', {}, list.map(l => {
-          const open = G.unlocked(l, s.rank, b);
+          const open = G.unlocked(l, store.reachRank(s) === 6 ? 6 : s.rank, b);
           const pct = b[l.id];
           return h('button.pack', { class: open ? '' : 'locked', onclick: () => open ? lessonIntro(l, back) : toast(`Se abre al llegar al nivel ${rankOf(l.rank).code} o al aprobar la lección anterior (80 %).`) },
             h('span.pack-icon', {}, open ? l.icon : '🔒'),
@@ -232,7 +232,7 @@ function runPuzzle({ title, items, lessonId = null, back, done }) {
       });
       const l = G.lessonById(lessonId);
       const after = G.LESSONS[l.order + 1];
-      if (pct >= G.PASS && after && G.unlocked(after, store.get().rank, best())) nextL = after;
+      if (pct >= G.PASS && after && G.unlocked(after, store.reachRank() === 6 ? 6 : store.get().rank, best())) nextL = after;
     }
     buzz(pct >= G.PASS ? 'good' : 'tap');
     const toReview = () => {

@@ -116,7 +116,8 @@ test('las charlas de menos de 2 estrellas no suman para subir', () => {
   assert.equal(store.get().starsTowardUnlock, 0);
 });
 
-test('no se puede elegir un nivel que no está desbloqueado', () => {
+test('con candados no se puede elegir un nivel que no está desbloqueado', () => {
+  store.update(s => { s.settings.levelLocks = true; });
   scoring.setLevel(5);
   assert.equal(store.get().rank, 1);
 });
@@ -170,14 +171,12 @@ test('racha: el protector cubre el día perdido y se gasta', () => {
   assert.equal(store.get().streak.freezes, 0);
 });
 
-test('tienda: comprar protector cuesta monedas y tiene máximo', () => {
-  assert.equal(scoring.buyFreeze().ok, false);                       // sin monedas
-  store.update(s => { s.coins = scoring.FREEZE_PRICE * 3; });
-  assert.equal(scoring.buyFreeze().ok, true);
+test('uso personal: el protector de racha es gratis y tiene máximo', () => {
+  assert.equal(scoring.buyFreeze().ok, true);                        // sin monedas igual se puede
   assert.equal(scoring.buyFreeze().ok, true);
   assert.equal(scoring.buyFreeze().ok, false);                       // máximo
   assert.equal(store.get().streak.freezes, scoring.MAX_FREEZES);
-  assert.equal(store.get().coins, scoring.FREEZE_PRICE);
+  assert.equal(store.get().coins, 0);
 });
 
 test('datos guardados de versiones anteriores reciben los campos nuevos', () => {
@@ -540,32 +539,33 @@ test('lugares de la hoja de ruta: banco, escuela, centro comercial y peluquería
 });
 
 // ---------------- Economía de monedas ----------------
-test('monedas: abrir un lugar antes de su nivel', async () => {
+test('candados de niveles: apagados por defecto (todo abierto) y se pueden poner', async () => {
   const C = await import('../js/coins.js');
-  store.update(s => { s.highestRank = 1; s.unlockedPlaces = []; s.coins = 0; });
+  const G = await import('../js/grammar.js');
+  store.update(s => { s.highestRank = 1; s.rank = 1; s.unlockedPlaces = []; });
   const office = data.placeById('office');                 // nivel 3
-  assert.equal(C.placePrice(office), 30);
-  assert.equal(C.placePrice(data.placeById('cafe')), 0);
-  assert.equal(C.isPlaceOpen(store.get(), office), false);
-  assert.equal(C.buyPlace(office).ok, false);               // sin monedas
-  store.update(s => { s.coins = 35; });
-  assert.equal(C.buyPlace(office).ok, true);
-  assert.equal(store.get().coins, 5);
-  assert.equal(C.isPlaceOpen(store.get(), office), true);
-  assert.equal(C.buyPlace(office).ok, false);               // ya abierto
+  assert.equal(store.locksOn(), false);
+  assert.equal(store.reachRank(), 6);
+  assert.equal(C.isPlaceOpen(store.get(), office), true);  // sin candados: abierto
+  scoring.setLevel(5);
+  assert.equal(store.get().rank, 5);                         // cualquier nivel
+  assert.ok(G.LESSONS.every(l => G.unlocked(l, store.reachRank(), {})));
+  store.update(s => { s.settings.levelLocks = true; s.rank = 1; });
+  assert.equal(store.reachRank(), 1);
+  assert.equal(C.isPlaceOpen(store.get(), office), false);  // con candados: espera su nivel
+  scoring.setLevel(5);
+  assert.equal(store.get().rank, 1);                         // no pasa del nivel desbloqueado
   store.update(s => { s.highestRank = 3; });
   assert.equal(C.isPlaceOpen(store.get(), data.placeById('cityhall')), true);
 });
 
-test('monedas: un sorteo gratis al día y después cuesta', async () => {
+test('uso personal: no hay tienda y sortear misiones siempre es gratis', async () => {
   const C = await import('../js/coins.js');
-  store.update(s => { s.coins = 1; s.rerolls = { date: '2000-01-01', used: 5 }; });
-  assert.equal(C.rerollCost(), 0);                          // día nuevo
-  assert.deepEqual(C.useReroll(), { ok: true, cost: 0 });
-  assert.equal(C.rerollCost(), C.REROLL_PRICE);
+  assert.equal(C.SHOP_ENABLED, false);
+  store.update(s => { s.coins = 0; s.rerolls = { date: store.todayIso(), used: 9 }; });
+  assert.equal(C.rerollCost(), 0);
   assert.equal(C.useReroll().ok, true);
   assert.equal(store.get().coins, 0);
-  assert.equal(C.useReroll().ok, false);                    // sin monedas
 });
 
 test('respaldo antiguo: agrega lugares comprados y sorteos', () => {
@@ -1225,5 +1225,121 @@ test('tabla de verbos: 111 verbos del cerebro con sus tres formas en inglés y e
     assert.equal(q.options.length, 3, q.verb.base);
     assert.equal(new Set(q.options).size, 3, q.verb.base);
     assert.ok(q.options.includes(q.right));
+  }
+});
+
+// ---------------- Charla más rápida y sincronizada ----------------
+test('respuesta por partes: se lee el texto del personaje aunque el JSON esté a medias', async () => {
+  const { partialField, firstSentence } = await import('../js/llm.js');
+  assert.equal(partialField('{"rep', 'reply'), null);
+  assert.deepEqual(partialField('{"reply": "Hi there! How ar', 'reply'), { text: 'Hi there! How ar', done: false });
+  assert.deepEqual(partialField(String.raw`{"reply":"Say \"hi\"\nnow","mood":0.5}`, 'reply'), { text: 'Say "hi"'+'\n'+'now', done: true });
+  assert.deepEqual(partialField(String.raw`{"reply":"caf\u00e9 time`, 'reply'), { text: 'café time', done: false });
+  assert.equal(partialField(String.raw`{"reply":"ab\u00`, 'reply').text, 'ab');          // escape incompleto: espera
+  assert.equal(firstSentence('Oh, nice to hear that! And wh'), 'Oh, nice to hear that!');
+  assert.equal(firstSentence('Oh, nice to hear that!'), null);                  // aún no se sabe si terminó
+  assert.equal(firstSentence('Oh. Really now? I love'), 'Oh. Really now?');   // no corta en «Oh.» (mínimo 12 letras)
+});
+
+test('respuesta por partes: lee el stream de DeepSeek (SSE) y cuenta los tokens', async () => {
+  const { readStream } = await import('../js/llm.js');
+  const enc = new TextEncoder();
+  const lines = [
+    ': keep-alive\n\n',
+    'data: {"choices":[{"delta":{"content":"{\\"reply\\":\\"Hel"}}]}\n\n',
+    'data: {"choices":[{"delta":{"content":"lo!\\"}"},"finish_reason":"stop"}]}\n\ndata: {"choices":[],"usage":{"prompt_tokens":9,"completion_tokens":4}}\n',
+    '\ndata: [DONE]\n\n',
+  ];
+  const body = new ReadableStream({ start(c) { lines.forEach(l => c.enqueue(enc.encode(l))); c.close(); } });
+  const seen = [];
+  const r = await readStream({ body }, t => seen.push(t));
+  assert.equal(r.text, '{"reply":"Hello!"}');
+  assert.equal(r.finish, 'stop');
+  assert.deepEqual(r.usage, { prompt_tokens: 9, completion_tokens: 4 });
+  assert.deepEqual(seen, ['{"reply":"Hel', '{"reply":"Hello!"}']);
+});
+
+test('modo demo: la respuesta también llega por partes', async () => {
+  const { chatJson } = await import('../js/llm.js');
+  store.update(s => { s.settings.apiKey = 'demo'; });
+  const parts = [];
+  const r = await chatJson('opening', [{ role: 'system', content: 'You are Emma, a barista.' }], { onText: t => parts.push(t) });
+  assert.ok(parts.length > 2);
+  assert.equal(parts.at(-1), JSON.stringify(r));
+});
+
+test('texto al ritmo de la voz: mide el ritmo del teléfono y la pausa para enviar', async () => {
+  const sp = await import('../js/speech.js');
+  assert.ok(Math.abs(sp.msPerWord() - 60000 / 165) < 1);       // sin medir: ritmo normal
+  sp.learnPace(10, 5000);                                         // 500 ms por palabra
+  assert.equal(store.get().settings.paceMs, 500);
+  sp.learnPace(10, 3000);                                         // se promedia, no salta
+  assert.equal(store.get().settings.paceMs, 440);
+  assert.equal(sp.msPerWord(2), 220);                              // más rápido = menos ms
+  sp.learnPace(2, 3000);                                          // frase corta: no cuenta
+  assert.equal(store.get().settings.paceMs, 440);
+  assert.equal(sp.sendPauseMs(), sp.WAIT_AFTER_SPEECH_MS);
+  store.update(s => { s.settings.sendPauseMs = 1000; });
+  assert.equal(sp.sendPauseMs(), 1000);
+  store.update(s => { s.settings.sendPauseMs = 123; });
+  assert.equal(sp.sendPauseMs(), sp.WAIT_AFTER_SPEECH_MS);
+});
+
+test('voz natural: cada trozo de audio sabe dónde empieza en el texto', async () => {
+  const { segmentOffsets } = await import('../js/natural-voice.js');
+  const text = 'Hi there! How are you today? I am fine.';
+  const where = segmentOffsets(text);
+  assert.deepEqual(where('Hi there!'), { offset: 0, length: 9 });
+  assert.deepEqual(where(' How are you today?'), { offset: 10, length: 18 });
+  assert.deepEqual(where('I am fine.'), { offset: 29, length: 10 });
+});
+
+test('portada: saludo, semana y meta del día', async () => {
+  const D = await import('../js/dashboard.js');
+  assert.equal(D.greeting(new Date(2026, 10, 18, 8)), 'Buenos días');
+  assert.equal(D.greeting(new Date(2026, 10, 18, 15)), 'Buenas tardes');
+  assert.equal(D.greeting(new Date(2026, 10, 18, 22)), 'Buenas noches');
+  assert.equal(D.dateLine(new Date(2026, 10, 18, 12)), 'Miércoles 18 de noviembre');
+  const now = new Date(2026, 10, 18, 12);
+  store.update(s => { s.streak.days = ['2026-11-18', '2026-11-16']; s.streak.frozenDays = ['2026-11-17']; });
+  const w = D.weekStrip(store.get(), now);
+  assert.equal(w.length, 7);
+  assert.ok(w[6].today && w[6].done);
+  assert.ok(w[5].frozen && !w[5].done);
+  assert.ok(w[4].done);
+  store.update(s => { s.daily = { date: store.todayIso(), seconds: 300 }; s.dailyGoal = 10; });
+  assert.deepEqual(D.todayProgress(), { min: 5, goal: 10, pct: 0.5 });
+});
+
+test('respuesta por partes: con DeepSeek simulado habla por partes y, si no la acepta, la pide entera', async () => {
+  const { chatJson } = await import('../js/llm.js');
+  store.update(s => { s.settings.apiKey = 'clave-de-prueba'; s.settings.capBlock = false; });
+  const realFetch = globalThis.fetch;
+  const bodies = [];
+  const sse = chunks => new Response(new ReadableStream({ start(c) { const e = new TextEncoder(); chunks.forEach(x => c.enqueue(e.encode(x))); c.close(); } }), { status: 200 });
+  try {
+    // 1) acepta el stream
+    globalThis.fetch = async (url, init) => {
+      bodies.push(JSON.parse(init.body));
+      return sse(['data: {"choices":[{"delta":{"content":"{\\"reply\\":\\"Hi"}}]}\n\n', 'data: {"choices":[{"delta":{"content":" you!\\"}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":3}}\n\n', 'data: [DONE]\n\n']);
+    };
+    const seen = [];
+    const r = await chatJson('reply', [{ role: 'user', content: 'x' }], { onText: t => seen.push(t) });
+    assert.deepEqual(r, { reply: 'Hi you!' });
+    assert.equal(bodies[0].stream, true);
+    assert.equal(seen.length, 2);
+    // 2) no acepta el stream (400): la pide entera y funciona igual
+    bodies.length = 0;
+    globalThis.fetch = async (url, init) => {
+      const b = JSON.parse(init.body);
+      bodies.push(b);
+      if (b.stream) return new Response('stream_options not supported', { status: 400 });
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"reply":"Hello"}' }, finish_reason: 'stop' }] }), { status: 200 });
+    };
+    const r2 = await chatJson('reply', [{ role: 'user', content: 'x' }], { onText: () => {} });
+    assert.deepEqual(r2, { reply: 'Hello' });
+    assert.deepEqual(bodies.map(b => b.stream), [true, false]);
+  } finally {
+    globalThis.fetch = realFetch;
   }
 });

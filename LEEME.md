@@ -7,9 +7,19 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   ChatGPT (ver `avatars/LEEME.md` para agregar más). El avatar dibujado por código queda solo de respaldo.
 
 ## Qué hace
+- **Portada** al abrir la app: saludo, meta de hoy (anillo de minutos), racha, puntos, los 7 días de la
+  semana, y accesos a lo que toca (seguir la charla a medias, repaso, la lección de gramática, frases,
+  mis errores, vocabulario, estadísticas). El botón 🏠 del inicio vuelve a ella.
+- **Salir y volver**: si sale a la pantalla del teléfono, al volver todo sigue igual (el micrófono y la voz
+  se pausan al salir). Si Android cerró la app para liberar memoria y vuelve antes de 30 min, se abre
+  donde estaba: en la charla (con todos los mensajes), en el inicio o en la portada.
+- **Uso personal**: no hay tienda ni compras con monedas; sortear misiones es gratis y el protector de
+  racha 🧊 también (máximo 2). **Candados de niveles** (Ajustes → Nivel de inglés): quitados por defecto,
+  todo está abierto y el nivel solo cambia cómo le hablan; si los pone, los lugares, temas y lecciones se
+  abren al subir de nivel juntando estrellas.
 - 19 lugares (cafetería, aeropuerto, hotel, oficina, parque, restaurante, consultorio, calle, tienda,
   gimnasio, fiesta, entrevista de trabajo, **tu barrio, supermercado, ayuntamiento, banco, escuela de
-  idiomas, centro comercial y peluquería**) con 72 misiones, que se desbloquean por nivel (A1…C2).
+  idiomas, centro comercial y peluquería**) con 72 misiones (con candados puestos se abren por nivel, A1…C2).
   Los 7 últimos salen debajo del mapa («Más lugares»).
 - **48 temas de conversación** en 8 grupos (día a día, amigos y ocio, familia y hogar, trabajo, estudio,
   viajes, salud, actualidad y cultura), que sirven con cualquier personaje. Al elegir misión, una de las
@@ -136,11 +146,8 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   solas; desde el 3, tocando 🗣️ en la respuesta, en la sugerencia elegida o en la versión «más natural».
 - En Ajustes → Nivel de inglés puede **personalizar** velocidad, texto, sugerencias, traducciones,
   pistas de pronunciación y corrección: lo más difícil da más puntos, lo más fácil menos.
-- **Monedas 🪙** (toque 🪙 en el inicio para abrir la tienda): gana 1 por cada estrella y 5 más cuando
-  una misión sube de nivel. Sirven para:
-  - abrir un lugar antes de llegar a su nivel (15 🪙 por cada nivel que le falte: A2 = 15, B1 = 30, B2 = 45);
-  - volver a sortear las misiones (1 vez gratis al día, después 1 🪙);
-  - comprar el protector de racha 🧊 (15 🪙, máximo 2), que salva la racha un día que no practique.
+- Las monedas siguen contándose por dentro (`js/coins.js`, `SHOP_ENABLED = false`), pero no se muestran
+  ni se gastan: Charla es para uso personal.
 - En el Repaso puede reportar una tarjeta (🚩) y decir qué tiene de malo; con «No quiero aprender esta
   palabra» deja de salir en el repaso.
 - **🎯 Practicar antes de enviar**: al elegir una sugerencia, tóquela en «Practicar». Cada palabra sale en
@@ -198,7 +205,13 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
 - **Ajustes → Micrófono y voz**: revisa si el teléfono puede usar el micrófono y si tiene voces en inglés,
   y dice qué hacer si algo falla. Trae botones para probar la voz y el micrófono.
 - El micrófono espera hasta 8 s a que usted empiece a hablar (tiempo para pensar) y, cuando ya habló,
-  da el turno por terminado tras 2,2 s de silencio. También puede tocar 🎤 otra vez para terminar.
+  da el turno por terminado tras 1,6 s de silencio (Ajustes: 1 s, 1,6 s, 2,2 s o 3 s). También puede
+  tocar 🎤 otra vez para terminar.
+- **Respuesta más rápida y sincronizada**: la respuesta de DeepSeek llega por partes (stream) y el
+  personaje empieza a hablar apenas está la primera frase; el resto se agrega a la burbuja y lo dice a
+  continuación. El texto aparece al ritmo de la voz: palabra exacta si la voz del teléfono lo avisa, por
+  frase con la voz natural (sabe cuánto dura cada trozo de audio) y, si no, con el ritmo que la app mide
+  de su voz. Con las 3 ideas de respuesta el personaje se achica y la lista se puede desplazar.
 - **Mapa ilustrado de la ciudad** en el inicio: toque un lugar para entrar (o cambie a ☰ Lista). Cada
   lugar tiene su escena de fondo y el personaje aparece parado delante. Mapa, escenas y personajes son
   imágenes propias hechas con ChatGPT.
@@ -315,7 +328,8 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 |---|---|
 | `js/data.js` | Lugares, personajes, misiones y los 6 niveles con sus ajustes: **aquí agrega contenido** |
 | `js/lessons.js` | Lugares nuevos, versión por nivel de cada misión, plan de aprendizaje y nivel de misión |
-| `js/coins.js` | Monedas: precio de los lugares, compra, sorteos gratis y pagados |
+| `js/coins.js` | Monedas (sin tienda: `SHOP_ENABLED = false`) y si un lugar está abierto |
+| `js/dashboard.js` | Portada: meta de hoy, racha, semana y accesos |
 | `js/people.js` | Relación que sube y baja, ficha del personaje, cosas por descubrir, contactos y gente nueva |
 | `js/vocab.js` | Pantalla de vocabulario (ordenar, filtrar, archivar, copiar, sugeridas) |
 | `js/stats.js` | Estadísticas por semana, mes y año, y calendario de la racha |

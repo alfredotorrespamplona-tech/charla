@@ -6,6 +6,10 @@
 // Los precios son propios de Charla: el APK no trae los valores (los manda su servidor).
 import * as store from './store.js';
 
+// Charla es de uso personal: no hay tienda ni nada que se compre con monedas.
+// Los lugares se abren por nivel (si los candados están puestos) y sortear misiones es gratis.
+export const SHOP_ENABLED = false;
+
 export const COINS_PER_STAR = 1;
 export const PLACE_PRICE_PER_RANK = 15;   // un lugar de nivel 3 cuesta 30 (2 niveles por encima del 1)
 export const REROLL_PRICE = 1;
@@ -17,7 +21,7 @@ export function placePrice(place) {
 
 // ¿Puede entrar al lugar? Por nivel alcanzado o porque lo compró.
 export function isPlaceOpen(s, place) {
-  return s.highestRank >= place.rankRequired || (s.unlockedPlaces || []).includes(place.id);
+  return store.reachRank(s) >= place.rankRequired || (s.unlockedPlaces || []).includes(place.id);
 }
 
 export function buyPlace(place) {
@@ -31,6 +35,7 @@ export function buyPlace(place) {
 
 // Cuánto cuesta el próximo sorteo de misiones hoy (0 si queda uno gratis).
 export function rerollCost(s = store.get()) {
+  if (!SHOP_ENABLED) return 0;
   const used = s.rerolls?.date === store.todayIso() ? s.rerolls.used : 0;
   return used < FREE_REROLLS_PER_DAY ? 0 : REROLL_PRICE;
 }

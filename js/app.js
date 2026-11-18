@@ -8,7 +8,8 @@ import { chatJson, testConnection } from './llm.js';
 import * as P from './prompts.js';
 import * as scoring from './scoring.js';
 import { addVocab, tierBadge, practiceVocab } from './words.js';
-import { speak, rankedVoices, voiceLabel, canListen, onVoicesChanged, checkVoice, IS_ANDROID } from './speech.js';
+import { speak, rankedVoices, voiceLabel, canListen, onVoicesChanged, checkVoice, IS_ANDROID, SEND_PAUSES, sendPauseMs } from './speech.js';
+import { dashboard } from './dashboard.js';
 import { practicePronunciation } from './pronounce.js';
 import { review as startReview } from './review.js';
 import { essentials } from './essentials.js';
@@ -72,6 +73,29 @@ function onboarding() {
     }, 'Empezar')));
 }
 
+// ---------------- Portada ----------------
+export function cover() {
+  if (!store.get().onboarded) return onboarding();
+  dashboard({
+    map: home,
+    resume: resumeDraft,
+    review: () => review(),
+    grammar: () => grammarScreen({ home: cover }),
+    essentials: () => essentials({ home: cover }),
+    vocab: () => openVocab({ home: cover }),
+    errors: () => bitacora.bitacoraScreen({ back: cover }),
+    stats: () => statsScreen({ home: cover }),
+    settings: () => settings(),
+  });
+}
+
+// Seguir una charla guardada (desde la portada, el inicio o al volver a la app).
+function resumeDraft(d = store.get().draft) {
+  const c = d && CHARACTERS[d.characterId], p = d && PLACES.find(x => x.id === d.placeId);
+  if (!c || !p) return home();
+  startConversation({ place: p, character: c, mission: d.mission, resume: d, onExit: home, onFinish: session => summary(session) });
+}
+
 // ---------------- Inicio ----------------
 export function home() {
   const s = store.get();
@@ -81,10 +105,9 @@ export function home() {
   const streak = scoring.streakStatus();
 
   const header = h('div.home-header', {},
-    h('div', {}, h('div.hello', {}, `Hola${s.name ? ', ' + s.name : ''}`), h('button.level-link', { onclick: () => levelSheet() }, `Nivel ${rank.id}/6 · ${rank.code} ${rank.name} · puntos ×${lv.scoreModifier.toFixed(2)} ⓘ`)),
+    h('div', {}, h('div.hello', {}, h('button.icon.cover-btn', { 'aria-label': 'Portada', onclick: () => cover() }, '🏠'), `Hola${s.name ? ', ' + s.name : ''}`), h('button.level-link', { onclick: () => levelSheet() }, `Nivel ${rank.id}/6 · ${rank.code} ${rank.name} · puntos ×${lv.scoreModifier.toFixed(2)} ⓘ`)),
     h('div.badges', {},
       h('button.badge', { class: streak.doneToday ? '' : 'pending', 'aria-label': `Racha: ${streak.count} ${streak.count === 1 ? "día" : "días"}${streak.doneToday ? ', hoy ya practicó' : ', hoy aún no practica'}`, onclick: () => streakSheet() }, '🔥 ' + streak.count + (streak.freezes ? ' 🧊' : '')),
-      h('button.badge', { 'aria-label': `Monedas: ${s.coins}. Abrir tienda`, onclick: () => shopSheet() }, '🪙 ' + s.coins),
       h('span.badge', { 'aria-label': `Puntos: ${s.points}` }, '⭐ ' + s.points)));
 
   const openPlace = p => coins.isPlaceOpen(s, p) ? choosePlace(p) : lockedPlaceSheet(p);
@@ -108,7 +131,7 @@ export function home() {
   const last = s.history.slice(-3).reverse();
   mount(h('div.screen.home', {},
     header,
-    s.rankProposal ? rankProposalCard(s.rankProposal, home) : levelProgress(s),
+    store.locksOn(s) ? (s.rankProposal ? rankProposalCard(s.rankProposal, home) : levelProgress(s)) : null,
     recap.streakNotice(),
     safety.spendCard(s),
     dailyGoal(s),
@@ -129,7 +152,6 @@ export function home() {
       h('button.action', { onclick: () => workshop({ home }) }, '🧩 Taller', h('small', {}, (s.drills?.inbox?.length ? '💡' + s.drills.inbox.length + ' · ' : '') + 'juggle y esqueletos')),
       h('button.action', { onclick: () => contactsScreen() }, '👥 Contactos'),
       h('button.action', { onclick: () => statsScreen({ home }) }, '📊 Estadísticas'),
-      h('button.action', { onclick: () => shopSheet() }, '🪙 Tienda', h('small', {}, `${s.coins}`)),
       h('button.action', { onclick: () => settings() }, '⚙️ Ajustes')),
     last.length ? h('div.section-head', {}, h('h2', {}, 'Últimas charlas'),
       s.history.length > 3 ? h('button.link', { onclick: () => historyScreen() }, `Ver todas (${s.history.length})`) : null) : null,
@@ -156,7 +178,7 @@ function draftCard(s) {
     h('b', {}, `⏸️ Charla a medias con ${c.name}`),
     h('div.muted', {}, `${d.mission.icon} ${d.mission.name} · ${n} ${n === 1 ? 'turno' : 'turnos'}`),
     h('div.row', {},
-      h('button.primary.small', { onclick: () => startConversation({ place: p, character: c, mission: d.mission, resume: d, onExit: home, onFinish: session => summary(session) }) }, '▶️ Continuar'),
+      h('button.primary.small', { onclick: () => resumeDraft(d) }, '▶️ Continuar'),
       h('button.small', { onclick: e => {
         const b = e.currentTarget;
         if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = '¿Seguro?'; return; }
@@ -175,7 +197,7 @@ function messagesCard() {
     const place = homePlaceOf(c.id, p => coins.isPlaceOpen(store.get(), p));
     const hours = Math.max(1, Math.round((new Date(m.expires) - Date.now()) / 3600000));
     return h('div.card.message', {},
-      h('div.msg-head', {}, miniAvatar(c), h('div', {}, h('b', {}, `💌 ${c.name} le escribió`), h('small.muted', {}, `Responda en ${hours} h y gane +${inbox.REPLY_BONUS} 🪙`))),
+      h('div.msg-head', {}, miniAvatar(c), h('div', {}, h('b', {}, `💌 ${c.name} le escribió`), h('small.muted', {}, `Responda en las próximas ${hours} h`))),
       h('p.msg-text', {}, m.text), h('small.muted', {}, m.es),
       h('div.row', {},
         h('button.primary.small', { onclick: () => startConversation({ place, character: c, mission: inbox.replyMission(m), onExit: home, onFinish: session => summary(session) }) }, '💬 Responder'),
@@ -288,73 +310,28 @@ function streakSheet() {
     onclick: () => {
       const r = scoring.buyFreeze();
       if (!r.ok) { toast(r.reason, 'bad'); return; }
-      toast('🧊 Protector comprado', 'good');
+      toast('🧊 Protector agregado', 'good');
       closeSheet();
       home();
     },
-  }, `Comprar por ${scoring.FREEZE_PRICE} 🪙`);
+  }, '🧊 Agregar protector (gratis)');
   sheet(h('div', {},
     h('h3', {}, `🔥 Racha: ${st.count} ${st.count === 1 ? 'día' : 'días'}`),
     h('p', {}, st.doneToday ? '✅ Hoy ya practicó.' : 'Hoy aún no ha practicado: haga una charla de 3 turnos o más, o un repaso.'),
-    h('p.muted', {}, `Récord: ${s.streak.record} · Monedas: ${s.coins} 🪙 (gana 1 por estrella)`),
+    h('p.muted', {}, `Récord: ${s.streak.record}`),
     calendarView(),
-    h('button.link', { onclick: () => shopSheet() }, '🪙 Ver la tienda'),
     h('div.card', {},
       h('b', {}, `🧊 Protector de racha (${st.freezes}/${scoring.MAX_FREEZES})`),
       h('p.muted', {}, 'Si un día no practica, se gasta uno y su racha sigue viva.'),
       buyBtn)));
 }
 
-// Tienda: en qué se gastan las monedas.
-function shopSheet() {
-  const s = store.get();
-  const st = scoring.streakStatus();
-  const locked = PLACES.filter(p => !coins.isPlaceOpen(s, p));
-  const buyFreeze = h('button.primary', {
-    onclick: () => {
-      const r = scoring.buyFreeze();
-      if (!r.ok) { toast(r.reason, 'bad'); return; }
-      toast('🧊 Protector comprado', 'good');
-      closeSheet();
-      home();
-    },
-  }, `Comprar por ${scoring.FREEZE_PRICE} 🪙`);
-  sheet(h('div', {},
-    h('h3', {}, `🪙 Tienda · ${s.coins} monedas`),
-    h('p.muted', {}, `Gana ${coins.COINS_PER_STAR} moneda por cada estrella y ${MISSION_LEVEL_COINS} más cuando una misión sube de nivel.`),
-    h('div.card', {},
-      h('b', {}, `🧊 Protector de racha (${st.freezes}/${scoring.MAX_FREEZES})`),
-      h('p.muted', {}, 'Si un día no practica, se gasta uno y su racha sigue viva.'),
-      buyFreeze),
-    h('div.card', {},
-      h('b', {}, '🎲 Volver a sortear misiones'),
-      h('p.muted', {}, `${coins.FREE_REROLLS_PER_DAY} vez gratis al día; después, ${coins.REROLL_PRICE} 🪙 cada vez. Hoy le cuesta: ${coins.rerollCost(s) ? coins.rerollCost(s) + ' 🪙' : 'gratis'}.`)),
-    locked.length ? h('div.card', {},
-      h('b', {}, '🔓 Abrir lugares antes de tiempo'),
-      h('p.muted', {}, 'Sin pagar se abren solos al llegar a su nivel.'),
-      h('div.shop-places', {}, locked.map(p => h('div.shop-row', {},
-        h('span', {}, placeIcon(p), h('span', {}, p.name, h('small.muted', {}, ` · nivel ${rankById(p.rankRequired).code}`))),
-        h('button.small', { onclick: () => buyPlaceFlow(p) }, `${coins.placePrice(p)} 🪙`)))))
-      : h('p.muted', {}, '✅ Ya tiene todos los lugares abiertos.')));
-}
-
-function buyPlaceFlow(p) {
-  const r = coins.buyPlace(p);
-  if (!r.ok) { toast(r.reason, 'bad'); return; }
-  toast(`🔓 ${p.name} abierto`, 'good');
-  closeSheet();
-  home();
-}
-
 function lockedPlaceSheet(p) {
-  const s = store.get();
-  const price = coins.placePrice(p);
   sheet(h('div', {},
     h('h3', {}, placeIcon(p, { locked: true }), placeIcon(p), p.name),
     h('p', {}, `Se abre solo cuando llegue al nivel ${p.rankRequired} (${rankById(p.rankRequired).code}).`),
-    h('p.muted', {}, `O ábralo ya por ${price} 🪙. Tiene ${s.coins}.`),
-    h('button.primary.wide', { disabled: s.coins < price, onclick: () => buyPlaceFlow(p) },
-      s.coins < price ? `Le faltan ${price - s.coins} 🪙` : `Abrir por ${price} 🪙`)));
+    h('p.muted', {}, 'Si quiere todo abierto, quite los candados en Ajustes → Nivel de inglés.'),
+    h('button.primary.wide', { onclick: () => { closeSheet(); settings(); } }, '⚙️ Ir a Ajustes')));
 }
 
 // Guía para que el teléfono tenga voces buenas (gratis): las de Google se descargan en Android.
@@ -469,8 +446,9 @@ function levelSheet() {
 function levelEditor(s) {
   let rankId = s.rank;
   let custom = { ...s.levelCustom };
-  const rankSel = h('select', {}, RANKS.map(r => h('option', { value: r.id, selected: r.id === s.rank, disabled: r.id > s.highestRank },
-    `${r.id}. ${r.code} · ${r.name}${r.id > s.highestRank ? ' 🔒' : ''}`)));
+  const reach = store.reachRank(s);
+  const rankSel = h('select', {}, RANKS.map(r => h('option', { value: r.id, selected: r.id === s.rank, disabled: r.id > reach },
+    `${r.id}. ${r.code} · ${r.name}${r.id > reach ? ' 🔒' : ''}`)));
   const about = h('p.muted', {});
   const modOut = h('span.mod', {});
   const grid = h('div.custom-grid', {});
@@ -533,8 +511,8 @@ function placeBanner(place) {
 function chooseMission(place, character, reroll = 0) {
   const s = store.get();
   const total = totalMissionLevel(s.missionXp);
-  const { slots, next } = missionSlots(total);
-  const drawn = drawMissions(place, slots, s.highestRank);
+  const { slots, next } = store.locksOn(s) ? missionSlots(total) : { slots: 5, next: null };
+  const drawn = drawMissions(place, slots, store.reachRank(s));
 
   const missionCard = m => h('button.mission', { onclick: () => go(m) },
     h('span.m-icon', {}, m.icon),
@@ -560,7 +538,7 @@ function chooseMission(place, character, reroll = 0) {
         if (!r.ok) { toast(r.reason, 'bad'); return; }
         chooseMission(place, character, reroll + 1);
       },
-    }, `🎲 Otras misiones (${coins.rerollCost(s) ? coins.rerollCost(s) + ' 🪙' : 'gratis hoy'})`),
+    }, '🎲 Otras misiones'),
     h('button.secondary.all-topics', { onclick: () => chooseTopic(place, character) }, `💬 Todos los temas de conversación (${TOPICS.length})`),
     customTopicsCard({ place, character, start: go, refresh: () => chooseMission(place, character, reroll) })));
 }
@@ -570,7 +548,7 @@ function chooseMission(place, character, reroll = 0) {
 function chooseTopic(place, character) {
   const s = store.get();
   const card = m => {
-    const locked = s.highestRank < m.rankRequired;
+    const locked = store.reachRank(s) < m.rankRequired;
     return h('button.mission', {
       class: locked ? 'locked' : '',
       onclick: () => locked ? toast(`Disponible en el nivel ${m.rankRequired} (${rankById(m.rankRequired).code})`)
@@ -612,8 +590,7 @@ function summary(session) {
     stars(sum.stars, 'big'),
     h('div.total', {}, sum.score.total, h('small', {}, ' puntos')),
     sum.score.isPersonalBest ? h('div.badge.good', {}, '🏆 ¡Nuevo récord personal!') : null,
-    replyBonus ? h('div.card.good', {}, `💌 Respondió a tiempo el mensaje de ${session.character.name}: +${replyBonus} 🪙`) : null,
-    sum.coinsEarned ? h('div.coins-earned', {}, `🪙 +${sum.coinsEarned} ${sum.coinsEarned === 1 ? 'moneda' : 'monedas'}`) : null,
+    replyBonus ? h('div.card.good', {}, `💌 Respondió a tiempo el mensaje de ${session.character.name}`) : null,
     h('div.card', {},
       line('Participación', sum.score.base),
       line('Objetivos', sum.score.objective),
@@ -635,7 +612,7 @@ function summary(session) {
         : `Usó ${sum.firstConversation.words} palabras en inglés. La próxima vez pruebe hablando con 🎤.`)) : null,
     sum.missionProgress ? h('div.card', {},
       h('b', {}, sum.missionProgress.after > sum.missionProgress.before
-        ? `⬆️ ${session.mission.icon} ${session.mission.name}: ¡nivel ${sum.missionProgress.after}! +${sum.missionProgress.coins} 🪙`
+        ? `⬆️ ${session.mission.icon} ${session.mission.name}: ¡nivel ${sum.missionProgress.after}!`
         : `${session.mission.icon} ${session.mission.name}: nivel ${sum.missionProgress.after}`),
       progressBar(sum.missionProgress.pct / 100),
       h('small.muted', {}, `Cada ${STARS_PER_MISSION_LEVEL} estrellas en esta misión sube un nivel. Nivel total de misiones: ${sum.missionProgress.total}.`)) : null,
@@ -655,7 +632,7 @@ function summary(session) {
       h('p', {}, sum.placement.to > sum.placement.from ? 'Habló mejor de lo que dijo: empezamos un nivel más arriba.'
         : sum.placement.to < sum.placement.from ? 'Empezamos un nivel más abajo para que vaya cómodo; subirá rápido.'
         : 'Su autoevaluación fue acertada.'), h('p.muted', {}, rankById(sum.placement.to).about)) : null,
-    !sum.placement && !sum.rankProposal && s.rank === s.highestRank && s.highestRank < RANKS.length
+    store.locksOn(s) && !sum.placement && !sum.rankProposal && s.rank === s.highestRank && s.highestRank < RANKS.length
       ? h('div.card', {}, h('small', {}, sum.starsCounted ? `Para el nivel ${rankById(s.highestRank + 1).code}: ⭐ ${s.starsTowardUnlock}/${STARS_TO_UNLOCK_NEXT_LEVEL}`
         : `Esta charla no sumó para subir: cuentan las de ${MIN_STARS_TO_COUNT}★ o más (lleva ${s.starsTowardUnlock}/${STARS_TO_UNLOCK_NEXT_LEVEL}).`),
         progressBar(s.starsTowardUnlock / STARS_TO_UNLOCK_NEXT_LEVEL)) : null,
@@ -798,6 +775,14 @@ function settings() {
     refreshCheck();
   });
   const auto = h('input', { type: 'checkbox', checked: s.settings.autoListen });
+  const pauseSel = h('select', { 'aria-label': 'Pausa para enviar' }, SEND_PAUSES.map(ms => h('option', { value: ms, selected: ms === sendPauseMs() },
+    `${(ms / 1000).toLocaleString('es')} s${ms === 1000 ? ' (rápido)' : ms === 1600 ? ' (normal)' : ms === 3000 ? ' (para pensar)' : ''}`)));
+  // Candados: se guardan al tocarlos y se vuelve a dibujar el selector de nivel.
+  const locks = h('input', { type: 'checkbox', checked: store.locksOn(s), onchange: e => {
+    store.update(st => { st.settings.levelLocks = e.target.checked; if (!e.target.checked) st.rankProposal = null; });
+    toast(e.target.checked ? '🔒 Candados puestos: los lugares, temas y lecciones se abren al subir de nivel' : '🔓 Todo abierto: elija el nivel que quiera', 'good');
+    settings();
+  } });
   const haptics = h('input', { type: 'checkbox', checked: s.settings.haptics !== false });
   const comedy = h('input', { type: 'checkbox', checked: !!s.settings.comedy });
   const u = s.usage || { input: 0, output: 0, calls: 0 };
@@ -809,7 +794,10 @@ function settings() {
     h('label', {}, 'Modelo'), model, modelList,
     h('p.muted', {}, 'Por defecto deepseek-flash. Puede poner otro modelo compatible.'),
     h('label', {}, 'Dirección de la API'), baseUrl,
-    h('h3', {}, 'Nivel de inglés'), levelEd.el,
+    h('h3', {}, 'Nivel de inglés'),
+    h('label.check', {}, locks, ' 🔒 Candados de niveles: abrir lugares, temas y lecciones solo al subir de nivel'),
+    h('p.muted', {}, store.locksOn(s) ? 'Puestos: sube de nivel juntando estrellas.' : 'Quitados: todo está abierto y el nivel solo cambia cómo le hablan (velocidad, ayudas, vocabulario).'),
+    levelEd.el,
     h('h3', {}, 'Mi plan'), plan.el,
     h('h3', {}, 'Micrófono y voz'), voiceCheck,
     h('label', {}, 'Tipo de voz'), engineSel,
@@ -818,6 +806,8 @@ function settings() {
       h('button.small', { onclick: () => { store.update(saveVoice); speak("Hi! I'm so glad to meet you. How was your day?", { character: { voice: { gender: 'female' } } }); } }, '🔊 Probar voz'),
       h('button.small', { onclick: () => practicePronunciation('Hello, how are you today?', { onResult: refreshCheck }) }, '🎤 Probar micrófono')),
     h('label.check', {}, auto, ' 🎙 Manos libres: escuchar solo cuando termina el personaje y enviar tras una pausa'),
+    h('label', {}, 'Cuando deja de hablar, enviar tras un silencio de'), pauseSel,
+    h('p.muted', {}, 'Más corto = el personaje responde antes. Si le corta las frases mientras piensa, súbalo.'),
     h('h3', {}, 'Charlas'),
     h('label.check', {}, comedy, ' Modo comedia: los personajes bromean más'),
     h('label.check', {}, haptics, ' Vibrar al acertar, fallar o cumplir un objetivo'),
@@ -830,6 +820,7 @@ function settings() {
           st.settings.baseUrl = baseUrl.value.trim() || 'https://api.deepseek.com';
           saveVoice(st);
           st.settings.autoListen = auto.checked;
+          st.settings.sendPauseMs = +pauseSel.value;
           st.settings.haptics = haptics.checked;
           st.settings.comedy = comedy.checked;
           plan.apply(st);
@@ -875,4 +866,39 @@ if (store.get().settings.voiceEngine === 'natural') setTimeout(loadNatural, 1500
 // Avisa una vez al cruzar el 80 % o el tope de gasto del mes.
 window.addEventListener('charla:spend', e => toast(e.detail.level === 'over' ? `💰 Llegó a su tope del mes (${usd(e.detail.cap)})` : `💰 Ya usó el 80 % de su tope del mes (${usd(e.detail.usd)} de ${usd(e.detail.cap)})`, 'bad'));
 store.persistStorage();   // que el navegador no borre los datos
-home();
+
+// Al salir a la pantalla del teléfono se anota dónde estaba. Si Android cerró la app para liberar
+// memoria, al volver se abre en el mismo lugar (la charla sigue tal cual) en vez de empezar de cero.
+const AWAY_KEY = 'charla.away';
+const RETURN_WINDOW_MS = 30 * 60 * 1000;
+let awayAt = 0;
+function noteAway() {
+  awayAt = Date.now();
+  const screen = document.querySelector('#app > .convo') ? 'convo' : document.querySelector('#app > .dashboard') ? 'cover' : 'home';
+  try { localStorage.setItem(AWAY_KEY, JSON.stringify({ at: awayAt, screen })); } catch {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return noteAway();
+  // Volvió sin que la app se cerrara: la pantalla queda igual. La portada y el inicio se
+  // actualizan (meta del día, racha, mensajes) sin moverse de donde estaba.
+  if (awayAt && Date.now() - awayAt > 60000) {
+    const y = window.scrollY;
+    if (document.querySelector('#app > .dashboard')) cover();
+    else if (document.querySelector('#app > .home')) home();
+    else return;
+    window.scrollTo(0, y);
+  }
+});
+window.addEventListener('pagehide', noteAway);
+
+export function boot() {
+  let away = null;
+  try { away = JSON.parse(localStorage.getItem(AWAY_KEY) || 'null'); } catch {}
+  try { localStorage.removeItem(AWAY_KEY); } catch {}
+  const recent = away && Date.now() - away.at < RETURN_WINDOW_MS;
+  const s = store.get();
+  if (recent && away.screen === 'convo' && s.onboarded && s.draft) return resumeDraft(s.draft);
+  if (recent && away.screen === 'home' && s.onboarded) return home();
+  cover();
+}
+boot();

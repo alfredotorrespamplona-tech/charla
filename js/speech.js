@@ -9,7 +9,7 @@ export const IS_ANDROID = /Android/i.test(navigator.userAgent || '');
 
 // Espera antes de dar el turno por terminado: más larga mientras no ha empezado a hablar (está pensando).
 export const WAIT_FIRST_WORD_MS = 8000;
-export const WAIT_AFTER_SPEECH_MS = 2200;
+export const WAIT_AFTER_SPEECH_MS = 1600;
 
 const MESSAGES = {
   'not-allowed': 'Permiso de micrófono denegado. Actívelo en el candado de la barra de dirección.',
@@ -59,7 +59,7 @@ export class Listener {
       const armSilence = () => {
         clearTimeout(silenceTimer);
         // Silencio = fin del turno. Antes de la primera palabra se espera más (está pensando la respuesta).
-        silenceTimer = setTimeout(() => { try { rec.stop(); } catch {} }, firstSpeechAt ? WAIT_AFTER_SPEECH_MS : WAIT_FIRST_WORD_MS);
+        silenceTimer = setTimeout(() => { try { rec.stop(); } catch {} }, firstSpeechAt ? sendPauseMs() : WAIT_FIRST_WORD_MS);
       };
       rec.onresult = e => {
         const now = performance.now();
@@ -100,6 +100,32 @@ export class Listener {
 
   stop() { try { this.rec?.stop(); } catch {} }
   abort() { try { this.rec?.abort(); } catch {} }
+}
+
+// Pausa de silencio que da el turno por terminado (Ajustes → «Enviar tras una pausa de»).
+export const SEND_PAUSES = [1000, 1600, 2200, 3000];
+export function sendPauseMs() {
+  const v = store.get().settings.sendPauseMs;
+  return SEND_PAUSES.includes(v) ? v : WAIT_AFTER_SPEECH_MS;
+}
+
+// ---------- Ritmo de la voz ----------
+// Cuánto tarda la voz del teléfono por palabra, medido en este teléfono (a velocidad 1). Sirve para
+// mostrar el texto al mismo ritmo cuando la voz no avisa palabra por palabra.
+const DEFAULT_MS_PER_WORD = 60000 / 165;
+export function msPerWord(rate = 1) {
+  const m = store.get().settings.paceMs;
+  const base = m > 150 && m < 900 ? m : DEFAULT_MS_PER_WORD;
+  return base / (rate || 1);
+}
+export function learnPace(words, ms, rate = 1) {
+  if (words < 4 || ms < 800) return;                     // frases muy cortas: la medida no sirve
+  const sample = (ms / words) * (rate || 1);
+  if (sample < 150 || sample > 900) return;
+  store.update(st => {
+    const old = st.settings.paceMs;
+    st.settings.paceMs = Math.round(old > 150 && old < 900 ? old * 0.7 + sample * 0.3 : sample);
+  });
 }
 
 // ---------- Hablar ----------
@@ -182,14 +208,14 @@ export async function speak(text, opts = {}) {
       return await speakNatural(text, {
         voice: naturalVoiceFor(opts.character, s.naturalVoice),
         speed: opts.rate || 1,
-        onStart: opts.onStart, onLevel: opts.onLevel, onEnd: opts.onEnd,
+        onStart: opts.onStart, onLevel: opts.onLevel, onEnd: opts.onEnd, onSegment: opts.onSegment,
       });
     } catch (e) { console.warn('Voz natural:', e.message); }
   }
   return speakPhone(text, opts);
 }
 
-function speakPhone(text, { character, rate = 1, onStart, onLevel, onEnd, lang } = {}) {
+function speakPhone(text, { character, rate = 1, onStart, onLevel, onEnd, onBoundary, lang } = {}) {
   return new Promise(resolve => {
     if (!canSpeak || !text) { onEnd?.(); return resolve(); }
     const wasBusy = speechSynthesis.speaking || speechSynthesis.pending;
@@ -201,7 +227,7 @@ function speakPhone(text, { character, rate = 1, onStart, onLevel, onEnd, lang }
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = lang || store.get().settings.targetLang;
     u.rate = rate;
     u.pitch = 1; // cambiar el tono deforma la voz y la hace sonar robótica
-    let mouthTimer = null, keepAlive = null, safety = null, done = false;
+    let mouthTimer = null, keepAlive = null, safety = null, done = false, startedAt = 0, cut = false;
     let boost = 0;
     const tick = () => {
       // Movimiento de boca: oscilación + golpe en cada palabra (evento boundary).
@@ -215,21 +241,26 @@ function speakPhone(text, { character, rate = 1, onStart, onLevel, onEnd, lang }
       clearInterval(mouthTimer);
       clearInterval(keepAlive);
       clearTimeout(safety);
+      if (current !== u) cut = true;               // la cortó otra frase
       if (current === u) current = null;
+      // Mide el ritmo real de esta voz para sincronizar el texto la próxima vez.
+      if (startedAt && !cut && !lang) learnPace(text.trim().split(/\s+/).length, performance.now() - startedAt, rate);
       onLevel?.(0);
       onEnd?.();
       resolve();
     };
     u.onstart = () => {
+      startedAt = performance.now();
       onStart?.();
       mouthTimer = setInterval(tick, 70);
       // Chrome de computador corta las frases largas a los ~15 s si no se le da este empujón.
       if (!IS_ANDROID) keepAlive = setInterval(() => { if (speechSynthesis.speaking) { speechSynthesis.pause(); speechSynthesis.resume(); } }, 10000);
     };
-    u.onboundary = () => { boost = 0.5; };
+    // La voz avisa qué palabra va diciendo: el texto y la boca van exactamente con ella.
+    u.onboundary = e => { boost = 0.5; if (!e.name || e.name === 'word') onBoundary?.(e.charIndex); };
     u.onend = finish;
-    u.onerror = finish;
-    safety = setTimeout(() => { if (current === u) speechSynthesis.cancel(); finish(); }, maxSpeechMs(text, rate));
+    u.onerror = () => { cut = true; finish(); };
+    safety = setTimeout(() => { cut = true; if (current === u) speechSynthesis.cancel(); finish(); }, maxSpeechMs(text, rate));
     // Justo después de cancel() Chrome a veces ignora la frase nueva: se espera un instante.
     if (wasBusy) setTimeout(() => { if (!done) speechSynthesis.speak(u); }, 60);
     else speechSynthesis.speak(u);

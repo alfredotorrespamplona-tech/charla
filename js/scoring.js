@@ -263,8 +263,8 @@ export function updateStreak(now = new Date()) {
 export function buyFreeze() {
   const s = store.get();
   if ((s.streak.freezes || 0) >= MAX_FREEZES) return { ok: false, reason: `Ya tiene el máximo (${MAX_FREEZES}).` };
-  if (s.coins < FREEZE_PRICE) return { ok: false, reason: `Le faltan ${FREEZE_PRICE - s.coins} monedas.` };
-  store.update(x => { x.coins -= FREEZE_PRICE; x.streak.freezes = (x.streak.freezes || 0) + 1; });
+  // Sin tienda (uso personal): el protector es gratis, hasta el máximo.
+  store.update(x => { x.streak.freezes = (x.streak.freezes || 0) + 1; });
   return { ok: true };
 }
 
@@ -286,7 +286,7 @@ export function evaluateRank() {
 // Cambiar el nivel en el que practica (aceptar una propuesta o elegirlo en Ajustes).
 export function setLevel(to) {
   store.update(s => {
-    to = Math.min(s.highestRank, Math.max(1, to));
+    to = Math.min(store.reachRank(s), Math.max(1, to));
     if (to !== s.rank) s.levelCustom = {};
     s.rank = to;
     s.rankProposal = null;

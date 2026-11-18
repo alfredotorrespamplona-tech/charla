@@ -33,10 +33,18 @@ async function explain(res, model) {
   return new LlmError(`DeepSeek respondió ${res.status}: ${body.slice(0, 160)}`);
 }
 
-export async function chatJson(task, messages, { temperature = 0.8, maxTokens = 500 } = {}) {
+// onText(textoAcumulado): si se pasa, la respuesta llega por partes (stream) y se avisa a medida que llega.
+// Así el personaje empieza a hablar con la primera frase, sin esperar la respuesta completa.
+export async function chatJson(task, messages, { temperature = 0.8, maxTokens = 500, onText = null } = {}) {
   const s = store.get().settings;
   if (!s.apiKey) throw new LlmError('Falta la clave de API de DeepSeek. Póngala en Ajustes.');
-  if (s.apiKey.trim().toLowerCase() === 'demo') return demo(task, messages);
+  if (s.apiKey.trim().toLowerCase() === 'demo') {
+    const r = await demo(task, messages);
+    if (onText) await fakeStream(JSON.stringify(r), onText);
+    return r;
+  }
+  // Si DeepSeek no acepta la respuesta por partes, se pide entera (como antes) y sigue funcionando igual.
+  let stream = !!onText && typeof ReadableStream !== 'undefined';
 
   // Tope de gasto con pausa activada: no se llama a la IA hasta el mes siguiente.
   const spend = spendStatus(store.get());
@@ -48,7 +56,8 @@ export async function chatJson(task, messages, { temperature = 0.8, maxTokens = 
   let thinking = true;          // se quita si el modelo elegido no acepta el parámetro
   let budget = maxTokens;
   for (let round = 0; round < 3; round++) {
-    const body = { model, messages, temperature, max_tokens: budget, response_format: { type: 'json_object' }, stream: false };
+    const body = { model, messages, temperature, max_tokens: budget, response_format: { type: 'json_object' }, stream };
+    if (stream) body.stream_options = { include_usage: true };
     if (thinking) body.thinking = { type: 'disabled' };
     const init = { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + s.apiKey.trim() }, body: JSON.stringify(body) };
     let res;
@@ -66,13 +75,28 @@ export async function chatJson(task, messages, { temperature = 0.8, maxTokens = 
       const err = await res.clone().text().catch(() => '');
       if (/thinking/i.test(err)) { thinking = false; continue; }
     }
+    if (res.status === 400 && stream) { stream = false; round--; continue; }
     if (!res.ok) throw await explain(res, model);
-    const data = await res.json();
-    trackUsage(data.usage, model);
-    const choice = data.choices?.[0];
-    const text = choice?.message?.content || '';
-    if (choice?.finish_reason === 'length' && round < 2) { budget = Math.min(budget * 2 + 400, 8000); continue; }   // se cortó: más espacio
-    if (!text && choice?.finish_reason === 'length') throw new LlmError('La respuesta de la IA quedó cortada. Intente otra vez.');
+    let text, finish;
+    if (stream && res.body) {
+      let r;
+      let heard = false;
+      try { r = await readStream(res, t => { heard = true; onText(t); }); }
+      catch (e) {
+        if (heard) throw e;                 // ya empezó a hablar: no se puede repetir a medias
+        stream = false; round--; continue;  // falló antes de llegar nada: se pide entera
+      }
+      trackUsage(r.usage, model);
+      ({ text, finish } = r);
+    } else {
+      const data = await res.json();
+      trackUsage(data.usage, model);
+      const choice = data.choices?.[0];
+      text = choice?.message?.content || '';
+      finish = choice?.finish_reason;
+    }
+    if (finish === 'length' && round < 2) { budget = Math.min(budget * 2 + 400, 8000); continue; }   // se cortó: más espacio
+    if (!text && finish === 'length') throw new LlmError('La respuesta de la IA quedó cortada. Intente otra vez.');
     return parseJson(text);
   }
   throw new LlmError('La respuesta de la IA quedó cortada. Intente otra vez.');
@@ -87,6 +111,84 @@ export async function testConnection() {
   if (!res.ok) throw await explain(res, s.model);
   const data = await res.json();
   return (data.data || []).map(m => m.id);
+}
+
+// Lee una respuesta por partes (Server-Sent Events: líneas «data: {...}») y junta el texto.
+export async function readStream(res, onText) {
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '', text = '', finish = null, usage = null;
+  const line = raw => {
+    const l = raw.trim();
+    if (!l.startsWith('data:')) return;          // comentarios «: keep-alive» y líneas vacías
+    const payload = l.slice(5).trim();
+    if (!payload || payload === '[DONE]') return;
+    let j;
+    try { j = JSON.parse(payload); } catch { return; }
+    if (j.usage) usage = j.usage;
+    const ch = j.choices?.[0];
+    const d = ch?.delta?.content;
+    if (d) { text += d; try { onText?.(text); } catch (e) { console.warn(e); } }
+    if (ch?.finish_reason) finish = ch.finish_reason;
+  };
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) { line(buf.slice(0, i)); buf = buf.slice(i + 1); }
+    }
+  } catch {
+    throw new LlmError('Se cortó la conexión con DeepSeek. Revise su internet.');
+  }
+  if (buf) line(buf);
+  return { text, finish, usage };
+}
+
+// Modo demo: simula que la respuesta llega por partes.
+async function fakeStream(json, onText) {
+  for (let i = 24; i < json.length + 24; i += 24) {
+    onText(json.slice(0, i));
+    await wait(60);
+  }
+}
+
+// Saca el texto de un campo ("reply") de un JSON que todavía está llegando a medias.
+// done = el texto del campo ya terminó (llegó la comilla de cierre).
+export function partialField(src, key) {
+  const m = new RegExp(`"${key}"\\s*:\\s*"`).exec(src);
+  if (!m) return null;
+  const ESC = { n: '\n', t: '\t', r: '', b: '', f: '', '"': '"', '\\': '\\', '/': '/' };
+  let out = '';
+  for (let i = m.index + m[0].length; i < src.length;) {
+    const c = src[i];
+    if (c === '"') return { text: out, done: true };
+    if (c === '\\') {
+      const n = src[i + 1];
+      if (n === undefined) break;
+      if (n === 'u') {
+        const hex = src.slice(i + 2, i + 6);
+        if (hex.length < 4) break;
+        out += String.fromCharCode(parseInt(hex, 16));
+        i += 6;
+        continue;
+      }
+      out += ESC[n] ?? n;
+      i += 2;
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return { text: out, done: false };
+}
+
+// Primera frase completa de un texto que todavía está llegando (sabemos que terminó porque ya
+// empezó la siguiente). Mínimo 12 letras para no cortar en «Oh.» o «Mr.».
+export function firstSentence(text) {
+  const m = /^\s*([\s\S]{12,}?[.!?…])\s+\S/.exec(text);
+  return m ? m[1] : null;
 }
 
 function parseJson(text) {

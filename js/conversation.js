@@ -1,9 +1,9 @@
 // Pantalla de conversación: el bucle de turnos (abrir → hablar → responder + analizar → … → terminar).
 import * as store from './store.js';
-import { chatJson, LlmError } from './llm.js';
+import { chatJson, LlmError, partialField, firstSentence } from './llm.js';
 import * as P from './prompts.js';
 import { Avatar } from './avatar.js';
-import { Listener, speak, stopSpeaking, canListen } from './speech.js';
+import { Listener, speak, stopSpeaking, canListen, msPerWord } from './speech.js';
 import { levelSettings } from './data.js';
 import * as scoring from './scoring.js';
 import { h, mount, sheet, closeSheet, toast, spinner, richText, placeBackground, setText, buzz } from './ui.js';
@@ -142,48 +142,92 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     const lv = level();
     const mode = lv.response;
     const words = h('div.text');
-    const spans = [];
-    for (const part of text.split(/(\s+)/)) {
-      if (/^\s+$/.test(part) || !part) { words.appendChild(document.createTextNode(part)); continue; }
-      const sp = h('span.word', { onclick: () => openWordExplorer(part.replace(/[^A-Za-z'’-]/g, ''), text) }, part);
-      spans.push(sp);
-      words.appendChild(sp);
-    }
+    let spans = [];
+    let full = '';
+    let shown = false, wordTimer = null, laterTimer = null, segTimers = [];
+    // Agrega texto a la burbuja (la respuesta puede llegar en dos partes). Cada palabra sabe dónde empieza.
+    const addText = more => {
+      more = String(more || '').trim();
+      if (!more) return;
+      if (full) { words.appendChild(document.createTextNode(' ')); full += ' '; }
+      let pos = full.length;
+      for (const part of more.split(/(\s+)/)) {
+        if (!part) continue;
+        if (/^\s+$/.test(part)) { words.appendChild(document.createTextNode(part)); pos += part.length; continue; }
+        const sp = h('span.word', { onclick: () => openWordExplorer(part.replace(/[^A-Za-z'’-]/g, ''), full) }, part);
+        sp.at = pos;
+        if (mode === 'word' && !shown) sp.classList.add('pending');
+        spans.push(sp);
+        words.appendChild(sp);
+        pos += part.length;
+      }
+      full += more;
+      scrollChat();
+    };
+    addText(text);
     const tr = h('div.translation.hidden');
     const translate = async () => {
       if (!tr.classList.contains('hidden')) { tr.classList.add('hidden'); return; }
       tr.classList.remove('hidden');
       tr.textContent = '…';
-      try { tr.textContent = (await chatJson('translate', P.translateMessages(text), { temperature: 0.2, maxTokens: 200 })).translation; }
+      try { tr.textContent = (await chatJson('translate', P.translateMessages(full), { temperature: 0.2, maxTokens: 200 })).translation; }
       catch (e) { tr.textContent = e.message; }
     };
-    let shown = false, wordTimer = null, laterTimer = null;
+    const stopTimers = () => { clearInterval(wordTimer); wordTimer = null; segTimers.forEach(clearTimeout); segTimers = []; };
     const showBtn = h('button.tiny.show-text', { onclick: () => showText() }, '👁 Ver texto');
     const showText = () => {
       if (shown) return;
       shown = true;
-      clearInterval(wordTimer); clearTimeout(laterTimer);
+      stopTimers(); clearTimeout(laterTimer);
       words.classList.remove('veiled');
       spans.forEach(x => x.classList.remove('pending'));
       showBtn.remove();
       if (lv.translation === 'always') translate();
     };
-    if (mode === 'word') spans.forEach(x => x.classList.add('pending'));
-    else words.classList.add('veiled');
-    const hintBtn = attachHints(words, spans, text, lv.pronunciation);
-    const b = h('div.bubble.character', {}, words, tr,
-      h('div.actions', {},
-        mode === 'word' ? null : showBtn,
-        h('button.tiny', { onclick: () => say(text) }, '🔊'),
-        h('button.tiny', { onclick: translate }, '🌐 Traducir'),
-        hintBtn));
+    if (mode !== 'word') words.classList.add('veiled');
+    const actions = h('div.actions', {},
+      mode === 'word' ? null : showBtn,
+      h('button.tiny', { onclick: () => say(full) }, '🔊'),
+      h('button.tiny', { onclick: translate }, '🌐 Traducir'));
+    const b = h('div.bubble.character', {}, words, tr, actions);
+    b.addText = addText;
+    b.fullText = () => full;
+    // Cambia todo el texto (si la respuesta final no coincide con lo que ya se dijo).
+    b.resetText = t => { words.replaceChildren(); spans = []; full = ''; addText(t); };
+    // Cuando ya está todo el texto: las pistas de pronunciación se piden para la frase completa.
+    let completed = false;
+    b.complete = () => {
+      if (completed) return;
+      completed = true;
+      const hintBtn = attachHints(words, spans, full, lv.pronunciation);
+      if (hintBtn) actions.appendChild(hintBtn);
+    };
+    const live = () => mode === 'word' && !shown;
+    const inRange = (from, len) => spans.filter(sp => sp.at >= from && sp.at < from + len);
+    const showUpTo = idx => spans.forEach(sp => { if (sp.at <= idx) sp.classList.remove('pending'); });
+    // Texto al ritmo de la voz. Hay 3 formas, de la más exacta a la aproximada:
+    //  at(i)      la voz del teléfono avisa la palabra que va diciendo;
+    //  segment()  la voz natural dice cuándo empieza y cuánto dura cada frase;
+    //  piece()    respaldo: ritmo medido de la voz de este teléfono.
     b.reveal = {
-      start() {
-        if (mode !== 'word' || shown) return;
+      piece(from, len) {
+        if (!live()) return;
+        stopTimers();
+        const list = inRange(from, len);
         let i = 0;
-        const msPerWord = 60000 / (165 * lv.rate);     // ritmo aproximado de la voz
-        wordTimer = setInterval(() => { spans[i++]?.classList.remove('pending'); if (i >= spans.length) clearInterval(wordTimer); }, msPerWord);
+        list[i++]?.classList.remove('pending');
+        wordTimer = setInterval(() => { list[i++]?.classList.remove('pending'); if (i >= list.length) { clearInterval(wordTimer); wordTimer = null; } }, msPerWord(lv.rate));
       },
+      at(idx) { if (!live()) return; clearInterval(wordTimer); wordTimer = null; showUpTo(idx); },
+      segment(from, len, inMs, durMs) {
+        if (!live()) return;
+        clearInterval(wordTimer); wordTimer = null;
+        for (const sp of inRange(from, len)) {
+          const when = inMs + ((sp.at - from) / Math.max(1, len)) * durMs;
+          segTimers.push(setTimeout(() => sp.classList.remove('pending'), Math.max(0, when)));
+        }
+      },
+      pieceEnd(from, len) { if (live()) showUpTo(from + len); },
       end() {
         if (shown) return;
         if (mode === 'word' || mode === 'after') showText();
@@ -280,24 +324,66 @@ export function startConversation({ place, character, mission, onFinish, onExit,
   }
 
   // ---------- Voz del personaje ----------
-  async function say(text, reveal) {
+  // from = dónde empieza este trozo dentro de la burbuja (la respuesta puede decirse en dos partes).
+  async function say(text, reveal, from = 0) {
+    // Con la app en segundo plano no se habla: al volver, el texto ya está ahí.
+    if (document.hidden) { reveal?.pieceEnd(from, text.length); return; }
     await speak(text, {
       character, rate: level().rate,
-      onStart: () => reveal?.start(),
+      onStart: () => reveal?.piece(from, text.length),
+      onBoundary: i => reveal?.at(from + i),
+      onSegment: seg => reveal?.segment(from + seg.offset, seg.length, seg.inMs, seg.durMs),
       onLevel: l => avatar.setLevel(l),
-      onEnd: () => { avatar.setLevel(0); reveal?.end(); },
+      onEnd: () => avatar.setLevel(0),
     });
-    reveal?.end();
+    reveal?.pieceEnd(from, text.length);
   }
 
-  async function characterSays(text, mood, { remember = true } = {}) {
+  // Pide la respuesta del personaje y empieza a hablar apenas llega la primera frase completa
+  // (la respuesta llega por partes), en vez de esperar todo el texto. Devuelve { r, early }.
+  async function fetchAndSpeak(task, msgs, opts) {
+    let early = null;
+    const onText = partial => {
+      if (early || !alive) return;
+      const p = partialField(partial, 'reply');
+      if (!p) return;
+      const first = p.done ? p.text.trim() : firstSentence(p.text);
+      if (!first) return;
+      setStatus('');
+      const bubble = characterBubble(first);
+      early = { text: first, bubble, speaking: say(first, bubble.reveal) };
+    };
+    try {
+      return { r: await chatJson(task, msgs, { ...opts, onText }), early };
+    } catch (e) {
+      if (early) { stopSpeaking(); avatar.setLevel(0); early.bubble.remove(); lastCharacterBubble = null; }
+      throw e;
+    }
+  }
+
+  async function characterSays(text, mood, { remember = true, early = null } = {}) {
     if (mood != null) avatar.setMood(mood);
     if (remember) session.history.push({ role: 'character', text });
-    const bubble = characterBubble(text);
     // Palabras guardadas que aparecen en lo que dice el personaje: +familiaridad.
     for (const v of scoring.findBookmarks(text)) scoring.bumpFamiliarity(v.id, scoring.FAMILIARITY.seenInConversation);
     setStatus('');
-    await say(text, bubble.reveal);
+    let bubble;
+    if (early) {
+      // Ya está diciendo la primera frase: se agrega el resto y se dice cuando termine.
+      bubble = early.bubble;
+      const k = text.indexOf(early.text);
+      const rest = k >= 0 ? text.slice(k + early.text.length).trim() : null;
+      if (rest === null) bubble.resetText(text);
+      else if (rest) bubble.addText(rest);
+      bubble.complete();
+      await early.speaking;
+      if (rest && alive) await say(rest, bubble.reveal, bubble.fullText().length - rest.length);
+    } else {
+      bubble = characterBubble(text);
+      bubble.complete();
+      await say(text, bubble.reveal);
+    }
+    bubble.reveal.end();
     session.lastCharacterEndAt = Date.now();
     if (!alive) return;
     if (session.finished) {
@@ -354,10 +440,10 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     suggestBox.classList.add('hidden');
     setStatus(`${character.name} se está despidiendo…`);
     try {
-      const r = await chatJson('reply', [...baseMessages(), { role: 'user', content: P.goodbyeUser() }], { maxTokens: 200 });
+      const { r, early } = await fetchAndSpeak('reply', [...baseMessages(), { role: 'user', content: P.goodbyeUser() }], { maxTokens: 200 });
       busy = false;
       session.finished = true;
-      await characterSays(r.reply || 'It was really nice talking to you. See you soon!', r.mood ?? 0.6);
+      await characterSays(r.reply || 'It was really nice talking to you. See you soon!', r.mood ?? 0.6, { early });
       saveDraft();
     } catch (e) { busy = false; setStatus(''); errorBox(e, requestGoodbye); }
   }
@@ -384,7 +470,7 @@ export function startConversation({ place, character, mission, onFinish, onExit,
 
   // Guarda la charla para poder seguirla después (si sale con ✕ o se cierra la app).
   function saveDraft() {
-    if (!session.turns.length || !alive) return;
+    if (!session.history.length || !alive) return;
     store.update(st => {
       st.draft = { id: session.id, placeId: place.id, characterId: character.id, mission,
         history: session.history, turns: session.turns.map(({ els, ...t }) => t), completed: [...session.completed],
@@ -397,7 +483,7 @@ export function startConversation({ place, character, mission, onFinish, onExit,
   function restoreChat() {
     const els = {};
     session.history.forEach((m, i) => {
-      if (m.role === 'character') { const b = characterBubble(m.text); b.querySelector('.show-text')?.click(); b.reveal.end(); els[i] = b; }
+      if (m.role === 'character') { const b = characterBubble(m.text); b.complete(); b.querySelector('.show-text')?.click(); b.reveal.end(); els[i] = b; }
       else els[i] = learnerBubble(m.text);
     });
     for (const t of session.turns) {
@@ -417,9 +503,9 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     busy = true;
     setStatus(`${character.name} está pensando…`);
     try {
-      const r = await chatJson('opening', [{ role: 'system', content: system }, { role: 'user', content: P.openingUser() }], { maxTokens: 200 });
+      const { r, early } = await fetchAndSpeak('opening', [{ role: 'system', content: system }, { role: 'user', content: P.openingUser() }], { maxTokens: 200 });
       busy = false;
-      await characterSays(r.reply || 'Hi!', r.mood ?? 0.4);
+      await characterSays(r.reply || 'Hi!', r.mood ?? 0.4, { early });
     } catch (e) {
       busy = false;
       setStatus('');
@@ -458,13 +544,13 @@ export function startConversation({ place, character, mission, onFinish, onExit,
 
     const msgs = baseMessages();
     const s = store.get();
-    const replyP = chatJson('reply', msgs, { maxTokens: 260 });
+    const replyP = fetchAndSpeak('reply', msgs, { maxTokens: 260 });
     const analysisP = chatJson('analysis', P.analysisMessages({ characterLine: lastCharacterLine, learnerLine: text, rankId: s.rank, strictness: level().feedback === 'off' ? 'Relaxed' : level().strictness, mission }), { temperature: 0.2, maxTokens: 320 })
       .catch(() => null);
 
-    let reply;
+    let reply, early;
     try {
-      reply = await replyP;
+      ({ r: reply, early } = await replyP);
     } catch (e) {
       busy = false;
       session.history.length = historyIndex;
@@ -494,7 +580,7 @@ export function startConversation({ place, character, mission, onFinish, onExit,
       historyIndex, newly, affectionDelta, els: [learnerEl], freshWords: [], removed: false };
     session.turns.push(turn);
     busy = false;
-    const speakingDone = characterSays(reply.reply || '…', reply.mood);
+    const speakingDone = characterSays(reply.reply || '…', reply.mood, { early });
     turn.els.push(lastCharacterBubble);
     saveDraft();
 
@@ -546,6 +632,7 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     listenStartedAt = Date.now();
     waitUntil = 0;
     buzz('tap');
+    const leftBefore = leftCount;
     try {
       // Manos libres: después de hablar hay una pausa corta para cancelar, seguir hablando o enviar ya.
       let text = '', durationMs = 0, cancelled = false;
@@ -560,6 +647,8 @@ export function startConversation({ place, character, mission, onFinish, onExit,
         break;
       }
       if (!alive) return;
+      // Salió de la app mientras grababa: no se envía un pedazo; se sigue cuando vuelva.
+      if (leftCount !== leftBefore) { setStatus('🎤 Se pausó el micrófono al salir. Tóquelo para seguir.'); return; }
       if (cancelled) { setStatus('Cancelado. Toque 🎤 cuando quiera hablar.'); return; }
       const usedSuggestion = !!pendingSuggestion && similarity(text, pendingSuggestion) > 0.6;
       pendingSuggestion = null;
@@ -680,9 +769,36 @@ export function startConversation({ place, character, mission, onFinish, onExit,
         h('button.tiny', { onclick: () => { suggestBox.classList.add('hidden'); pendingSuggestion = text; input.value = text; sendTyped(); } }, 'Enviar escrito'))));
   }
 
+  // ---------- Salir a la pantalla del teléfono y volver ----------
+  // Al salir: se para el micrófono y la voz y se guarda la charla (por si el teléfono cierra la app).
+  // Al volver: todo sigue donde estaba, sin recargar ni repetir nada.
+  let leftCount = 0;
+  const onVisibility = () => {
+    if (!alive) return;
+    if (document.hidden) {
+      leftCount++;
+      listener.abort();
+      stopSpeaking();
+      avatar.setLevel(0);
+      clearTimeout(suggestionTimer);
+      clearTimeout(nudgeTimer);
+      saveDraft();
+    } else {
+      avatar.setLevel(0);
+      lastCharacterBubble?.reveal?.end();
+      scrollChat();
+      if (!busy && !listener.active && !session.finished) {
+        setStatus('👋 De vuelta. Siga cuando quiera 🎤');
+        armNudge();
+      }
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+
   // ---------- Terminar ----------
   function cleanup() {
     alive = false;
+    document.removeEventListener('visibilitychange', onVisibility);
     clearInterval(timerInt);
     clearTimeout(suggestionTimer);
     clearTimeout(nudgeTimer);

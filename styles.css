@@ -184,6 +184,11 @@ label.check input { width: 20px; height: 20px; accent-color: var(--brand); }
 
 /* ---------- Conversación ---------- */
 .convo { display: flex; flex-direction: column; height: 100dvh; padding: 10px 12px; }
+/* Las 3 ideas de respuesta: se pueden desplazar y el personaje se achica para dejarles espacio. */
+.convo .chat { min-height: 0; }
+.convo .suggestions { max-height: 42dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.convo:has(.suggestions:not(.hidden)) .stage { height: 18vh; min-height: 120px; }
+.convo .bottom { max-height: 70dvh; display: flex; flex-direction: column; min-height: 0; }
 .convo .topbar { justify-content: space-between; margin-bottom: 8px; }
 .convo .topbar > button.icon:first-child { width: 40px; height: 40px; }
 .mission-chip { flex: 1; font-size: .86rem; font-weight: 650; border-radius: var(--pill); padding: 8px 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--surface); border-color: var(--line); box-shadow: var(--shadow-sm); }
@@ -320,6 +325,48 @@ label.check input { width: 20px; height: 20px; accent-color: var(--brand); }
 
 /* ---------- Avatares con imagen sobre la escena ---------- */
 .avatar-box { aspect-ratio: 1; }
+/* ---------- Portada ---------- */
+.dashboard { padding-top: 0; }
+.dash-hero { background: radial-gradient(circle at 100% 0, rgba(255, 255, 255, .1) 0 140px, transparent 141px), var(--brand-grad); color: #fff; margin: 0 -16px 16px; padding: calc(18px + env(safe-area-inset-top)) 20px 22px; border-radius: 0 0 var(--r-lg) var(--r-lg); box-shadow: var(--shadow-brand); }
+.dash-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.05rem; letter-spacing: .02em; }
+.dash-brand img { width: 44px; height: 44px; border-radius: 12px; background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .18); }
+.dash-hero h1 { margin: 16px 0 2px; font-size: 1.55rem; line-height: 1.2; color: #fff; }
+.dash-date { margin: 0; opacity: .85; }
+.dash-stats { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
+.dash-ring { position: relative; width: 112px; height: 112px; flex: none; }
+.dash-ring svg { width: 112px; height: 112px; transform: rotate(-90deg); display: block; }
+.dash-ring .ring-track { fill: none; stroke: rgba(255, 255, 255, .25); stroke-width: 9; }
+.dash-ring .ring-fill { fill: none; stroke: #fff; stroke-width: 9; stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
+.dash-ring-text { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.dash-ring-text b { font-size: 1.3rem; }
+.dash-ring-text small { opacity: .85; font-size: .75rem; }
+.dash-side { display: grid; gap: 8px; min-width: 0; }
+.dash-stat { display: flex; align-items: baseline; gap: 8px; }
+.dash-stat b { font-size: 1.15rem; display: inline-flex; align-items: center; gap: 4px; }
+.dash-stat small { opacity: .85; }
+.dash-stat .ic { color: #fff; }
+.dash-cta { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 16px 18px; font-size: 1.08rem; border-radius: var(--radius); text-align: left; }
+.dash-cta small { font-weight: 500; opacity: .9; font-size: .85rem; }
+.dash-map { margin-top: 8px; }
+.dash-week-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.dash-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.dash-day { display: grid; justify-items: center; gap: 4px; font-size: .78rem; color: var(--muted); }
+.dash-day i { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--line-strong); display: grid; place-items: center; font-style: normal; font-weight: 800; color: #fff; }
+.dash-day.done i { background: var(--brand); border-color: var(--brand); }
+.dash-day.frozen i { background: var(--surface-2); border-color: var(--ice); color: var(--ice); }
+.dash-day.today span { color: var(--brand-ink); font-weight: 800; }
+.dash-day.today i { box-shadow: 0 0 0 3px var(--brand-100); }
+.dash-title { margin: 18px 0 10px; font-size: 1.1rem; }
+.dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dash-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: var(--radius); border-color: var(--line); box-shadow: var(--shadow-sm); text-align: left; min-width: 0; min-height: 104px; }
+.dash-tile-top { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; color: var(--muted); font-weight: 650; }
+.dash-tile-top .ic { color: var(--brand); }
+.dash-tile-value { font-size: 1.02rem; line-height: 1.25; overflow-wrap: anywhere; }
+.dash-tile small { color: var(--muted); font-size: .78rem; }
+.dash-tile.accent { border-color: var(--brand-100); background: var(--brand-50); }
+.dash-footer { display: flex; justify-content: center; gap: 22px; margin: 18px 0 4px; }
+.cover-btn { width: 34px; height: 34px; margin-right: 8px; vertical-align: middle; background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .3); color: #fff; }
+
 /* Las caras van apiladas; solo cambia cuál se ve (opacity), así el teléfono no repinta la sombra 15 veces por segundo. */
 .voice-guide { margin: 8px 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .voice-guide summary { cursor: pointer; font-weight: 650; }

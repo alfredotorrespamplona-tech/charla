@@ -56,10 +56,10 @@ async function speak({ id, text, voice, speed }) {
   try {
     const tts = await load();
     let i = 0;
-    for await (const { audio } of tts.stream(text, { voice, speed })) {
+    for await (const { text: part, audio } of tts.stream(text, { voice, speed })) {
       if (cancelled.has(id)) break;
       const pcm = audio.audio;
-      postMessage({ type: 'chunk', id, i: i++, pcm, rate: audio.sampling_rate }, [pcm.buffer]);
+      postMessage({ type: 'chunk', id, i: i++, pcm, rate: audio.sampling_rate, text: part }, [pcm.buffer]);
     }
     postMessage({ type: 'done', id });
   } catch (e) {

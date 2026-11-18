@@ -99,6 +99,11 @@ export function save() {
 
 export function get() { return state; }
 
+// Candados de niveles (Ajustes → Nivel de inglés). Apagados por defecto: es para uso personal, todo abierto.
+export const locksOn = (s = state) => s.settings?.levelLocks === true;
+// Nivel hasta el que puede entrar: con candados, el más alto que desbloqueó; sin candados, todos (6).
+export const reachRank = (s = state) => locksOn(s) ? s.highestRank : 6;
+
 export function update(fn) { fn(state); save(); }
 
 export function reset() { state = structuredClone(DEFAULT); save(); }
