@@ -20,6 +20,7 @@ import { TOPICS, TOPIC_GROUPS, drawMissions } from './topics.js';
 import { activeSeasonal } from './seasons.js';
 import * as tutorial from './tutorial.js';
 import { workshop } from './workshop.js';
+import { grammarScreen, homeLabel as grammarLabel } from './grammarscreen.js';
 import * as safety from './safety.js';
 import { spendStatus, usd, PRICES } from './budget.js';
 import * as bitacora from './bitacora.js';
@@ -124,6 +125,7 @@ export function home() {
     h('div.home-actions', {},
       h('button.action', { onclick: () => essentials({ home }) }, '📚 Frases', h('small', {}, `${learnedIds(s.vocab).size}/${PHRASES.length}`)),
       h('button.action', { onclick: () => vocabScreen() }, '📒 Vocabulario', h('small', {}, `${s.vocab.filter(v => !v.archived).length}${pendingSuggestions(s).length ? ' · 💡' + pendingSuggestions(s).length : ''}`)),
+      h('button.action', { onclick: () => grammarScreen({ home }) }, '🧱 Gramática', h('small', {}, grammarLabel(s))),
       h('button.action', { onclick: () => workshop({ home }) }, '🧩 Taller', h('small', {}, (s.drills?.inbox?.length ? '💡' + s.drills.inbox.length + ' · ' : '') + 'juggle y esqueletos')),
       h('button.action', { onclick: () => contactsScreen() }, '👥 Contactos'),
       h('button.action', { onclick: () => statsScreen({ home }) }, '📊 Estadísticas'),

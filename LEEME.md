@@ -82,6 +82,22 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
     no se muestra dos veces).
   - Si cambia el cerebro, vuelva a generarlos (lo ya aprendido no se pierde):
     `python herramientas/importar_cerebro.py "C:/Users/leoab/Documents/ingles cerebro"`
+- **🧱 Gramática** (botón en el inicio), con el método de Pablo Bolen de su cerebro (equivalencia
+  estructural y «puzzle verbal»): no se estudian reglas con nombre, se reconoce la forma del verbo en
+  español y se cambia por su pieza en inglés.
+  - **Por niveles**: 12 lecciones, dos por nivel, siguiendo la progresión del cerebro: A1 «-ar → to + verbo»
+    y «-ando → -ing»; A2 «will» y «ayer (went, ate)»; B1 «would» y «he comido → have eaten»; B2 «había →
+    had + participio» y «si tuviera…, -ría»; C1 «habría → would have» y «si hubiera…, habría…»; C2 piezas
+    que se suman y frases largas. Se abren al llegar al nivel o al aprobar la anterior (80 %).
+  - Cada ejercicio tiene los 5 pasos: frase en español → elegir la pieza en inglés de cada verbo → armar la
+    frase con fichas → escucharla y decirla con el micrófono. Al final, nota, y las que falló van al repaso.
+  - **✨ 5 más con IA** en cada lección: DeepSeek crea ejercicios nuevos del mismo patrón (se revisan antes
+    de usarlos: cada pieza tiene que estar en la frase).
+  - **📋 Verbos**: la tabla de los 111 verbos de su mazo (`tools/mazo_verbos_150`) con infinitivo, pasado y
+    participio, **cada uno con su español** (to go / ir · went / fue · gone / ido). Irregulares en rojo,
+    filtro Todos / Irregulares / Regulares, búsqueda en inglés o español sin tildes, ficha con ejemplo y
+    audio de las tres formas, y **🎯 Pruébese**: «¿cómo se dice "fue"?» con tres opciones del mismo verbo.
+  - **✨ Su frase**: escriba en español lo que quiere decir hoy; DeepSeek la parte en piezas y usted la arma.
 - **🧩 Taller de frases** (botón «Taller» en el inicio): dos técnicas para practicar gramática sin estudiarla.
   - **🔁 Repeat and Juggle** (de su cerebro): escuche y repita una frase igual, y luego cámbiele una sola
     pieza (otra palabra, ayer / he… / había… / mañana, pregunta o negativa). Trae 12 ejercicios propios y
@@ -289,6 +305,8 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 | `js/cerebro.js`, `herramientas/importar_cerebro.py` | Paquetes, bitácora de errores y reglas del coach sacados del cerebro de inglés (generado: no editar a mano, vuelva a correr el script) |
 | `js/transcript.js` | Transcripción de cada charla |
 | `js/hints.js` | Pistas de pronunciación |
+| `js/grammar.js` | Gramática por piezas: las 12 lecciones, revisión de lo que crea la IA, tabla de verbos y preguntas de «Pruébese» |
+| `js/grammarscreen.js` | Pantallas de Gramática (lecciones, rompecabezas, tabla de verbos, Su frase) |
 | `js/bitacora.js` | Bitácora de errores del teléfono: guardar, resolver, juntar con la del cerebro y enviar al PC |
 | `js/budget.js` | Gasto del mes en dólares, precios de DeepSeek y tope |
 | `js/safety.js` | Copia de seguridad (sin clave), recordatorio cada 2 semanas y avisos de gasto |

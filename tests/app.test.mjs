@@ -1125,3 +1125,76 @@ test('ningún archivo tiene caracteres de control escondidos (p. ej. \b roto en 
     .filter(f => /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(readFileSync(join(ROOT, 'js', f), 'utf8')));
   assert.deepEqual(bad, []);
 });
+
+// ---------------- Gramática por piezas (Pablo Bolen) y tabla de verbos ----------------
+test('gramática: 2 lecciones por nivel, cada pieza está en su frase y sus opciones falsas son distintas', async () => {
+  const G = await import('../js/grammar.js');
+  for (let r = 1; r <= 6; r++) assert.equal(G.LESSONS.filter(l => l.rank === r).length, 2, `nivel ${r}`);
+  assert.equal(new Set(G.LESSONS.map(l => l.id)).size, G.LESSONS.length);
+  for (const l of G.LESSONS) {
+    assert.ok(l.idea && l.table.length >= 2 && l.exercises.length >= 5, l.id);
+    for (const x of l.exercises) {
+      assert.ok(!/[[\]]/.test(x.es + x.en), x.id);
+      assert.ok(x.pieces.length >= 1, x.id);
+      for (const p of x.pieces) {
+        assert.ok(x.es.toLowerCase().includes(p.es.toLowerCase()), `${x.id}: «${p.es}» en «${x.es}»`);
+        assert.ok(x.en.includes(p.en), `${x.id}: «${p.en}» en «${x.en}»`);
+        assert.equal(new Set([p.en, ...p.wrong]).size, 3, `${x.id}: opciones repetidas`);
+      }
+      assert.ok(G.validExercise(x), x.id);
+    }
+  }
+});
+
+test('gramática: las lecciones se abren por nivel o al aprobar la anterior; las fichas se arman', async () => {
+  const G = await import('../js/grammar.js');
+  assert.equal(G.nextLesson(1, {}).id, 'g-to');
+  assert.equal(G.nextLesson(1, { 'g-to': 0.9 }).id, 'g-ing');
+  assert.equal(G.unlocked(G.lessonById('g-will'), 1, {}), false);
+  assert.equal(G.unlocked(G.lessonById('g-will'), 1, { 'g-ing': 0.8 }), true);   // aprobó la anterior
+  assert.equal(G.unlocked(G.lessonById('g-if3'), 5, {}), true);                  // su nivel
+  assert.equal(G.nextLesson(6, Object.fromEntries(G.LESSONS.map(l => [l.id, 1]))), null);
+  const x = G.lessonById('g-if3').exercises[0];
+  const t = G.tiles(x.en);
+  assert.notEqual(t.join(' '), x.en);
+  assert.deepEqual([...t].sort(), x.en.split(' ').sort());
+  assert.ok(G.sameSentence('if i had known I would have called you', x.en));
+  assert.ok(!G.sameSentence('If I would have known, I had called you.', x.en));
+});
+
+test('gramática: lo que crea la IA se revisa (pieza fuera de la frase u opciones repetidas no sirven)', async () => {
+  const G = await import('../js/grammar.js');
+  const good = { es: 'Si hubiera sabido, te habría llamado.', en: 'If I had known, I would have called you.', pieces: [{ es: 'hubiera sabido', en: 'had known', wrong: ['would have known', 'have known'] }] };
+  assert.equal(G.validExercise(good).pieces.length, 1);
+  assert.equal(G.validExercise({ ...good, pieces: [{ es: 'habría ido', en: 'would have gone', wrong: ['a', 'b'] }] }), null);
+  assert.equal(G.validExercise({ ...good, pieces: [{ es: 'hubiera sabido', en: 'had known', wrong: ['had known', 'have known'] }] }), null);
+  assert.equal(G.validExercise({ es: '', en: 'x' }), null);
+});
+
+test('tabla de verbos: 111 verbos del cerebro con sus tres formas en inglés y en español, con tildes', async () => {
+  const G = await import('../js/grammar.js');
+  assert.equal(G.VERBS.length, 111);
+  const go = G.VERBS.find(v => v.base === 'go');
+  assert.deepEqual([go.es, go.past, go.esPast, go.pp, go.esPp], ['ir', 'went', 'fue', 'gone', 'ido']);
+  const talk = G.VERBS.find(v => v.base === 'talk');
+  assert.equal(talk.type, 'R');
+  assert.equal(talk.esPast, 'habló');
+  assert.equal(G.VERBS.find(v => v.base === 'fall').esPp, 'caído');
+  assert.equal(G.VERBS.find(v => v.base === 'say').esPast, 'dijo');            // pasado fuerte: sin tilde
+  assert.equal(G.VERBS.find(v => v.base === 'miss').es, 'extrañar');
+  for (const v of G.VERBS) assert.ok(v.base && v.past && v.pp && v.es && v.esPast && v.esPp, v.base);
+  // Búsqueda por comienzo de palabra, sin importar tildes; filtro de irregulares
+  assert.deepEqual(G.searchVerbs('went').map(v => v.base), ['go']);
+  assert.ok(G.searchVerbs('hablo').some(v => v.base === 'speak'));
+  assert.ok(G.searchVerbs('', 'I').every(v => v.type !== 'R'));
+  assert.ok(G.searchVerbs('', 'R').every(v => v.type === 'R'));
+  // Pruébese: la respuesta buena está entre 3 opciones distintas
+  const qs = G.verbQuestions(G.VERBS, 200);                                // todos (menos los que no tienen forma)
+  assert.equal(qs.length, 2 * G.VERBS.filter(v => !v.past.startsWith('(') && !v.pp.startsWith('(')).length);
+  assert.ok(G.VERBS.every(v => !/\*/.test(v.past + v.pp)), 'sin asteriscos del mazo');
+  for (const q of qs) {
+    assert.equal(q.options.length, 3, q.verb.base);
+    assert.equal(new Set(q.options).size, 3, q.verb.base);
+    assert.ok(q.options.includes(q.right));
+  }
+});

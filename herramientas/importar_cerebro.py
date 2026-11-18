@@ -116,6 +116,33 @@ JUGGLE_LABELS = ['ahora', 'ayer', 'he… (have / has)', 'había… (had)', 'mañ
 juggle_sets = []   # Repeat and Juggle completo: frase base + sus cambios, para el Taller de frases
 ACCENTS = {'Comunicacion': 'Comunicación', 'percepcion': 'percepción'}
 VERB_ICONS = ['🧩', '🏃', '💬', '💭', '🔁', '💛', '🪜']
+verb_table = []   # tabla de verbos: infinitivo / pasado / participio, cada uno con su español
+
+# El mazo de verbos guarda el español sin tildes (por Anki). Se las devolvemos para mostrarlo bien.
+FIX_ES = {'extranar': 'extrañar', 'extranado': 'extrañado', 'obligacion': 'obligación', 'oir': 'oír',
+          'caido': 'caído', 'leido': 'leído', 'oido': 'oído', 'creido': 'creído', 'traido': 'traído',
+          'percepcion': 'percepción', 'Comunicacion': 'Comunicación'}
+# Pasados «fuertes» que se escriben sin tilde (los demás terminados en -o la llevan: habló, comió, cayó).
+NO_ACCENT_PAST = {'tuvo', 'vino', 'dijo', 'hizo', 'puso', 'supo', 'quiso', 'pudo', 'estuvo', 'trajo', 'detuvo',
+                  'mantuvo', 'anduvo', 'dio', 'vio', 'hubo', 'condujo', 'produjo'}
+
+
+# Notas del cerebro que en el mazo iban como asterisco.
+VERB_NOTES = {'read': 'Se escribe igual en las tres formas, pero el pasado y el participio se pronuncian «red».'}
+
+
+def es_word(w, past=False):
+    w = FIX_ES.get(w, w)
+    if w == 'extrano' and past:
+        return 'extrañó'
+    if past and len(w) > 2 and w.endswith('o') and w not in NO_ACCENT_PAST:
+        return w[:-1] + 'ó'
+    return w
+
+
+def es_text(text, past=False):
+    return re.sub(r"[A-Za-zñáéíóú]+", lambda m: es_word(m.group(0), past), text)
+
 irregular = {}   # forma conjugada → base (para encontrar el verbo en las frases de Refold)
 for k, (cat, verbs) in enumerate(DATA.items()):
     name = re.sub(r'^\d+\.\s*', '', cat)
@@ -129,6 +156,12 @@ for k, (cat, verbs) in enumerate(DATA.items()):
                 f = f.strip()
                 if f and not f.startswith('('):
                     irregular.setdefault(f.lower(), base)
+        ex = v[5].replace('%%', v[6]) if len(v) > 6 and '%%' in v[5] else ''
+        verb_table.append({'id': 'vt-' + slug(base), 'cat': k, 'catName': name, 'type': v[4],
+                           'es': es_text(v[0]), 'base': base, 'past': v[2].replace('*', ''), 'pp': v[3].replace('*', ''),
+                           **({'note': VERB_NOTES[base]} if base in VERB_NOTES else {}),
+                           'esPast': es_text(v[8], past=True) if len(v) > 8 else '',
+                           'esPp': es_text(v[9]) if len(v) > 9 else '', 'example': ex})
         lines = JUGGLE.get(base)
         if not lines:
             report.append(('  verbo sin Juggle', base))
@@ -281,6 +314,7 @@ rules = [clean_md(re.sub(r',?\s*ver `[^`]+`', '', ln[2:])) for ln in (sec.group(
 report.append(('Reglas del coach', len(rules)))
 
 report.append(('Repeat and Juggle (verbos)', len(juggle_sets)))
+report.append(('Tabla de verbos', len(verb_table)))
 bad = [p['id'] for pk in packs for p in pk['phrases'] if not p['raw'] or p['raw'].count('[') != 1]
 assert not bad, bad
 
@@ -297,6 +331,12 @@ lines.append('')
 lines.append('// Repeat and Juggle de su mazo de verbos: frase base + cambios de tiempo. [corchetes] = la parte que cambia.')
 lines.append('export const JUGGLE_SETS = [')
 lines += ['  ' + json.dumps(j, ensure_ascii=False) + ',' for j in juggle_sets]
+lines.append('];')
+lines.append('')
+lines.append('// Tabla de verbos de su mazo: infinitivo, pasado y participio, cada uno con su español.')
+lines.append('// type: R = regular (-ed), I = irregular, M = modal o auxiliar (no tiene todas las formas).')
+lines.append('export const VERB_TABLE = [')
+lines += ['  ' + json.dumps(v, ensure_ascii=False) + ',' for v in verb_table]
 lines.append('];')
 lines.append('')
 lines.append('// Reglas de corrección del usuario (CLAUDE.md del cerebro) y su bitácora de errores, para el coach.')

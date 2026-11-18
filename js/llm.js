@@ -187,6 +187,14 @@ async function demo(task, messages) {
       const fills = [['cooking', 'tonight'], ['playing chess', 'on Sunday'], ['dancing', 'tomorrow']];
       return { swaps: fills.map(f => { let k = 0; const en = frame.replace(/\{[a-z0-9_]+\}/gi, () => f[k++ % 2]); return { es: `(demo) Diga: ${en}`, en }; }) };
     }
+    case 'grammar': {
+      // Demo: siempre el mismo ejercicio de «si hubiera…, habría…» (sin IA no se analiza la frase del alumno).
+      return { items: [{ es: 'Si hubiera sabido, te habría llamado.',
+        en: 'If I had known, I would have called you.',
+        pieces: [{ es: 'hubiera sabido', en: 'had known', wrong: ['would have known', 'have known'] },
+          { es: 'habría llamado', en: 'would have called', wrong: ['would call', 'had called'] }],
+        note: '(demo) Las dos mitades hacen juego: had + known con would have + called.' }] };
+    }
     case 'drill_check': {
       const expected = (messages[0]?.content.match(/Expected answer: "([^"]*)"/) || [])[1];
       const ws = t => t.toLowerCase().replace(/[^a-z' ]+/g, ' ').split(/\s+/).filter(Boolean);

@@ -38,6 +38,7 @@ const DEFAULT = {
   gender: '',              // 'f', 'm' o '' (no dice)
   draft: null,             // charla a medias para seguirla después
   drills: { done: {}, mine: [], inbox: [] }, // Taller de frases: veces hecho, creados con IA, frases traídas de las charlas
+  grammar: { best: {} },   // Gramática por piezas: mejor nota (0..1) de cada lección
   myErrors: [],            // bitácora del teléfono: errores de las charlas (se copian al cerebro en el PC)
   errorStatus: {},         // id de un error del cerebro -> 'resuelto' marcado desde el teléfono
   usageMonth: null,        // { month: 'AAAA-MM', usd, calls, warned } gasto del mes para el tope
@@ -86,6 +87,7 @@ function merge(s) {
   if (!Array.isArray(out.inbox)) out.inbox = [];
   if (!out.rerolls || typeof out.rerolls !== 'object') out.rerolls = { date: '', used: 0 };
   if (!Array.isArray(out.myErrors)) out.myErrors = [];
+  if (!out.grammar || typeof out.grammar !== 'object' || !out.grammar.best) out.grammar = { best: {} };
   if (!out.errorStatus || typeof out.errorStatus !== 'object') out.errorStatus = {};
   if (!out.backup || typeof out.backup !== 'object') out.backup = { last: 0, snoozeUntil: 0 };
   return out;

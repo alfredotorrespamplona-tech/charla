@@ -190,6 +190,7 @@ siguiente prompt (`RelevantSummariesCount`).
 | Mensajes de los personajes entre charlas con premio por responder a tiempo | ✅ `js/inbox.js` (aparecen al abrir la app; sin notificaciones del sistema porque no hay servidor) |
 | Cuenta en el servidor: el progreso no se pierde al cambiar de teléfono | ✅ sin servidor: `js/safety.js` pide almacenamiento permanente, recuerda una copia cada 2 semanas (sin la clave de DeepSeek) e importa en otro teléfono |
 | Gasto de IA a cargo de la empresa | ✅ aquí lo paga el usuario: `js/budget.js` calcula el gasto del mes con los precios de DeepSeek, avisa al 80 % y al tope, y puede pausar la IA |
+| (No existe en LingoLooper) Gramática explícita por nivel | ✅ `js/grammar.js` + `js/grammarscreen.js`: método de Pablo Bolen del cerebro del usuario (equivalencia de piezas español → inglés), 12 lecciones A1–C2, rompecabezas de 5 pasos, ejercicios extra con DeepSeek y tabla de 111 verbos con su español |
 | (No existe en LingoLooper) Bitácora de errores propia, editable en el teléfono | ✅ `js/bitacora.js`: guarda los errores de cada charla, el coach los vigila al instante, se marcan resueltos y se envían al cerebro del PC; `herramientas/publicar.ps1` publica de vuelta |
 | Ciudades/idiomas múltiples, clima real | ❌ no aplica a una app personal sin servidor |
 

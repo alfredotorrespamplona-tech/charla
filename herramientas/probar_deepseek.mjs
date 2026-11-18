@@ -95,6 +95,14 @@ await chk('no dice lo pedido', { mode: 'skeleton', frame: how.frame, es: '¿Qué
 await chk('juggle libre bien hecho', { mode: 'juggle', base: "I'm really into cooking.", attempt: "I used to be really into soccer" }, ['correct', 'almost']);
 await chk('esqueleto libre con error', { mode: 'skeleton', frame: wish.frame, attempt: 'I wish I could to travel more' }, ['almost', 'wrong']);
 
+// Gramática por piezas (método de Pablo Bolen): ejercicios nuevos de una lección y «Su frase».
+const Gr = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'js', 'grammar.js')).href);
+const lessonIf3 = Gr.lessonById('g-if3');
+await run('grammar (✨ 5 más de una lección)', () => chatJson('grammar', P.grammarMessages({ lesson: lessonIf3, count: 5, rankId: 2, done: lessonIf3.exercises.map(x => x.es) }), { temperature: 0.7, maxTokens: 1400 }),
+  o => { const ok = (o.items || []).map(Gr.validExercise).filter(Boolean); return ok.length >= 4 ? [] : [`solo ${ok.length} ejercicios válidos: ${short(o.items)}`]; });
+await run('grammar (Su frase en piezas)', () => chatJson('grammar', P.grammarMessages({ sentence: 'Si hubiera tenido tiempo, habría ido al gimnasio.', rankId: 2 }), { temperature: 0.3, maxTokens: 700 }),
+  o => { const x = Gr.validExercise(o.items?.[0]); return x && x.pieces.length >= 2 ? [] : [`no se partió bien: ${short(o.items)}`]; });
+
 const ok = results.filter(r => r.ok).length;
 console.log(`\n==== ${ok}/${results.length} bien · ${Math.round(results.reduce((a, r) => a + r.ms, 0) / 1000)} s en total`);
 const u = store.get().usage;

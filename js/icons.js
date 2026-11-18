@@ -126,7 +126,7 @@ const MAP = {
   '💼': 'briefcase', '🧠': 'cards', '📒': 'book', '📚': 'book', '📖': 'book', '👥': 'users', '👪': 'users', '🤝': 'users',
   '📊': 'chart', '💌': 'mail', '🎲': 'dice', '🎉': 'sparkles', '🎈': 'sparkles', '✨': 'sparkles',
   '⌨': 'keyboard', '✈': 'plane', '🧳': 'luggage', '🎒': 'luggage', '📅': 'calendar', '⚙': 'sliders',
-  '⏸': 'pause', '▶': 'play', '⏯': 'play', '⏹': 'stop', '🧩': 'puzzle',
+  '⏸': 'pause', '▶': 'play', '⏯': 'play', '⏹': 'stop', '🧩': 'puzzle', '🧱': 'puzzle', '🔮': 'sparkles', '⏪': 'undo', '🔗': 'plug',
   '💛': 'heart', '💕': 'heart', '💔': 'heartbreak', '🏫': 'cap', '🎓': 'cap', '🧑‍🏫': 'cap',
   '⏳': 'hourglass', '🗑': 'trash', '🧽': 'droplet', '☕': 'coffee', '🥤': 'coffee', '💻': 'laptop', '🖥': 'laptop', '🤖': 'laptop',
   '⏰': 'clock', '🕘': 'clock', '☀': 'sun',

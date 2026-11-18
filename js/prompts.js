@@ -282,6 +282,26 @@ ${coachRules()}Return ONLY JSON: {"verdict": "correct|almost|wrong", "kept": tru
   ];
 }
 
+// ---- Gramática por piezas (método de Pablo Bolen) ----
+// Con «sentence»: parte en piezas la frase en español que el alumno quiere decir.
+// Sin ella: crea «count» ejercicios nuevos del patrón de la lección.
+export function grammarMessages({ lesson, sentence = '', count = 5, rankId, done = [] }) {
+  const rank = rankById(rankId);
+  const shape = `{"es": "${LEARNER_LANG} sentence", "en": "natural English sentence", "pieces": [{"es": "${LEARNER_LANG} verb piece exactly as it appears in es", "en": "its English piece exactly as it appears in en", "wrong": ["tempting wrong English piece", "another tempting wrong piece"]}], "note": "one short ${LEARNER_LANG} tip"}`;
+  const method = `Pablo Bolen's method: the learner recognises the FORM of each verb in ${LEARNER_LANG} (-ar/-er/-ir, -ando/-iendo, -ado/-ido, future -ré, conditional -ría, he…, había/hubiera…, habría…) and swaps it for its English piece (to + verb, -ing, -ed/participle, will, would, have + participle, had + participle, would have + participle), WITHOUT grammar names.
+Pieces = only the verb groups (1 to 3 per sentence), each piece copied exactly from the sentences. "wrong" = 2 wrong English pieces a ${LEARNER_LANG} speaker would really say (other forms of the same verb, would in the if-half, regularised past like "goed"). Never use grammar labels in "note".`;
+  const task = sentence
+    ? `The learner wrote what they want to say: "${sentence}". If it is in English or has mistakes, use the ${LEARNER_LANG} sentence they mean. Return ONE item for it.`
+    : `Create ${count} new everyday sentences (learner level ${rank.code}) that practise this pattern: «${lesson.title}». ${lesson.idea} Do not repeat: ${done.join(' | ') || '(none)'}.`;
+  return [
+    { role: 'system', content: `You make grammar puzzles for an English learner (native ${LEARNER_LANG}, level ${rank.code}).
+${method}
+${task}
+${coachRules()}Return ONLY JSON: {"items": [${shape}]}` },
+    { role: 'user', content: sentence || lesson.title },
+  ];
+}
+
 // ---- Repaso personalizado (tarjetas con {{gap}}) ----
 export function reviewMessages(items, rankId) {
   const rank = rankById(rankId);
