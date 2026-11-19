@@ -650,6 +650,13 @@ export function startConversation({ place, character, mission, onFinish, onExit,
         break;
       }
       if (!alive) return;
+      // No dijo nada: el personaje no lo apura con «no le entendí»; el micrófono queda listo para cuando quiera.
+      if (!text && leftCount === leftBefore) {
+        micBtn.classList.add('pulse');
+        turnStatus('🎤 Tómese su tiempo. Toque el micrófono cuando esté listo.');
+        armNudge();
+        return;
+      }
       // Salió de la app mientras grababa: no se envía un pedazo; se sigue cuando vuelva.
       if (leftCount !== leftBefore) { setStatus('🎤 Se pausó el micrófono al salir. Tóquelo para seguir.'); return; }
       if (cancelled) { setStatus('Cancelado. Toque 🎤 cuando quiera hablar.'); return; }
@@ -673,9 +680,10 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     micBtn.classList.add('recording');
     avatar.setListening(true);
     interim.classList.remove('hidden');
-    interim.textContent = before || 'Escuchando…';
+    const LISTENING = 'Escuchando… tómese su tiempo (toque el micrófono para enviar)';
+    interim.textContent = before || LISTENING;
     try {
-      return await listener.start({ lang: store.get().settings.targetLang, onInterim: t => { interim.textContent = [before, t].filter(Boolean).join(' ') || 'Escuchando…'; } });
+      return await listener.start({ lang: store.get().settings.targetLang, onInterim: t => { interim.textContent = [before, t].filter(Boolean).join(' ') || LISTENING; } });
     } finally {
       clearInterval(recWatch);
       if (/^⏳/.test(status.dataset.raw || '')) setStatus('');

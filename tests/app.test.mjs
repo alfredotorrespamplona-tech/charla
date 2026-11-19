@@ -1279,10 +1279,79 @@ test('texto al ritmo de la voz: mide el ritmo del teléfono y la pausa para envi
   sp.learnPace(2, 3000);                                          // frase corta: no cuenta
   assert.equal(store.get().settings.paceMs, 440);
   assert.equal(sp.sendPauseMs(), sp.WAIT_AFTER_SPEECH_MS);
-  store.update(s => { s.settings.sendPauseMs = 1000; });
-  assert.equal(sp.sendPauseMs(), 1000);
+  assert.ok(sp.WAIT_AFTER_SPEECH_MS >= 3000);                      // da tiempo de pensar a mitad de la frase
+  store.update(s => { s.settings.sendPauseMs = 6000; });
+  assert.equal(sp.sendPauseMs(), 6000);
+  store.update(s => { s.settings.sendPauseMs = 1600; });           // la pausa corta de antes pasa a la normal
+  assert.equal(sp.sendPauseMs(), sp.WAIT_AFTER_SPEECH_MS);
   store.update(s => { s.settings.sendPauseMs = 123; });
   assert.equal(sp.sendPauseMs(), sp.WAIT_AFTER_SPEECH_MS);
+});
+
+// Reconocedor falso que se porta como el de Android: se corta solo en cada pausa o tras un rato sin oír nada.
+function fakeRecognizer(plans) {
+  const made = [];
+  class FakeRec {
+    constructor() { this.plan = plans.shift() || { end: 60, error: 'no-speech' }; made.push(this); }
+    start() {
+      const results = [];
+      this.timers = (this.plan.said || []).map(([ms, text, fin = true]) => setTimeout(() => {
+        results.push(Object.assign([{ transcript: text }], { isFinal: fin }));
+        this.onresult?.({ results: [...results] });
+      }, ms));
+      this.timers.push(setTimeout(() => this.finish(this.plan.error), this.plan.end));
+    }
+    finish(error) {
+      if (this.done) return;
+      this.done = true;
+      this.timers.forEach(clearTimeout);
+      if (error) this.onerror?.({ error });
+      this.onend?.();
+    }
+    stop() { setTimeout(() => this.finish(), 5); }
+    abort() { setTimeout(() => this.finish('aborted'), 5); }
+  }
+  return { FakeRec, made };
+}
+
+test('escuchar: si el teléfono se corta en una pausa, sigue escuchando y junta toda la frase', async () => {
+  const { Listener } = await import('../js/speech.js');
+  // Se queda pensando (el teléfono se corta sin oír nada), dice «I think», piensa otra vez y termina la frase.
+  const { FakeRec, made } = fakeRecognizer([
+    { end: 80, error: 'no-speech' },
+    { said: [[20, 'I think']], end: 60 },
+    { said: [[90, 'I would like a coffee']], end: 130 },
+  ]);
+  const l = new Listener(FakeRec);
+  const t0 = Date.now();
+  const r = await l.start({ firstWordMs: 2000, pauseMs: 250, restartMs: 10 });
+  assert.equal(r.text, 'I think I would like a coffee');
+  assert.ok(made.length >= 3, `abrió ${made.length} veces`);
+  assert.ok(Date.now() - t0 >= 250, 'espera la pausa elegida después de la última palabra');
+  assert.ok(!l.active);
+});
+
+test('escuchar: da tiempo para pensar antes de hablar y el micrófono termina el turno al tocarlo', async () => {
+  const { Listener } = await import('../js/speech.js');
+  // Nadie habla: no se rinde en el primer corte del teléfono, espera todo el tiempo para pensar.
+  const silent = fakeRecognizer([]);
+  const t0 = Date.now();
+  const r = await new Listener(silent.FakeRec).start({ firstWordMs: 300, pauseMs: 100, restartMs: 10 });
+  assert.equal(r.text, '');
+  assert.ok(Date.now() - t0 >= 290 && silent.made.length >= 3);
+  // Tocar el micrófono envía ya lo que dijo, sin esperar la pausa.
+  const talk = fakeRecognizer([{ said: [[20, 'Hello there']], end: 5000 }]);
+  const l = new Listener(talk.FakeRec);
+  const p = l.start({ firstWordMs: 3000, pauseMs: 3000, restartMs: 10 });
+  await new Promise(res => setTimeout(res, 60));
+  const t1 = Date.now();
+  l.stop();
+  assert.equal((await p).text, 'Hello there');
+  assert.ok(Date.now() - t1 < 500);
+  // Sin permiso de micrófono: avisa en vez de quedarse abriendo una y otra vez.
+  const denied = fakeRecognizer([{ end: 10, error: 'not-allowed' }]);
+  await assert.rejects(new Listener(denied.FakeRec).start({ restartMs: 10 }), /Permiso de micrófono/);
+  assert.equal(denied.made.length, 1);
 });
 
 test('voz natural: cada trozo de audio sabe dónde empieza en el texto', async () => {

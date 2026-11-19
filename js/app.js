@@ -791,7 +791,7 @@ function settings({ back = home } = {}) {
   });
   const auto = h('input', { type: 'checkbox', checked: s.settings.autoListen });
   const pauseSel = h('select', { 'aria-label': 'Pausa para enviar' }, SEND_PAUSES.map(ms => h('option', { value: ms, selected: ms === sendPauseMs() },
-    `${(ms / 1000).toLocaleString('es')} s${ms === 1000 ? ' (rápido)' : ms === 1600 ? ' (normal)' : ms === 3000 ? ' (para pensar)' : ''}`)));
+    `${(ms / 1000).toLocaleString('es')} s${ms === 2000 ? ' (rápido)' : ms === 3000 ? ' (normal)' : ms === 6000 ? ' (para pensar con calma)' : ''}`)));
   // Candados: se guardan al tocarlos y se vuelve a dibujar el selector de nivel.
   const locks = h('input', { type: 'checkbox', checked: store.locksOn(s), onchange: e => {
     store.update(st => { st.settings.levelLocks = e.target.checked; if (!e.target.checked) st.rankProposal = null; });
@@ -823,7 +823,7 @@ function settings({ back = home } = {}) {
       h('button.small', { onclick: () => practicePronunciation('Hello, how are you today?', { onResult: refreshCheck }) }, '🎤 Probar micrófono')),
     h('label.check', {}, auto, ' 🎙 Manos libres: escuchar solo cuando termina el personaje y enviar tras una pausa'),
     h('label', {}, 'Cuando deja de hablar, enviar tras un silencio de'), pauseSel,
-    h('p.muted', {}, 'Más corto = el personaje responde antes. Si le corta las frases mientras piensa, súbalo.'),
+    h('p.muted', {}, 'Antes de su primera palabra tiene 20 segundos para pensar. Si le corta las frases mientras piensa, súbalo. Para enviar sin esperar, toque el micrófono.'),
     h('h3', {}, 'Charlas'),
     h('label.check', {}, solo, ' 👩 Una sola compañera en todas las charlas: Amy, con voz de mujer y los labios al ritmo de la voz'),
     h('p.muted', {}, 'Amy hace el papel de cada lugar (barista, médica, recepcionista…). Si lo quita, vuelven las demás compañeras con sus imágenes; los papeles de hombre los sigue haciendo Amy, porque la voz es de mujer.'),

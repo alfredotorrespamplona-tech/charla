@@ -8,9 +8,10 @@ export const canListen = !!SR;
 export const canSpeak = 'speechSynthesis' in window;
 export const IS_ANDROID = /Android/i.test(navigator.userAgent || '');
 
-// Espera antes de dar el turno por terminado: más larga mientras no ha empezado a hablar (está pensando).
-export const WAIT_FIRST_WORD_MS = 8000;
-export const WAIT_AFTER_SPEECH_MS = 1600;
+// Espera antes de dar el turno por terminado: mucho más larga mientras no ha empezado a hablar (está
+// pensando la respuesta). Después de hablar, el silencio que se elige en Ajustes (3 s si no eligió).
+export const WAIT_FIRST_WORD_MS = 20000;
+export const WAIT_AFTER_SPEECH_MS = 3000;
 
 const MESSAGES = {
   'not-allowed': 'Permiso de micrófono denegado. Actívelo en el candado de la barra de dirección.',
@@ -36,75 +37,123 @@ export function joinResults(parts, dedupe = IS_ANDROID) {
 }
 
 // ---------- Escuchar ----------
+const RESTART_MS = 120;
+const FATAL = ['not-allowed', 'service-not-allowed', 'audio-capture', 'network', 'language-not-supported'];
+
 export class Listener {
-  constructor() {
+  constructor(Rec = SR) {
+    this.Rec = Rec;
     this.rec = null;
     this.active = false;
+    this.ending = false;
+    this.end = null;
+    this.cancel = null;
   }
 
-  // Devuelve { text, durationMs } cuando el usuario termina (silencio o stop()).
-  start({ lang, onInterim }) {
+  // Devuelve { text, durationMs } cuando el usuario termina: se calla un rato (pauseMs) después de hablar,
+  // no dice nada en firstWordMs, o toca el micrófono (stop()).
+  // Android corta el reconocimiento solo en la primera pausa (aunque se pida continuous) o a los ~5 s sin oír
+  // nada. Si se corta antes de tiempo, se vuelve a abrir enseguida y se junta lo dicho: así puede pensar
+  // con calma a mitad de la frase sin que se envíe un pedazo.
+  start({ lang, onInterim, firstWordMs = WAIT_FIRST_WORD_MS, pauseMs = sendPauseMs(), restartMs = RESTART_MS } = {}) {
     return new Promise((resolve, reject) => {
-      if (!SR) return reject(new Error('Este navegador no reconoce voz. Use Chrome en Android o escriba.'));
-      const rec = new SR();
-      this.rec = rec;
-      rec.lang = lang || 'en-US';
-      rec.interimResults = true;
-      rec.continuous = true;      // seguimos escuchando hasta que suelte el botón o haya silencio largo
-      rec.maxAlternatives = 1;
-      let finalText = '';
-      let lastInterim = '';
-      let firstSpeechAt = 0;
-      let lastSpeechAt = 0;
-      let silenceTimer = null;
-      const armSilence = () => {
-        clearTimeout(silenceTimer);
-        // Silencio = fin del turno. Antes de la primera palabra se espera más (está pensando la respuesta).
-        silenceTimer = setTimeout(() => { try { rec.stop(); } catch {} }, firstSpeechAt ? sendPauseMs() : WAIT_FIRST_WORD_MS);
+      if (!this.Rec) return reject(new Error('Este navegador no reconoce voz. Use Chrome en Android o escriba.'));
+      let said = '', finalText = '', lastInterim = '';
+      let firstSpeechAt = 0, lastSpeechAt = 0, quickEnds = 0, opens = 0, done = false;
+      let timer = null, restartTimer = null, safety = null;
+      const durationMs = () => (firstSpeechAt ? Math.max(500, lastSpeechAt - firstSpeechAt + 600) : 0);
+      const commit = () => { said = joinResults([said, (finalText || lastInterim).trim()]); finalText = ''; lastInterim = ''; };
+      const finish = error => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer); clearTimeout(restartTimer); clearTimeout(safety);
+        commit();
+        this.active = false; this.rec = null; this.end = null; this.cancel = null;
+        const text = said.trim();
+        if (error && !text) return reject(new Error(MESSAGES[error] || 'Error de reconocimiento: ' + error));
+        resolve({ text, durationMs: text ? durationMs() : 0 });
       };
-      rec.onresult = e => {
-        const now = performance.now();
-        if (!firstSpeechAt) firstSpeechAt = now;
-        lastSpeechAt = now;
-        const finals = [];
-        let interim = '';
-        for (let i = 0; i < e.results.length; i++) {
-          const r = e.results[i];
-          if (r.isFinal) finals.push(r[0].transcript);
-          else interim = r[0].transcript;
+      // Fin del turno: se pide al reconocedor lo último que oyó (llega en onend); entre dos grabaciones, ya.
+      const close = how => {
+        if (done) return;
+        this.ending = true;
+        clearTimeout(timer); clearTimeout(restartTimer);
+        const rec = this.rec;
+        if (!rec) return finish();
+        try { rec[how](); } catch { return finish(); }
+        safety = setTimeout(() => finish(), 1500);   // por si el teléfono nunca avisa que terminó
+      };
+      this.end = () => close('stop');
+      this.cancel = () => close('abort');
+      // Silencio = fin del turno. Antes de la primera palabra se espera mucho más (está pensando la respuesta).
+      const arm = () => { clearTimeout(timer); timer = setTimeout(() => close('stop'), firstSpeechAt ? pauseMs : firstWordMs); };
+
+      const open = () => {
+        if (done || this.ending) return;
+        const rec = new this.Rec();
+        this.rec = rec;
+        rec.lang = lang || 'en-US';
+        rec.interimResults = true;
+        rec.continuous = true;
+        rec.maxAlternatives = 1;
+        const openedAt = performance.now();
+        let error = '', gotResult = false, closed = false;
+        rec.onresult = e => {
+          const now = performance.now();
+          gotResult = true;
+          if (!firstSpeechAt) firstSpeechAt = now;
+          lastSpeechAt = now;
+          const finals = [];
+          let interim = '';
+          for (let i = 0; i < e.results.length; i++) {
+            const r = e.results[i];
+            if (r.isFinal) finals.push(r[0].transcript);
+            else interim = r[0].transcript;
+          }
+          finalText = joinResults(finals);
+          lastInterim = interim;
+          onInterim?.(joinResults([said, finalText, interim]));
+          if (!this.ending) arm();
+        };
+        rec.onerror = e => {
+          error = e.error;
+          // Sin permiso, sin micrófono o sin internet: no sirve volver a abrir.
+          if (FATAL.includes(error) && !closed) { closed = true; finish(error); try { rec.abort(); } catch {} }
+        };
+        rec.onend = () => {
+          if (closed || done) return;
+          closed = true;
+          if (this.rec === rec) this.rec = null;
+          commit();
+          if (this.ending || error === 'aborted') return finish();
+          // Se cortó solo (pausa o silencio): se vuelve a abrir, salvo que falle enseguida una y otra vez.
+          quickEnds = !gotResult && performance.now() - openedAt < 300 ? quickEnds + 1 : 0;
+          if (quickEnds >= 4) return finish();
+          restartTimer = setTimeout(open, restartMs);
+        };
+        try { rec.start(); opens++; } catch (err) {
+          closed = true;
+          this.rec = null;
+          if (opens) return finish();   // al volver a abrir: termina con lo que ya dijo
+          done = true;
+          clearTimeout(timer);
+          this.active = false; this.end = null; this.cancel = null;
+          reject(new Error('No se pudo abrir el micrófono: ' + err.message));
         }
-        finalText = joinResults(finals);
-        lastInterim = interim;
-        onInterim?.(joinResults([finalText, interim]));
-        armSilence();
-      };
-      rec.onerror = e => {
-        clearTimeout(silenceTimer);
-        this.active = false;
-        // Si alcanzó a decir algo, se envía igual (la grabación se cortó).
-        const said = joinResults([finalText, lastInterim]).trim();
-        if (said) resolve({ text: said, durationMs: firstSpeechAt ? Math.max(500, lastSpeechAt - firstSpeechAt + 600) : 0 });
-        else if (e.error === 'no-speech' || e.error === 'aborted') resolve({ text: '', durationMs: 0 });
-        else reject(new Error(MESSAGES[e.error] || 'Error de reconocimiento: ' + e.error));
-      };
-      rec.onend = () => {
-        clearTimeout(silenceTimer);
-        this.active = false;
-        const durationMs = firstSpeechAt ? Math.max(500, lastSpeechAt - firstSpeechAt + 600) : 0;
-        resolve({ text: (finalText || lastInterim).trim(), durationMs });
       };
       this.active = true;
-      try { rec.start(); } catch (err) { this.active = false; return reject(new Error('No se pudo abrir el micrófono: ' + err.message)); }
-      armSilence();
+      this.ending = false;
+      arm();
+      open();
     });
   }
 
-  stop() { try { this.rec?.stop(); } catch {} }
-  abort() { try { this.rec?.abort(); } catch {} }
+  stop() { this.end?.(); }
+  abort() { this.cancel?.(); }
 }
 
 // Pausa de silencio que da el turno por terminado (Ajustes → «Enviar tras una pausa de»).
-export const SEND_PAUSES = [1000, 1600, 2200, 3000];
+export const SEND_PAUSES = [2000, 3000, 4000, 6000];
 export function sendPauseMs() {
   const v = store.get().settings.sendPauseMs;
   return SEND_PAUSES.includes(v) ? v : WAIT_AFTER_SPEECH_MS;

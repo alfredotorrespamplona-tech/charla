@@ -214,9 +214,11 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   fotos pequeñas (`avatars/<id>/mini.webp`, 192 px) en vez de las de 640 px.
 - **Ajustes → Micrófono y voz**: revisa si el teléfono puede usar el micrófono y si tiene voces en inglés,
   y dice qué hacer si algo falla. Trae botones para probar la voz y el micrófono.
-- El micrófono espera hasta 8 s a que usted empiece a hablar (tiempo para pensar) y, cuando ya habló,
-  da el turno por terminado tras 1,6 s de silencio (Ajustes: 1 s, 1,6 s, 2,2 s o 3 s). También puede
-  tocar 🎤 otra vez para terminar.
+- El micrófono espera hasta 20 s a que usted empiece a hablar (tiempo para pensar) y, cuando ya habló,
+  da el turno por terminado tras 3 s de silencio (Ajustes: 2, 3, 4 o 6 s). Android corta el micrófono
+  solo en la primera pausa: `Listener` (speech.js) lo vuelve a abrir enseguida y junta lo dicho, así una
+  pausa para pensar no envía media frase. Si no dice nada, el personaje no lo apura: el micrófono queda
+  listo. También puede tocar 🎤 otra vez para enviar ya.
 - **Respuesta más rápida y sincronizada**: la respuesta de DeepSeek llega por partes (stream) y el
   personaje empieza a hablar apenas está la primera frase; el resto se agrega a la burbuja y lo dice a
   continuación. El texto aparece al ritmo de la voz: palabra exacta si la voz del teléfono lo avisa, por
