@@ -30,16 +30,20 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
 - **🎓 Contenido por nivel** (v34; botón «Por nivel» del inicio, cuadro de la portada, «Ver y estudiar el
   contenido» en la hoja de niveles y en Ajustes): una pantalla con los 6 niveles (A1…C2) arriba y, para el
   nivel elegido, qué puede hacer con él y todo lo que se estudia ahí:
-  - **📖 Temario de gramática** (v35): 78 temas en total (A1 15, A2 14, B1 14, B2 13, C1 12, C2 10) y
-    470 preguntas. Cada tema tiene una ficha escrita como pide su cerebro, en español primero y sin palabras
+  - **📖 Temario de gramática** (v35; v36: 10 preguntas por tema y el porqué de cada una): 78 temas en total
+    (A1 15, A2 14, B1 14, B2 13, C1 12, C2 10) y 780 preguntas. Cada tema tiene una ficha escrita como pide su cerebro, en español primero y sin palabras
     de gramática: «Qué es y para qué sirve», «Cómo se dice en inglés», «La forma» (frases que se tocan para
     oírlas), ejemplos con audio y traducción, y «Errores típicos de quien habla español» (lo que se dice mal →
     cómo se dice, y por qué). Debajo:
-    - **✍ Practicar**: preguntas de completar la frase con 3 opciones. Con 80 % el tema queda aprobado (✓).
+    - **✍ Practicar**: 10 preguntas de completar la frase con 3 opciones. Con 80 % el tema queda aprobado (✓).
+      Al responder (bien o mal) sale **💡 Por qué**: una línea en español, sin palabras de gramática, que dice
+      por qué es esa respuesta (por ejemplo «Si tuviera → if + pasado: had»). Si falla y tiene su clave de
+      DeepSeek, **❓ No lo entiendo** se lo explica pieza por pieza (método de Pablo Bolen, como en la charla).
+      Al final, cada frase que falló trae también su porqué.
     - **🗣 Charlar usando esto**: una charla con Amy que le hace preguntas en las que ese tema sale solo,
       con 3 objetivos (usarlo, usarlo otra vez, preguntar con él).
     - **🧩 Rompecabezas** del tema, cuando lo hay.
-    - **✨ 6 preguntas nuevas con IA** (con su clave de DeepSeek), distintas de las del tema.
+    - **✨ 6 preguntas nuevas con IA** (con su clave de DeepSeek), distintas de las del tema y con su porqué.
     - Flechas para pasar al tema anterior o siguiente.
   - **📝 Examen de cada nivel**: 20 preguntas de todos los temas del nivel, cada vez otras. Con 80 % el
     nivel queda aprobado en gramática. Al final salen los temas para repasar (los peores primero, con un

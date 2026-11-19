@@ -207,13 +207,13 @@ export function bitacoraRows(analyses, date = new Date()) {
 
 // ---- «No entiendo»: explicación de emergencia con el método de Pablo Bolen ----
 // Español primero: la frase que quería decir, partida en piezas reconocibles, cada pieza en inglés y armada.
-export function explainMessages({ original, corrected, explanation }) {
+export function explainMessages({ original, corrected, explanation, meant = '' }) {
   return [
     { role: 'system', content: `The learner (native ${LEARNER_LANG}) did not understand a correction. Explain it with Pablo Bolen's method:
 start from the ${LEARNER_LANG} sentence they meant, split its verbs into recognisable pieces (WITHOUT naming them grammatically: no "conditional", "participle", "subjunctive", "passive", "tense" names),
 give the English equivalent of each piece, then assemble the English sentence. Simple ${LEARNER_LANG}, short.
 ${coachRules()}Return ONLY JSON: {"es": "the ${LEARNER_LANG} sentence they meant", "pieces": [{"es": "${LEARNER_LANG} piece, e.g. «hubiera sabido»", "en": "English piece, e.g. «had known»", "note": "very short plain ${LEARNER_LANG} note on what this piece does"}], "en": "the assembled English sentence", "tip": "one short sentence to remember it"}` },
-    { role: 'user', content: `Learner said: "${original}"\nCorrection: "${corrected}"\nExplanation they did not understand: "${explanation || ''}"` },
+    { role: 'user', content: `Learner said: "${original}"\n${meant ? `What they meant (${LEARNER_LANG}): "${meant}"\n` : ''}Correction: "${corrected}"\nExplanation they did not understand: "${explanation || ''}"` },
   ];
 }
 
@@ -312,9 +312,10 @@ Create ${count} NEW everyday sentences (work, family, travel, plans, feelings) t
 - "es": a natural ${LEARNER_LANG} sentence with the same meaning (so the learner knows what to say);
 - "en": the natural English sentence with exactly ONE gap written as ___ where the target words go;
 - "answer": the words that fill the gap;
-- "wrong": 2 tempting wrong options a ${LEARNER_LANG} speaker would really choose (other forms of the same structure), each clearly wrong in that sentence.
+- "wrong": 2 tempting wrong options a ${LEARNER_LANG} speaker would really choose (other forms of the same structure), each clearly wrong in that sentence;
+- "why": one very short, plain ${LEARNER_LANG} reason why the answer is right, starting from the ${LEARNER_LANG} meaning (e.g. «Si tuviera → if + pasado: had»).
 Never use grammar labels. Do not repeat these sentences: ${done.join(' | ') || '(none)'}.
-${coachRules()}Return ONLY JSON: {"items": [{"es": "...", "en": "... ___ ...", "answer": "...", "wrong": ["...", "..."]}]}` },
+${coachRules()}Return ONLY JSON: {"items": [{"es": "...", "en": "... ___ ...", "answer": "...", "wrong": ["...", "..."], "why": "..."}]}` },
     { role: 'user', content: topic.title },
   ];
 }

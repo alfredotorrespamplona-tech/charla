@@ -16,17 +16,27 @@ const BY_ID = new Map(TOPICS.map(t => [t.id, t]));
 export const topicById = id => BY_ID.get(id);
 export const levelTopics = code => TOPICS.filter(t => t.level === code);
 
-// Pregunta de práctica: la frase en español, la inglesa con ___, la respuesta y 2 opciones falsas.
-export const asQuestion = ([es, en, answer, wrong], topic = null) =>
-  ({ es, en, answer, wrong, topic: topic?.id || null, full: en.replace('___', answer) });
+// Pregunta de práctica: la frase en español, la inglesa con ___, la respuesta, 2 opciones falsas y el porqué.
+export const asQuestion = ([es, en, answer, wrong, why], topic = null) =>
+  ({ es, en, answer, wrong, why: why || '', topic: topic?.id || null, full: en.replace('___', answer) });
 
 const low = t => String(t || '').trim().toLowerCase();
 export function validQuestion(q) {
   if (!q || typeof q.es !== 'string' || typeof q.en !== 'string' || typeof q.answer !== 'string') return false;
   if (!q.es.trim() || !q.answer.trim() || q.en.split('___').length !== 2) return false;
   if (!Array.isArray(q.wrong) || q.wrong.length !== 2) return false;
+  if (q.why != null && (typeof q.why !== 'string' || q.why.length > 220)) return false;
   const opts = [q.answer, ...q.wrong].map(low);
   return opts.every(Boolean) && new Set(opts).size === 3 && q.en.length < 220 && q.es.length < 220;
+}
+
+// Por qué es esa la respuesta: el de la pregunta. Si no lo trae (p. ej. la IA no lo mandó), el error típico
+// del tema que corresponde a lo que eligió; si no hay ninguno, vacío.
+export function explain(q, chosen = '', topic = topicById(q?.topic)) {
+  if (q?.why) return q.why;
+  const c = low(chosen), a = low(q?.answer);
+  const trap = c && topic?.traps.find(([wrong, right]) => low(wrong).includes(c) && low(right).includes(a));
+  return trap ? trap[2] : '';
 }
 
 export function shuffle(list, rnd = Math.random) {

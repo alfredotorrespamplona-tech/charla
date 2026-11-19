@@ -4,7 +4,7 @@
 import * as store from './store.js';
 import { chatJson } from './llm.js';
 import * as P from './prompts.js';
-import { h, mount, toast, progressBar, setText, buzz } from './ui.js';
+import { h, mount, toast, progressBar, setText, buzz, sheet, spinner } from './ui.js';
 import { speak, stopSpeaking } from './speech.js';
 import { addVocab } from './words.js';
 import * as T from './temario.js';
@@ -78,6 +78,24 @@ async function moreWithAI(topic, back, btn) {
   } catch (e) { toast(e.message, 'bad'); btn.disabled = false; setText(btn, '✨ 6 preguntas nuevas con IA'); }
 }
 
+// «No lo entiendo»: la IA lo explica pieza por pieza, en español primero (método de Pablo Bolen, como en la charla).
+async function explainMore(q, chosen) {
+  const box = h('div', {}, h('h3', {}, '🧩 Pieza por pieza'), spinner('Armando la explicación…'));
+  sheet(box);
+  try {
+    const r = await chatJson('explain', P.explainMessages({ original: q.en.replace('___', chosen), corrected: q.full,
+      explanation: T.explain(q, chosen), meant: q.es }), { temperature: 0.3, maxTokens: 500 });
+    box.lastChild.remove();
+    box.append(
+      h('p', {}, 'Lo que quería decir: ', h('b', {}, r.es || q.es)),
+      h('ol.pieces', {}, (r.pieces || []).map(p => h('li', {},
+        h('span.piece-es', {}, p.es), ' → ', h('b.piece-en', {}, p.en), p.note ? h('small.muted', {}, p.note) : null))),
+      h('div.correction.better', {}, h('small', {}, 'Armado en inglés'), h('div', {}, r.en || q.full),
+        h('div.row', {}, h('button.tiny', { onclick: () => say(r.en || q.full) }, '🔊 Escuchar'))),
+      r.tip ? h('p.muted', {}, '💡 ', r.tip) : null);
+  } catch (e) { box.lastChild.remove(); box.append(h('p', {}, e.message)); }
+}
+
 // ---------------- Examen del nivel ----------------
 export function levelExam(code, { back, startChat }) {
   const p = T.levelProgress(code, store.get().temario);
@@ -121,9 +139,12 @@ function runQuiz({ title, items, topic = null, level = null, back, startChat }) 
       fill(sentence, withGap(q.en, q.answer));
       buzz(ok ? 'good' : 'bad');
       const t = level && T.topicById(q.topic);
+      const why = T.explain(q, o);
       fill(result,
         h('p', { class: ok ? 'good' : 'bad' }, ok ? '✅ ¡Bien!' : `❌ Es «${q.answer}»`),
         h('p', {}, listen(q.full), ' ', q.full),
+        why ? h('p.why', {}, h('b', {}, '💡 Por qué: '), why) : null,
+        !ok && hasAI() ? h('button.tiny', { onclick: () => explainMore(q, o) }, '❓ No lo entiendo') : null,
         t && !ok ? h('small.muted', {}, `Tema: ${t.title}`) : null,
         h('button.primary.wide', { onclick: () => { i++; show(); } }, i + 1 < items.length ? 'Seguir' : 'Ver resultado'));
       say(q.full);
@@ -169,7 +190,8 @@ function runQuiz({ title, items, topic = null, level = null, back, startChat }) 
             h('small.bad', {}, `${x.got}/${x.total}`));
         })) : null,
       missed.length ? h('div.card', {}, h('b', {}, 'Las que falló'),
-        missed.map(q => h('p', {}, listen(q.full), ' ', q.full, h('br'), h('small.muted', {}, q.es))),
+        missed.map(q => h('p', {}, listen(q.full), ' ', q.full, h('br'), h('small.muted', {}, q.es),
+          T.explain(q) ? h('small.why', {}, '💡 ', T.explain(q)) : null)),
         h('button.small', { onclick: toReview }, '📒 Llevarlas al repaso')) : null,
       topic && startChat ? h('button.primary.wide', { onclick: () => startChat(T.practiceMission(topic)) }, '🗣 Ahora úselo hablando') : null,
       h('button.wide', { onclick: () => runQuiz({ title, items: again, topic, level, back, startChat }) }, level ? 'Otro examen' : 'Repetir'),

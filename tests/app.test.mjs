@@ -1585,6 +1585,7 @@ test('contenido por nivel: cada nivel, de A1 a C2, trae gramática, frases, voca
 test('temario: todos los temas de A1 a C2, en español primero, sin jerga y con práctica válida', async () => {
   const T = await import('../js/temario.js');
   const G = await import('../js/grammar.js');
+  const P = await import('../js/prompts.js');
   for (const c of T.CODES) assert.ok(T.levelTopics(c).length >= 10, c);
   const ids = new Set();
   const jerga = /participio|condicional|subjuntivo|pasiva|cláusula|gerundio|infinitivo|auxiliar/i;
@@ -1596,9 +1597,24 @@ test('temario: todos los temas de A1 a C2, en español primero, sin jerga y con 
     for (const e of t.ex) assert.equal(e.length, 2, `${t.id}: ejemplo`);
     for (const r of t.traps) assert.equal(r.length, 3, `${t.id}: error típico`);
     if (t.lesson) assert.ok(G.lessonById(t.lesson), `${t.id}: ${t.lesson}`);
-    assert.ok(t.quiz.length >= 6, t.id);
-    for (const q of t.quiz) assert.ok(T.validQuestion(T.asQuestion(q, t)), `${t.id}: ${q[1]}`);
+    assert.ok(t.quiz.length >= 10, `${t.id}: ${t.quiz.length} preguntas`);
+    const seen = new Set();
+    for (const q of t.quiz) {
+      const x = T.asQuestion(q, t);
+      assert.ok(T.validQuestion(x), `${t.id}: ${q[1]}`);
+      assert.ok(!seen.has(x.full), `${t.id}: repetida ${x.full}`); seen.add(x.full);
+      // Cada pregunta explica por qué, en español y sin jerga.
+      assert.ok(x.why && x.why.length < 200 && !jerga.test(x.why), `${t.id}: porqué de ${q[1]}`);
+    }
   }
+  // El porqué: el de la pregunta; si no lo trae, el error típico del tema que corresponde.
+  const be = T.topicById('a1-be');
+  assert.match(T.explain(T.asQuestion(be.quiz[0], be), 'is'), /am/);
+  assert.equal(T.explain({ es: 'x', en: 'I ___ 30.', answer: "I'm 30", wrong: [], topic: 'a1-be' }, 'I have 30 years.'), be.traps[0][2]);
+  assert.equal(T.explain({ es: 'x', en: '___', answer: 'zzz', wrong: [], topic: 'a1-be' }, 'qqq'), '');
+  assert.ok(!T.validQuestion({ es: 'x', en: 'a ___ b', answer: 'c', wrong: ['d', 'e'], why: 5 }));
+  assert.match(P.temarioMessages({ topic: be, rankId: 1 })[0].content, /"why"/);
+  assert.match(P.explainMessages({ original: 'I is a teacher.', corrected: 'I am a teacher.', meant: 'Soy profesor.' })[1].content, /Soy profesor/);
   // La lista «B1 sólido» del cerebro de inglés está en B1.
   for (const id of ['b1-ppvsps', 'b1-pastperf', 'b1-passive', 'b1-deduce', 'b1-reported', 'b1-relative', 'b1-ingto', 'b1-phrasal', 'b1-prep']) assert.equal(T.topicById(id)?.level, 'B1', id);
   // Examen: 20 preguntas que tocan todos los temas del nivel.
