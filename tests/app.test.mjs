@@ -188,9 +188,9 @@ test('datos guardados de versiones anteriores reciben los campos nuevos', () => 
   assert.equal(store.get().difficulty, undefined);
   assert.deepEqual(store.get().levelCustom, {});
   assert.equal(store.get().settings.model, 'deepseek-flash');
-  assert.deepEqual(store.get().temario, { best: {}, exam: {} });
+  assert.deepEqual(store.get().temario, { best: {}, exam: {}, say: {} });
   store.importJson(JSON.stringify({ settings: { apiKey: 'x' }, rank: 3, temario: { best: { 'b1-if2': 0.9 } } }));
-  assert.deepEqual(store.get().temario, { best: { 'b1-if2': 0.9 }, exam: {} });
+  assert.deepEqual(store.get().temario, { best: { 'b1-if2': 0.9 }, exam: {}, say: {} });
   assert.throws(() => store.importJson('{"foo":1}'));
 });
 
@@ -1613,6 +1613,30 @@ test('temario: todos los temas de A1 a C2, en español primero, sin jerga y con 
   assert.equal(T.explain({ es: 'x', en: 'I ___ 30.', answer: "I'm 30", wrong: [], topic: 'a1-be' }, 'I have 30 years.'), be.traps[0][2]);
   assert.equal(T.explain({ es: 'x', en: '___', answer: 'zzz', wrong: [], topic: 'a1-be' }, 'qqq'), '');
   assert.ok(!T.validQuestion({ es: 'x', en: 'a ___ b', answer: 'c', wrong: ['d', 'e'], why: 5 }));
+  // «Dígalo usted»: decir la frase entera. Acepta contracciones y números dichos. Una palabra de más o de
+  // menos es «casi» y no cuenta: suele ser justo el error típico.
+  const teacher = T.asQuestion(be.quiz[0], be);   // I ___ a teacher. → am
+  assert.ok(T.sayCheck(teacher, "I'm a teacher").ok);
+  assert.ok(T.sayCheck(teacher, 'i am a teacher.').ok);
+  const close = T.sayCheck(teacher, 'I am teacher');
+  assert.ok(!close.ok && close.close && close.key);
+  const if2 = T.topicById('b1-if2');
+  const lost = T.asQuestion(if2.quiz.find(x => x[2] === 'lost'), if2);
+  const typical = T.sayCheck(lost, 'What would you do if you would lost your job');
+  assert.ok(!typical.ok && typical.close, 'el «would» de más no puede contar como bien');
+  const bad = T.sayCheck(teacher, 'I is a teacher');
+  assert.ok(!bad.ok && !bad.key);
+  assert.ok(!T.sayCheck(teacher, '').ok);
+  assert.ok(T.hasPiece('There were a lot of people', 'There were') && !T.hasPiece('There was a lot', 'There were'));
+  assert.equal(T.sayHint(teacher), 'I … a teacher.');
+  const round = T.saySet(be);
+  assert.equal(round.length, T.SAY_SIZE);
+  assert.equal(new Set(round.map(q => q.full)).size, T.SAY_SIZE);
+  // Todas las frases del temario, dichas tal cual, cuentan como bien y tienen su parte clave.
+  for (const t of T.TOPICS) for (const raw of t.quiz) {
+    const q = T.asQuestion(raw, t);
+    assert.ok(T.sayCheck(q, q.full).ok && T.hasPiece(q.full, q.answer), `${t.id}: ${q.full}`);
+  }
   assert.match(P.temarioMessages({ topic: be, rankId: 1 })[0].content, /"why"/);
   assert.match(P.explainMessages({ original: 'I is a teacher.', corrected: 'I am a teacher.', meant: 'Soy profesor.' })[1].content, /Soy profesor/);
   // La lista «B1 sólido» del cerebro de inglés está en B1.

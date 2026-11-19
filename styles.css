@@ -295,6 +295,10 @@ label.check input { width: 20px; height: 20px; accent-color: var(--brand); }
 .temario-quiz .why { background: var(--surface-2, rgba(127,127,127,.12)); border-radius: 10px; padding: 8px 10px; margin: 6px 0; line-height: 1.4; }
 .temario-quiz small.why { display: block; margin-top: 2px; }
 .temario-quiz .why + button.tiny { margin-bottom: 10px; }
+.temario-say .say-hint { color: var(--muted); }
+.temario-say .say-controls { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.temario-say .say-controls .row { align-items: center; }
+.temario-say .correction .words { line-height: 1.9; margin: 4px 0; }
 .temario .examples { margin: 6px 0 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .temario .trap { margin-top: 8px; }
 .temario .trap s { opacity: .8; }

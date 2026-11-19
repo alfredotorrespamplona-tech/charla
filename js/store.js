@@ -41,7 +41,7 @@ const DEFAULT = {
   draft: null,             // charla a medias para seguirla después
   drills: { done: {}, mine: [], inbox: [] }, // Taller de frases: veces hecho, creados con IA, frases traídas de las charlas
   grammar: { best: {} },   // Gramática por piezas: mejor nota (0..1) de cada lección
-  temario: { best: {}, exam: {} }, // Temario por nivel: mejor nota de cada tema y del examen de cada nivel
+  temario: { best: {}, exam: {}, say: {} }, // Temario por nivel: mejor nota de cada tema (práctica y «Dígalo usted») y del examen de cada nivel
   myErrors: [],            // bitácora del teléfono: errores de las charlas (se copian al cerebro en el PC)
   errorStatus: {},         // id de un error del cerebro -> 'resuelto' marcado desde el teléfono
   usageMonth: null,        // { month: 'AAAA-MM', usd, calls, warned } gasto del mes para el tope
@@ -93,8 +93,8 @@ function merge(s) {
   if (!out.rerolls || typeof out.rerolls !== 'object') out.rerolls = { date: '', used: 0 };
   if (!Array.isArray(out.myErrors)) out.myErrors = [];
   if (!out.grammar || typeof out.grammar !== 'object' || !out.grammar.best) out.grammar = { best: {} };
-  if (!out.temario || typeof out.temario !== 'object') out.temario = { best: {}, exam: {} };
-  out.temario = { best: { ...(out.temario.best || {}) }, exam: { ...(out.temario.exam || {}) } };
+  if (!out.temario || typeof out.temario !== 'object') out.temario = { best: {}, exam: {}, say: {} };
+  out.temario = { best: { ...(out.temario.best || {}) }, exam: { ...(out.temario.exam || {}) }, say: { ...(out.temario.say || {}) } };
   if (!out.errorStatus || typeof out.errorStatus !== 'object') out.errorStatus = {};
   if (!out.backup || typeof out.backup !== 'object') out.backup = { last: 0, snoozeUntil: 0 };
   out.mil = normalizeMil(out.mil);

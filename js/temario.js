@@ -5,11 +5,13 @@ import { A1, A2 } from './temario-a.js';
 import { B1, B2 } from './temario-b.js';
 import { C1, C2 } from './temario-c.js';
 import { makeTopic } from './topics.js';
+import { normalize, localCheck } from './drills.js';
 
 export const LEVELS = { A1, A2, B1, B2, C1, C2 };
 export const CODES = Object.keys(LEVELS);
 export const PASS = 0.8;        // nota para dar un tema o un examen por aprobado
 export const EXAM_SIZE = 20;    // preguntas del examen del nivel
+export const SAY_SIZE = 6;      // frases por ronda de «Dígalo usted»
 
 export const TOPICS = CODES.flatMap((level, li) => LEVELS[level].map((t, i) => ({ ...t, level, rank: li + 1, order: i })));
 const BY_ID = new Map(TOPICS.map(t => [t.id, t]));
@@ -46,6 +48,26 @@ export function shuffle(list, rnd = Math.random) {
 }
 
 export const practiceSet = (topic, rnd = Math.random) => shuffle(topic.quiz.map(q => asQuestion(q, topic)), rnd);
+
+// ---- «Dígalo usted»: ve la frase en español y la dice (o la escribe) entera en inglés ----
+export const saySet = (topic, n = SAY_SIZE, rnd = Math.random) => practiceSet(topic, rnd).slice(0, n);
+
+// ¿Está la parte clave (la respuesta) dentro de lo que dijo? Con contracciones y números ya abiertos.
+export function hasPiece(said, piece) {
+  const s = ` ${normalize(said)} `, p = normalize(piece);
+  return !!p && s.includes(` ${p} `);
+}
+
+// Revisa la frase dicha: cuenta como bien solo si es la misma frase (aunque use contracciones o números).
+// close: le sobra o le falta una palabra. No cuenta, porque suele ser justo el error típico («if you would
+// lost»); si el teléfono entendió mal, la persona puede marcarla como bien. key: la parte clave está.
+export function sayCheck(q, said) {
+  const c = localCheck(q.full, said || '');
+  return { ok: c.result === 'exact', close: c.result === 'close', key: hasPiece(said || '', q.answer), score: c.score };
+}
+
+// La pista: la frase en inglés con la parte clave escondida.
+export const sayHint = q => q.en.replace('___', '…');
 
 // Examen del nivel: una pregunta de cada tema y, si faltan, una segunda de los temas que más tienen.
 export function examSet(code, n = EXAM_SIZE, rnd = Math.random) {

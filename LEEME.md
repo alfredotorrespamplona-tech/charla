@@ -40,6 +40,18 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
       por qué es esa respuesta (por ejemplo «Si tuviera → if + pasado: had»). Si falla y tiene su clave de
       DeepSeek, **❓ No lo entiendo** se lo explica pieza por pieza (método de Pablo Bolen, como en la charla).
       Al final, cada frase que falló trae también su porqué.
+    - **🎤 Dígalo usted** (v37): pasar de reconocer a producir. Ve la frase en español y la dice entera en
+      inglés con el micrófono (o la escribe). Son 6 frases por ronda, y cada ronda trae otras. Se revisa sin IA:
+      - Acepta contracciones, mayúsculas y números dichos («I'd» = «I would»).
+      - Solo cuenta si la frase es la misma. Una palabra de más o de menos es «⚠ Casi» y no cuenta, porque suele
+        ser justo el error típico (por ejemplo «if you would lost»).
+      - La palabra que sobra se marca en color en lo que dijo; la que faltó, en «Así se dice».
+      - Luego vienen la frase con 🔊 y 🐢, el porqué y, con clave, «❓ No lo entiendo».
+      - Si el teléfono le entendió mal, «✅ Lo dije bien» la cuenta como buena.
+      - «Ver pista» muestra la frase en inglés sin la parte clave; con pista cuenta la mitad.
+      - Hay «🔁 Otra vez» y «No sé, muéstremela».
+      - Al final ve su nota («dicha: X %» en la ficha) y las frases para repetir, que puede llevar al repaso.
+      Al terminar la práctica de un tema, el botón principal es «🎤 Ahora dígalas usted».
     - **🗣 Charlar usando esto**: una charla con Amy que le hace preguntas en las que ese tema sale solo,
       con 3 objetivos (usarlo, usarlo otra vez, preguntar con él).
     - **🧩 Rompecabezas** del tema, cuando lo hay.
