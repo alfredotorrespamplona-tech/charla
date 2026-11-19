@@ -277,6 +277,10 @@ label.check input { width: 20px; height: 20px; accent-color: var(--brand); }
 .toast.show { opacity: 1; transform: translateX(-50%); }
 .toast.good { background: var(--good); }
 .toast.bad { background: var(--bad); }
+.update-bar { position: fixed; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top)); z-index: 40; display: flex; align-items: center; gap: 10px;
+  background: #1c1415; color: #fff; padding: 8px 8px 8px 14px; border-radius: 16px; box-shadow: var(--shadow); font-size: .92rem; max-width: 520px; margin: 0 auto; }
+.update-bar span { flex: 1; }
+.update-bar .icon { color: #fff; }
 
 .loading { display: flex; gap: 10px; align-items: center; color: var(--muted); padding: 10px 0; }
 .spin { width: 18px; height: 18px; border: 3px solid var(--line); border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite; }

@@ -6,8 +6,13 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
 - **Amy, una sola compañera para todas las charlas** (Ajustes → Charlas): dibujada por código, con voz de
   mujer y los **labios al ritmo de la voz** (`js/lipsync.js` parte cada palabra en sílabas: la «a» abre la
   boca, la «o» la redondea, la «m» la cierra, y se vuelve a sincronizar con cada palabra que avisa la voz).
-  Amy hace el papel de cada lugar (barista, médica, recepcionista…). Si se quita, vuelven los 29 personajes
-  con sus avatares de ChatGPT (ver `avatars/LEEME.md`).
+  Amy hace el papel de cada lugar (barista, médica, recepcionista…). Si se quita, vuelven las 15 compañeras
+  con sus avatares de ChatGPT (ver `avatars/LEEME.md`); los papeles de hombre los sigue haciendo Amy, porque
+  la voz de la app es de mujer: **nunca aparece un hombre**.
+- **Se actualiza sola**: Android deja la app abierta en segundo plano días enteros y no recarga la página.
+  Cada vez que vuelve a Charla, `js/update.js` compara su versión (`js/version.js`) con la publicada
+  (`sw.js`) y, si hay una nueva, recarga; en una charla o un repaso, antes pregunta. Ajustes muestra la
+  versión y tiene «🔄 Buscar actualización».
 - **Escenas de fondo** para los 19 lugares, hechas con ChatGPT.
 
 ## Qué hace
@@ -277,7 +282,7 @@ Desde la carpeta `charla`, en PowerShell:
 powershell -ExecutionPolicy Bypass -File herramientas\publicar.ps1 -Mensaje "Lo que cambió"
 ```
 Trae el cerebro de inglés, corre las pruebas (si alguna falla, se detiene), sube `CACHE` en `sw.js`
-para que los teléfonos se actualicen, revisa que ningún archivo tenga una clave `sk-…`, guarda la
+y la versión en `js/version.js` para que los teléfonos se actualicen, revisa que ningún archivo tenga una clave `sk-…`, guarda la
 versión en git y la sube a GitHub (Pages la publica en 1 o 2 minutos). Con `-SinCerebro` se salta el primer paso.
 
 La carpeta es un repositorio git (rama `main`). `avatars/_hojas/` (las hojas originales de los avatares)
@@ -353,7 +358,9 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 | `js/mil.js` | Mil palabras: repaso como en Anki, qué toca hoy y nuevas por día (sin pantalla, se prueba con node) |
 | `js/milwords.js` | Las 1000 palabras con su frase (generado por `importar_cerebro.py`: no editar a mano) |
 | `js/milscreen.js` | Pantallas de Mil palabras: estudiar, lista y ajustes del mazo |
-| `js/cast.js` | «Una sola compañera»: Amy en todas las charlas, con el papel de cada lugar |
+| `js/cast.js` | «Una sola compañera»: Amy en todas las charlas, con el papel de cada lugar; los papeles de hombre siempre los hace Amy |
+| `js/version.js` | Versión de la app (la sube `publicar.ps1`: no editar a mano) |
+| `js/update.js` | Al volver a la app revisa si hay una versión nueva y se actualiza |
 | `js/lipsync.js` | Labios al ritmo de la voz: sílabas, formas de la boca y reloj que sigue a la voz |
 | `js/people.js` | Relación que sube y baja, ficha del personaje, cosas por descubrir, contactos y gente nueva |
 | `js/vocab.js` | Pantalla de vocabulario (ordenar, filtrar, archivar, copiar, sugeridas) |

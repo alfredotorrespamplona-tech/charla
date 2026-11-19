@@ -52,6 +52,12 @@ if ($LASTEXITCODE -eq 0) {
   if ($m.Success -and $texto.Contains($m.Value)) {
     $nueva = 'charla-v' + ([int]$m.Groups[1].Value + 1)
     [System.IO.File]::WriteAllText($sw, $texto.Replace($m.Value, $nueva), $utf8)
+    # La app muestra su versión (Ajustes) y la compara con la publicada para actualizarse sola.
+    $ver = Join-Path (Get-Location) 'js\version.js'
+    if (Test-Path $ver) {
+      $vt = [System.IO.File]::ReadAllText($ver, $utf8)
+      [System.IO.File]::WriteAllText($ver, ($vt -replace 'charla-v\d+', $nueva), $utf8)
+    }
     Write-Paso "Version de la app: $($m.Value) -> $nueva"
   }
 }

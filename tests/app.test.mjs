@@ -1453,10 +1453,18 @@ test('Amy: una sola compañera con voz de mujer, labios que se abren y se puede 
   }
   assert.equal(C.castNames(['maya', 'tom']), 'Amy');
   C.applyCast(false);
-  assert.equal(CHARACTERS.tom.name, 'Tom');
-  assert.equal(CHARACTERS.tom.voice.gender, 'male');
-  assert.ok(CHARACTERS.tom.images?.frames.includes('neutral'));
-  assert.equal(C.castNames(['maya', 'tom']), 'Maya · Tom');
+  // Sin «una sola compañera» vuelven las mujeres con sus imágenes, pero nunca un hombre (la voz es de mujer).
+  for (const c of Object.values(CHARACTERS)) {
+    assert.equal(c.sex, 'female', `${c.id} no puede ser hombre`);
+    assert.equal(c.voice.gender, 'female');
+    assert.ok(!/\b(his|him|he)\b/.test(`${c.profession} ${(c.interests || []).join(' ')}`), c.id);
+  }
+  assert.equal(CHARACTERS.tom.name, 'Amy');
+  assert.ok(CHARACTERS.tom.solo && !CHARACTERS.tom.images);
+  assert.equal(CHARACTERS.maya.name, 'Maya');
+  assert.ok(!CHARACTERS.maya.solo && CHARACTERS.maya.images?.frames.includes('neutral'));
+  assert.equal(C.castNames(['maya', 'tom']), 'Maya · Amy');
+  assert.match(C.roleLine(CHARACTERS.tom), /^hace de profesora jubilada/);
   C.applyCast(true);
   const closed = A.mouthGeometry({ open: 0, wide: 0.5, round: 0 });
   const open = A.mouthGeometry({ open: 1, wide: 0.6, round: 0 });
@@ -1465,6 +1473,18 @@ test('Amy: una sola compañera con voz de mujer, labios que se abren y se puede 
   assert.ok(open.height > 9);
   assert.ok(round.width < open.width);
   assert.ok(!/NaN/.test(open.upper + open.lower + open.inner + round.inner));
+});
+
+test('versión: la de la app es la del service worker y se sabe cuándo hay una nueva', async () => {
+  const V = await import('../js/version.js');
+  const { readFileSync } = await import('node:fs');
+  const sw = readFileSync(join(ROOT, 'sw.js'), 'utf8');
+  assert.equal(sw.match(/charla-v\d+/)[0], V.VERSION, 'js/version.js y sw.js deben tener la misma versión');
+  assert.ok(V.isNewer('charla-v31', 'charla-v30') && !V.isNewer('charla-v30', 'charla-v30') && !V.isNewer('charla-v9', 'charla-v30'));
+  assert.ok(!V.isNewer(null, 'charla-v30'));
+  assert.equal(V.shortVersion('charla-v31'), 'v31');
+  const ps = readFileSync(join(ROOT, 'herramientas', 'publicar.ps1'), 'utf8');
+  assert.ok(ps.includes("js\\version.js"), 'publicar.ps1 debe subir también js/version.js');
 });
 
 test('sugerencias: pide una sola respuesta y, con «Otra idea», una distinta', async () => {

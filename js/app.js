@@ -4,6 +4,8 @@ import { PLACES, CHARACTERS, FREE_TALK, CITY_MAP, RANKS, SELF_ASSESSMENT, SETTIN
 import { h, mount, sheet, closeSheet, toast, spinner, stars, progressBar, richText, placeBackground, setText, placeIcon } from './ui.js';
 import { miniAvatar } from './avatar.js';
 import { applyCast, castNames, roleLine } from './cast.js';
+import { checkForUpdate } from './update.js';
+import { shortVersion } from './version.js';
 import { startConversation } from './conversation.js';
 import { chatJson, testConnection } from './llm.js';
 import * as P from './prompts.js';
@@ -824,7 +826,7 @@ function settings({ back = home } = {}) {
     h('p.muted', {}, 'Más corto = el personaje responde antes. Si le corta las frases mientras piensa, súbalo.'),
     h('h3', {}, 'Charlas'),
     h('label.check', {}, solo, ' 👩 Una sola compañera en todas las charlas: Amy, con voz de mujer y los labios al ritmo de la voz'),
-    h('p.muted', {}, 'Amy hace el papel de cada lugar (barista, médico, recepcionista…). Si lo quita, vuelven los personajes con sus imágenes.'),
+    h('p.muted', {}, 'Amy hace el papel de cada lugar (barista, médica, recepcionista…). Si lo quita, vuelven las demás compañeras con sus imágenes; los papeles de hombre los sigue haciendo Amy, porque la voz es de mujer.'),
     h('label.check', {}, comedy, ' Modo comedia: los personajes bromean más'),
     h('label.check', {}, haptics, ' Vibrar al acertar, fallar o cumplir un objetivo'),
     h('button.small', { onclick: () => { tutorial.reset(); toast('El tutorial se mostrará en su próxima charla', 'good'); } }, '🧭 Ver otra vez el tutorial'),
@@ -858,7 +860,10 @@ function settings({ back = home } = {}) {
       h('div.row', {},
         h('button.small', { onclick: async () => { if (await safety.saveBackup()) again(); } }, 'Exportar'),
         h('button.small', { onclick: () => { const f = h('input', { type: 'file', accept: 'application/json' }); f.onchange = async () => { try { store.importJson(await f.files[0].text()); toast('Importado', 'good'); home(); } catch { toast('Archivo no válido', 'bad'); } }; f.click(); } }, 'Importar'),
-        h('button.small.danger', { onclick: () => { if (confirm('¿Borrar todo su progreso? No se puede deshacer.')) { store.reset(); home(); } } }, 'Borrar todo')))));
+        h('button.small.danger', { onclick: () => { if (confirm('¿Borrar todo su progreso? No se puede deshacer.')) { store.reset(); home(); } } }, 'Borrar todo'))),
+    h('div.card', {}, h('b', {}, `📱 Versión de Charla: ${shortVersion()}`),
+      h('p.muted', {}, 'Al volver a la app se revisa sola si hay una versión nueva y se actualiza.'),
+      h('button.small', { onclick: () => checkForUpdate({ manual: true, beforeReload: noteAway }) }, '🔄 Buscar actualización'))));
 }
 
 // Gasto: lo de este mes, el tope y la pausa (se guardan al cambiarlos).
@@ -896,8 +901,17 @@ function noteAway() {
     : document.querySelector('#app > .mil') ? 'mil' : 'home';
   try { localStorage.setItem(AWAY_KEY, JSON.stringify({ at: awayAt, screen })); } catch {}
 }
+// En una charla o repasando, antes de actualizar se pregunta (la recarga vuelve a la misma pantalla).
+const busyScreen = () => !!document.querySelector('#app > .convo, #app > .mil');
+let checkedAt = 0;
+function updateCheck() {
+  if (Date.now() - checkedAt < 60000) return;
+  checkedAt = Date.now();
+  checkForUpdate({ busy: busyScreen, beforeReload: noteAway });
+}
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return noteAway();
+  updateCheck();
   // Volvió sin que la app se cerrara: la pantalla queda igual. La portada y el inicio se
   // actualizan (meta del día, racha, mensajes) sin moverse de donde estaba.
   if (awayAt && Date.now() - awayAt > 60000) {

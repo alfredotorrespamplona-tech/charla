@@ -1,6 +1,7 @@
 // «Una sola compañera»: en todas las charlas habla Amy, dibujada por código (avatar.js), con voz de mujer
 // y los labios al ritmo de la voz. Cada lugar conserva su papel (barista, médica, recepcionista…):
-// Amy lo interpreta. Se apaga en Ajustes → Charlas y vuelven los personajes con sus imágenes.
+// Amy lo interpreta. Se apaga en Ajustes → Charlas y vuelven las compañeras con sus imágenes; los papeles
+// de hombre los sigue haciendo Amy, porque la voz de la app es de mujer (nunca aparece un hombre).
 import { CHARACTERS } from './data.js';
 
 export const SOLO = {
@@ -22,14 +23,16 @@ const FEMININE_TITLE = {
 };
 const herProfession = p => String(p || '').replace(/\bhis\b/g, 'her').replace(/\bhim\b/g, 'her').replace(/\bbarber\b/g, 'hairdresser');
 
-const KEYS = [...Object.keys(SOLO), 'title', 'profession'];
+const KEYS = [...Object.keys(SOLO), 'title', 'profession', 'interests'];
 
 export function applyCast(on) {
   for (const c of Object.values(CHARACTERS)) {
     if (!c.original) c.original = Object.fromEntries(KEYS.map(k => [k, c[k]]));
     const o = c.original;
-    Object.assign(c, on ? { ...SOLO, title: FEMININE_TITLE[c.id] || o.title, profession: herProfession(o.profession) } : o);
-    c.solo = !!on;
+    const amy = !!on || o.sex !== 'female';
+    Object.assign(c, amy ? { ...SOLO, title: FEMININE_TITLE[c.id] || o.title, profession: herProfession(o.profession),
+      interests: (o.interests || []).map(herProfession) } : o);
+    c.solo = amy;
   }
 }
 
