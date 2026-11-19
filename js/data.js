@@ -31,6 +31,17 @@ export const RANKS = [
     defaults: { speed: 'veryFast', response: 'after2', suggestions: 0, translation: 'request', feedback: 'strict', pronunciation: 'request' } },
 ];
 
+// Lo que puede hacer al dominar cada nivel (pantalla «Contenido por nivel»). Texto propio.
+const CAN_DO = {
+  1: ['Presentarse y decir de dónde es y a qué se dedica', 'Pedir algo en un café, una tienda o un hotel', 'Entender preguntas sencillas si le hablan despacio'],
+  2: ['Contar lo que hizo ayer y lo que va a hacer', 'Hablar de su familia, su trabajo y sus gustos', 'Resolver lo básico de un viaje: transporte, compras y direcciones'],
+  3: ['Dar su opinión y explicar por qué', 'Contar una experiencia con detalles', 'Resolver problemas comunes: un reclamo, un cambio de planes, una cita'],
+  4: ['Debatir con respeto y defender una idea', 'Hablar de hipótesis: qué pasaría si…', 'Participar en reuniones y conversaciones de trabajo'],
+  5: ['Matizar lo que dice y suavizar un desacuerdo', 'Usar conectores y expresiones idiomáticas con naturalidad', 'Negociar y contar historias largas con detalle'],
+  6: ['Entender ironía, humor y dobles sentidos', 'Pasar con soltura del registro formal al informal', 'Convencer y debatir casi como un hablante nativo'],
+};
+for (const r of RANKS) r.canDo = CAN_DO[r.id];
+
 // Autoevaluación inicial (4 opciones, como en el APK). Es solo un punto de partida: la primera charla lo ajusta.
 export const SELF_ASSESSMENT = [
   { key: 'Beginner', label: 'Casi no sé nada', rank: 1 },

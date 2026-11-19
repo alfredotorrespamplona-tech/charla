@@ -280,6 +280,13 @@ label.check input { width: 20px; height: 20px; accent-color: var(--brand); }
 .update-bar { position: fixed; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top)); z-index: 40; display: flex; align-items: center; gap: 10px;
   background: #1c1415; color: #fff; padding: 8px 8px 8px 14px; border-radius: 16px; box-shadow: var(--shadow); font-size: .92rem; max-width: 520px; margin: 0 auto; }
 .update-bar span { flex: 1; }
+.level-chips { display: flex; gap: 6px; margin: 2px 0 12px; }
+.level-chips .chip { flex: 1; min-width: 0; justify-content: center; padding: 8px 0; font-weight: 650; }
+.level-head .level-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.can-do { margin: 4px 0 10px; padding-left: 20px; }
+.can-do li { margin: 3px 0; }
+.level-content-link { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 4px 0 12px; }
+.level-open { margin-top: 8px; }
 .update-bar .icon { color: #fff; }
 
 .loading { display: flex; gap: 10px; align-items: center; color: var(--muted); padding: 10px 0; }

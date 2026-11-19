@@ -34,6 +34,9 @@ export function grammarScreen({ home, tab = 'lessons' }) {
     body));
 }
 
+// Abrir una lección desde otra pantalla («Contenido por nivel»); back vuelve a ella.
+export const openLesson = (lesson, back) => lessonIntro(lesson, back);
+
 // ---------------- Lecciones por nivel ----------------
 function methodCard() {
   return h('details.card.method', {},

@@ -2,7 +2,7 @@
 // directo a lo que toca: seguir la charla, repasar, la lección de gramática o el mapa.
 import * as store from './store.js';
 import { h, mount } from './ui.js';
-import { CHARACTERS } from './data.js';
+import { CHARACTERS, rankById } from './data.js';
 import * as scoring from './scoring.js';
 import * as srs from './srs.js';
 import * as G from './grammar.js';
@@ -157,6 +157,7 @@ export function dashboard(go) {
       tile({ icon: '🧠', title: 'Repaso', value: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'Al día', sub: due ? 'Le toca hoy' : 'Nada pendiente', onclick: go.review, accent: due > 0 }),
       tile({ icon: '🧱', title: 'Gramática', value: lesson ? lesson.title : '¡Todo aprobado!', sub: `${passed}/${G.LESSONS.length} lecciones`, onclick: go.grammar }),
       tile({ icon: '📚', title: 'Frases', value: `${learnedIds(s.vocab).size}/${PHRASES.length}`, sub: 'frases esenciales', onclick: go.essentials }),
+      tile({ icon: '🎓', title: 'Por nivel', value: `Nivel ${rankById(s.rank).code}`, sub: 'contenido de A1 a C2', onclick: go.levels }),
       tile({ icon: '📒', title: 'Mis errores', value: errors ? `${errors} activos` : 'Ninguno', sub: 'su bitácora', onclick: go.errors }),
       tile({ icon: '📖', title: 'Vocabulario', value: String(s.vocab.filter(v => !v.archived).length), sub: 'palabras guardadas', onclick: go.vocab }),
       tile({ icon: '📊', title: 'Estadísticas', value: `${s.history.length}`, sub: 'charlas en total', onclick: go.stats })),

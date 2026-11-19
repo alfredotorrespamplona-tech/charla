@@ -27,11 +27,24 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   racha 🧊 también (máximo 2). **Sin candados**: los 6 niveles, los lugares, temas y lecciones
   están abiertos siempre (se quitaron en la v33, también si un respaldo viejo los traía puestos); el nivel
   que elige en Ajustes solo cambia cómo le hablan (velocidad, ayudas, vocabulario).
+- **🎓 Contenido por nivel** (v34; botón «Por nivel» del inicio, cuadro de la portada, «Ver y estudiar el
+  contenido» en la hoja de niveles y en Ajustes): una pantalla con los 6 niveles (A1…C2) arriba y, para el
+  nivel elegido, qué puede hacer con él y todo lo que se estudia ahí:
+  - **🧱 Gramática**: las 3 lecciones del nivel.
+  - **💬 Frases**: los paquetes de frases del nivel (de B2 a C2 son nuevos: debatir, hipótesis, reuniones,
+    matices, inglés formal, contar historias, registro, persuadir y humor).
+  - **📇 Vocabulario**: de A1 a B1, su tramo de Mil palabras (1–300, 301–600, 601–1000); de B2 a C2,
+    paquetes nuevos de vocabulario (phrasal verbs, palabras B2, colocaciones, palabras C1, expresiones
+    idiomáticas y palabras C2).
+  - **🗣 Temas para charlar** del nivel (en A1 se ven 8 y «Ver los N temas» muestra el resto); al tocar uno
+    empieza la charla en la cafetería y al salir vuelve al mismo nivel.
+  - «Charlar en nivel X» cambia el nivel de sus charlas sin pasar por Ajustes.
+  - Todo el contenido nuevo está escrito para Charla, con palabras propias.
 - 19 lugares (cafetería, aeropuerto, hotel, oficina, parque, restaurante, consultorio, calle, tienda,
   gimnasio, fiesta, entrevista de trabajo, **tu barrio, supermercado, ayuntamiento, banco, escuela de
   idiomas, centro comercial y peluquería**) con 72 misiones, todas abiertas.
   Los 7 últimos salen debajo del mapa («Más lugares»).
-- **48 temas de conversación** en 8 grupos (día a día, amigos y ocio, familia y hogar, trabajo, estudio,
+- **55 temas de conversación** en 8 grupos (día a día, amigos y ocio, familia y hogar, trabajo, estudio,
   viajes, salud, actualidad y cultura), que sirven con cualquier personaje. Al elegir misión, una de las
   opciones sorteadas es un tema, y «Todos los temas de conversación» los muestra todos.
 - Cada misión cambia según su nivel: versión principiante (A1–A2), intermedia (B1) y avanzada (B2–C2).
@@ -67,9 +80,11 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   - En el inicio, «Repaso de hoy» dice cuántas tarjetas tocan.
   - Al terminar, «📅 Cuándo vuelven» muestra la fecha de cada una.
   - Si está al día, le dice cuándo es el próximo repaso; con «Practicar igual» repasa las más próximas.
-- **📚 Frases esenciales** (botón «Frases» del inicio): 120 frases muy usadas del inglés en 12 paquetes
-  (saludos, cortesía, no entender, pedir, tiempo, sentimientos, reacciones, invitar, opiniones, día a día,
-  problemas y conectores), de A1 a B1.
+- **📚 Frases esenciales** (botón «Frases» del inicio): 210 frases muy usadas del inglés en 21 paquetes,
+  de A1 a C2 (saludos, cortesía, no entender, pedir, tiempo, sentimientos, reacciones, invitar, opiniones,
+  día a día, problemas, conectores, debatir, hipótesis, reuniones, matices, formal, historias, registro,
+  persuadir y humor), y **Vocabulario por nivel** (60 palabras y expresiones de B2 a C2 en 6 paquetes).
+  El paquete recomendado es el de su nivel.
   - Se aprenden en tandas de 5: escuchar (🔊 o 🐢 despacio) y repetir en voz alta (🎤), luego recordarlas
     enseguida con tarjetas.
   - Después entran al repaso espaciado.
@@ -105,10 +120,12 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
 - **🧱 Gramática** (botón en el inicio), con el método de Pablo Bolen de su cerebro (equivalencia
   estructural y «puzzle verbal»): no se estudian reglas con nombre, se reconoce la forma del verbo en
   español y se cambia por su pieza en inglés.
-  - **Por niveles**: 12 lecciones, dos por nivel, siguiendo la progresión del cerebro: A1 «-ar → to + verbo»
-    y «-ando → -ing»; A2 «will» y «ayer (went, ate)»; B1 «would» y «he comido → have eaten»; B2 «había →
-    had + participio» y «si tuviera…, -ría»; C1 «habría → would have» y «si hubiera…, habría…»; C2 piezas
-    que se suman y frases largas. Se abren al llegar al nivel o al aprobar la anterior (80 %).
+  - **Por niveles**: 18 lecciones, tres por nivel, siguiendo la progresión del cerebro: A1 «-ar → to + verbo»,
+    «-ando → -ing» y «soy, estoy, tengo… años → I am»; A2 «will», «ayer (went, ate)» y «voy a → going to»;
+    B1 «would», «he comido → have eaten» y «puedo, podría, debería → can, could, should»; B2 «había →
+    had + participio», «si tuviera…, -ría» y la pasiva «fue hecho → was made»; C1 «habría → would have»,
+    «si hubiera…, habría…» y «ojalá tuviera → I wish I had»; C2 «debería haber → should have», piezas que
+    se suman y frases largas. Todas abiertas (sin candados).
   - Cada ejercicio tiene los 5 pasos: frase en español → elegir la pieza en inglés de cada verbo → armar la
     frase con fichas → escucharla y decirla con el micrófono. Al final, nota, y las que falló van al repaso.
   - **✨ 5 más con IA** en cada lección: DeepSeek crea ejercicios nuevos del mismo patrón (se revisan antes
@@ -363,6 +380,7 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 | `js/cast.js` | «Una sola compañera»: Amy en todas las charlas, con el papel de cada lugar; los papeles de hombre siempre los hace Amy |
 | `js/version.js` | Versión de la app (la sube `publicar.ps1`: no editar a mano) |
 | `js/update.js` | Al volver a la app revisa si hay una versión nueva y se actualiza |
+| `js/levelscreen.js` | Contenido por nivel: gramática, frases, vocabulario y temas de cada nivel (A1…C2) |
 | `js/lipsync.js` | Labios al ritmo de la voz: sílabas, formas de la boca y reloj que sigue a la voz |
 | `js/people.js` | Relación que sube y baja, ficha del personaje, cosas por descubrir, contactos y gente nueva |
 | `js/vocab.js` | Pantalla de vocabulario (ordenar, filtrar, archivar, copiar, sugeridas) |
@@ -383,12 +401,12 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 | `js/pronounce.js` | Práctica de pronunciación (verde/ámbar/rojo por palabra, practicar antes de enviar) |
 | `js/review.js` | Repaso con 3 tipos de tarjeta y segundo intento; «al día» con su motivo |
 | `js/srs.js` | Repaso espaciado: cajas, intervalos y qué toca hoy |
-| `js/phrases.js` | Las 120 frases esenciales y sus tarjetas locales. **Agregue frases al final; no cambie el orden** (los ids van por posición) |
+| `js/phrases.js` | Las 210 frases esenciales (A1–C2), el vocabulario por nivel (B2–C2) y sus tarjetas locales. **Agregue frases al final; no cambie el orden** (los ids van por posición) |
 | `js/essentials.js` | Pantalla de frases esenciales: paquetes, escuchar y repetir, límite diario |
 | `js/cerebro.js`, `herramientas/importar_cerebro.py` | Paquetes, bitácora de errores y reglas del coach sacados del cerebro de inglés (generado: no editar a mano, vuelva a correr el script) |
 | `js/transcript.js` | Transcripción de cada charla |
 | `js/hints.js` | Pistas de pronunciación |
-| `js/grammar.js` | Gramática por piezas: las 12 lecciones, revisión de lo que crea la IA, tabla de verbos y preguntas de «Pruébese» |
+| `js/grammar.js` | Gramática por piezas: las 18 lecciones, revisión de lo que crea la IA, tabla de verbos y preguntas de «Pruébese» |
 | `js/grammarscreen.js` | Pantallas de Gramática (lecciones, rompecabezas, tabla de verbos, Su frase) |
 | `js/bitacora.js` | Bitácora de errores del teléfono: guardar, resolver, juntar con la del cerebro y enviar al PC |
 | `js/budget.js` | Gasto del mes en dólares, precios de DeepSeek y tope |

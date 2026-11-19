@@ -5,6 +5,7 @@ import { h, mount, sheet, closeSheet, toast, spinner, stars, progressBar, richTe
 import { miniAvatar } from './avatar.js';
 import { applyCast, castNames, roleLine } from './cast.js';
 import { checkForUpdate } from './update.js';
+import { levelStudy, levelContent } from './levelscreen.js';
 import { shortVersion } from './version.js';
 import { startConversation } from './conversation.js';
 import { chatJson, testConnection } from './llm.js';
@@ -92,7 +93,16 @@ export function cover() {
     stats: () => statsScreen({ home: cover }),
     settings: () => settings({ back: cover }),
     mil: () => milScreen({ home: cover }),
+    levels: () => levelScreen(undefined, cover),
   });
+}
+
+// Contenido de cada nivel (A1…C2). Los temas se charlan en la cafetería (con «una sola compañera», con Amy).
+function levelScreen(rank, back = home) {
+  levelStudy({ home: back, rank, startTopic: (topic, shown) => {
+    const place = PLACES[0], character = CHARACTERS[place.characters[0]];
+    startConversation({ place, character, mission: topic, onExit: () => levelScreen(shown, back), onFinish: session => summary(session) });
+  } });
 }
 
 // Seguir una charla guardada (desde la portada, el inicio o al volver a la app).
@@ -152,6 +162,7 @@ export function home() {
     h('div.section-head', {}, h('h2', {}, '¿A dónde vamos hoy?'), viewSwitch),
     places,
     h('div.home-actions', {},
+      h('button.action', { onclick: () => levelScreen() }, '🎓 Por nivel', h('small', {}, `su nivel: ${rankById(s.rank).code}`)),
       h('button.action', { onclick: () => milScreen({ home }) }, '📇 Mil palabras', h('small', {}, milLabel(s))),
       h('button.action', { onclick: () => essentials({ home }) }, '📚 Frases', h('small', {}, `${learnedIds(s.vocab).size}/${PHRASES.length}`)),
       h('button.action', { onclick: () => vocabScreen() }, '📒 Vocabulario', h('small', {}, `${s.vocab.filter(v => !v.archived).length}${pendingSuggestions(s).length ? ' · 💡' + pendingSuggestions(s).length : ''}`)),
@@ -451,9 +462,10 @@ function levelSheet() {
     h('h3', {}, 'Niveles'),
     h('p.muted', {}, 'Al subir, el personaje usa frases más largas y un inglés más avanzado (también en las sugerencias), habla más rápido y la ayuda aparece más tarde. Cada nivel da más puntos.'),
     RANKS.map(r => h('div.card', { class: r.id === s.rank ? 'current' : '' },
-      h('b', {}, `${r.id}. ${r.code} · ${r.name}${r.id > s.highestRank ? ' 🔒' : r.id === s.rank ? ' ← usted' : ''}`),
+      h('b', {}, `${r.id}. ${r.code} · ${r.name}${r.id === s.rank ? ' ← usted' : ''}`),
       h('p', {}, r.about),
-      h('small.muted', {}, `Voz ${label('speed', r.defaults.speed).toLowerCase()} · texto: ${label('response', r.defaults.response).toLowerCase()} · sugerencias: ${label('suggestions', r.defaults.suggestions).toLowerCase()} · puntos ×${r.scoreModifier.toFixed(1)}`)))));
+      h('small.muted', {}, `Voz ${label('speed', r.defaults.speed).toLowerCase()} · texto: ${label('response', r.defaults.response).toLowerCase()} · sugerencias: ${label('suggestions', r.defaults.suggestions).toLowerCase()} · puntos ×${r.scoreModifier.toFixed(1)}`),
+      h('button.small.level-open', { onclick: () => { closeSheet(); levelScreen(r.id); } }, `🎓 Ver y estudiar el contenido de ${r.code}`)))));
 }
 
 // Ajustes: nivel en que practica + personalizar sus ayudas (cada cambio sube o baja el multiplicador de puntos).
@@ -464,12 +476,17 @@ function levelEditor(s) {
   const rankSel = h('select', {}, RANKS.map(r => h('option', { value: r.id, selected: r.id === s.rank, disabled: r.id > reach },
     `${r.id}. ${r.code} · ${r.name}${r.id > reach ? ' 🔒' : ''}`)));
   const about = h('p.muted', {});
+  const contentBox = h('div.level-content-link', {});
   const modOut = h('span.mod', {});
   const grid = h('div.custom-grid', {});
   const paint = () => {
     const r = rankById(rankId);
     const lv = levelSettings(rankId, custom);
     about.textContent = r.about;
+    const c = levelContent(rankId);
+    contentBox.replaceChildren(
+      h('small.muted', {}, `Contenido de ${r.code}: ${c.lessons.length} lecciones de gramática, ${c.phrases.length + c.words.length} paquetes de frases y palabras${c.mil ? `, las palabras ${c.mil[0]} a ${c.mil[1]} de Mil palabras` : ''} y ${c.topics.length} temas para charlar.`),
+      h('button.small', { onclick: () => levelScreen(rankId, () => settings()) }, `🎓 Ver y estudiar el contenido de ${r.code}`));
     modOut.textContent = `×${lv.scoreModifier.toFixed(2)}`;
     grid.replaceChildren(...Object.entries(SETTING_OPTIONS).map(([k, def]) => {
       const sel = h('select', {}, def.options.map(o => h('option', { value: String(o.key), selected: o.key === lv[k] },
@@ -485,7 +502,7 @@ function levelEditor(s) {
   rankSel.onchange = () => { rankId = +rankSel.value; custom = {}; paint(); };
   paint();
   const el = h('div.card.level-card', {},
-    h('label', {}, 'Nivel en que practica'), rankSel, about,
+    h('label', {}, 'Nivel en que practica'), rankSel, about, contentBox,
     h('b', {}, 'Personalizar'),
     h('p.muted', {}, 'Cada nivel trae sus ayudas. Si elige algo más difícil gana más puntos; más fácil, menos.'),
     grid,

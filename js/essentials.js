@@ -29,12 +29,7 @@ export function essentials({ home }) {
   const left = Math.max(0, NEW_PER_DAY - today);
   const done = learnedIds(s.vocab);
 
-  const start = pack => {
-    if (!left) { toast(`Ya aprendió ${today} frases hoy. Mañana, después del repaso, siguen las nuevas.`); return; }
-    const list = nextPhrases(pack.id, store.get().vocab, Math.min(BATCH, left));
-    if (!list.length) { toast('Ya aprendió todas las frases de este paquete.'); return; }
-    learn(pack, list, { home });
-  };
+  const start = pack => studyPack(pack, { home });
 
   mount(h('div.screen.essentials', {},
     h('div.topbar', {}, h('button.icon', { 'aria-label': 'Volver', onclick: home }, '←'), h('h2', {}, '📚 Frases esenciales')),
@@ -71,8 +66,19 @@ function packList(group, vocab, done, start) {
     })));
 }
 
+// Aprender las próximas frases de un paquete (también desde «Contenido por nivel»). after: adónde volver.
+export function studyPack(pack, { home, after } = {}) {
+  const today = learnedToday(store.get().vocab);
+  const left = Math.max(0, NEW_PER_DAY - today);
+  if (!left) { toast(`Ya aprendió ${today} frases hoy. Mañana, después del repaso, siguen las nuevas.`); return; }
+  const list = nextPhrases(pack.id, store.get().vocab, Math.min(BATCH, left));
+  if (!list.length) { toast('Ya aprendió todas las frases de este paquete.'); return; }
+  learn(pack, list, { home, after });
+}
+
 // Paso 1: una frase por pantalla; se escucha sola y se repite con el micrófono.
-function learn(pack, list, { home }) {
+function learn(pack, list, { home, after }) {
+  const leave = () => (after ? after() : essentials({ home }));
   let i = 0;
   const screen = h('div.screen.essentials', {});
   mount(screen);
@@ -82,7 +88,7 @@ function learn(pack, list, { home }) {
     screen.innerHTML = '';
     const say = () => speak(p.en, { rate: 0.85 });
     screen.append(
-      h('div.topbar', {}, h('button.icon', { 'aria-label': 'Salir', onclick: () => { stopSpeaking(); essentials({ home }); } }, '✕'),
+      h('div.topbar', {}, h('button.icon', { 'aria-label': 'Salir', onclick: () => { stopSpeaking(); leave(); } }, '✕'),
         h('h2', {}, pack.name)),
       progressBar(i / list.length),
       h('p.muted', {}, `Frase ${i + 1} de ${list.length} · Escuche y repita en voz alta`),
@@ -112,7 +118,7 @@ function learn(pack, list, { home }) {
       }
     });
     toast(`📚 ${ids.length} frases nuevas en su vocabulario`, 'good');
-    review({ home, only: ids, onDone: () => essentials({ home }) });
+    review({ home, only: ids, onDone: leave });
   }
 
   show();

@@ -855,7 +855,7 @@ test('frases esenciales: cada frase tiene un hueco, traducción e id único', as
     assert.ok(p.gap && p.es && !/[[\]]/.test(p.en), p.raw);
     assert.ok(p.en.includes(p.gap), p.raw);
   }
-  for (const pk of ph.PACKS) assert.ok(['A1', 'A2', 'B1', 'B2'].includes(pk.level), pk.id);
+  for (const pk of ph.PACKS) assert.ok(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(pk.level), pk.id);
   for (const pk of ph.PACKS) assert.ok(ph.GROUPS.some(g => g.id === pk.group), pk.id);
 });
 
@@ -911,7 +911,7 @@ test('frases esenciales: paquete recomendado según nivel y lo ya aprendido', as
   assert.deepEqual(ph.nextPhrases('basics', vocab, 10).map(p => p.id), ['basics-5', 'basics-7', 'basics-8', 'basics-9']);
   const all = ph.PHRASES.filter(p => p.pack === 'basics').map(p => ph.toVocab(p));
   assert.equal(ph.recommendedPack(all, 'A1').id, 'courtesy');
-  assert.equal(ph.recommendedPack([], 'B1').id, 'basics');
+  assert.equal(ph.recommendedPack([], 'B1').id, 'opinions');           // primero lo de su nivel
   const es = await import('../js/essentials.js');
   assert.equal(es.learnedToday([{ source: 'core', createdAt: Date.now() }, { source: 'core', createdAt: 1 }]), 1);
 });
@@ -1157,9 +1157,10 @@ test('ningún archivo tiene caracteres de control escondidos (p. ej. \b roto en 
 });
 
 // ---------------- Gramática por piezas (Pablo Bolen) y tabla de verbos ----------------
-test('gramática: 2 lecciones por nivel, cada pieza está en su frase y sus opciones falsas son distintas', async () => {
+test('gramática: 3 lecciones por nivel, cada pieza está en su frase y sus opciones falsas son distintas', async () => {
   const G = await import('../js/grammar.js');
-  for (let r = 1; r <= 6; r++) assert.equal(G.LESSONS.filter(l => l.rank === r).length, 2, `nivel ${r}`);
+  for (let r = 1; r <= 6; r++) assert.equal(G.LESSONS.filter(l => l.rank === r).length, 3, `nivel ${r}`);
+  for (let i = 1; i < G.LESSONS.length; i++) assert.ok(G.LESSONS[i].rank >= G.LESSONS[i - 1].rank, 'en orden de nivel');
   assert.equal(new Set(G.LESSONS.map(l => l.id)).size, G.LESSONS.length);
   for (const l of G.LESSONS) {
     assert.ok(l.idea && l.table.length >= 2 && l.exercises.length >= 5, l.id);
@@ -1181,7 +1182,7 @@ test('gramática: las lecciones se abren por nivel o al aprobar la anterior; las
   assert.equal(G.nextLesson(1, {}).id, 'g-to');
   assert.equal(G.nextLesson(1, { 'g-to': 0.9 }).id, 'g-ing');
   assert.equal(G.unlocked(G.lessonById('g-will'), 1, {}), false);
-  assert.equal(G.unlocked(G.lessonById('g-will'), 1, { 'g-ing': 0.8 }), true);   // aprobó la anterior
+  assert.equal(G.unlocked(G.lessonById('g-will'), 1, { 'g-be': 0.8 }), true);    // aprobó la anterior
   assert.equal(G.unlocked(G.lessonById('g-if3'), 5, {}), true);                  // su nivel
   assert.equal(G.nextLesson(6, Object.fromEntries(G.LESSONS.map(l => [l.id, 1]))), null);
   const x = G.lessonById('g-if3').exercises[0];
@@ -1555,6 +1556,26 @@ test('versión: la de la app es la del service worker y se sabe cuándo hay una 
   assert.equal(V.shortVersion('charla-v31'), 'v31');
   const ps = readFileSync(join(ROOT, 'herramientas', 'publicar.ps1'), 'utf8');
   assert.ok(ps.includes("js\\version.js"), 'publicar.ps1 debe subir también js/version.js');
+});
+
+test('contenido por nivel: cada nivel, de A1 a C2, trae gramática, frases, vocabulario y temas', async () => {
+  const L = await import('../js/levelscreen.js');
+  const P = await import('../js/phrases.js');
+  for (let r = 1; r <= 6; r++) {
+    const c = L.levelContent(r);
+    assert.ok(c.lessons.length >= 3, `${c.rank.code}: gramática`);
+    assert.ok(c.phrases.length >= 3, `${c.rank.code}: frases`);
+    assert.ok(c.mil || c.words.length >= 2, `${c.rank.code}: vocabulario`);
+    assert.ok(c.topics.length >= 3, `${c.rank.code}: temas`);
+    assert.equal(c.rank.canDo.length, 3, `${c.rank.code}: qué puede hacer`);
+  }
+  // En los paquetes nuevos la respuesta del hueco no se ve en el resto de la frase.
+  for (const pk of P.PACKS.filter(p => ['B2', 'C1', 'C2'].includes(p.level))) {
+    assert.equal(P.packPhrases(pk.id).length, 10, pk.id);
+    for (const x of P.packPhrases(pk.id)) assert.ok(!x.en.replace(x.gap, '').toLowerCase().includes(x.gap.toLowerCase()), x.id);
+  }
+  assert.equal(P.recommendedPack([], 'C1').level, 'C1');
+  assert.deepEqual(L.milRangeProgress({ cards: { 1: { ivl: 2 }, 2: { ivl: 0 }, 400: { ivl: 5 } } }, [1, 300]), { seen: 2, learned: 1, total: 300 });
 });
 
 test('sugerencias: pide una sola respuesta y, con «Otra idea», una distinta', async () => {
