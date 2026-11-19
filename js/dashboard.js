@@ -54,8 +54,8 @@ function ring(pct, label, sub) {
   return h('div.dash-ring', { role: 'img', 'aria-label': `${label} ${sub}` }, h('div', { html: svg }), h('div.dash-ring-text', {}, h('b', {}, label), h('small', {}, sub)));
 }
 
-function tile({ icon, title, value, sub, onclick, accent }) {
-  return h('button.dash-tile', { class: accent ? 'accent' : '', onclick },
+function tile({ icon, title, value, sub, onclick, accent, wide }) {
+  return h('button.dash-tile', { class: [accent ? 'accent' : '', wide ? 'wide' : ''].join(' ').trim(), onclick },
     h('span.dash-tile-top', {}, icon, h('span', {}, title)),
     h('b.dash-tile-value', {}, value),
     sub ? h('small', {}, sub) : null);
@@ -98,7 +98,16 @@ async function wordOfDay(box, go) {
   box.classList.remove('hidden');
 }
 
-// go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings, mil }
+// Técnicas: «Las 5 de hoy» hechas, o cuántas técnicas ya probó.
+export function techLabel(s = store.get()) {
+  const t = s.tecnicas || {};
+  const today = t.today?.date === store.todayIso() ? (t.today.steps || []).length : 0;
+  if (today) return `Hoy: ${today}/3`;
+  const tried = Object.keys(t.done || {}).filter(k => !k.includes(':')).length;
+  return tried ? `${tried} probadas` : '10 técnicas';
+}
+
+// go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings, mil, tecnicas }
 export function dashboard(go) {
   const s = store.get();
   const now = new Date();
@@ -157,6 +166,7 @@ export function dashboard(go) {
       tile({ icon: '🧠', title: 'Repaso', value: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'Al día', sub: due ? 'Le toca hoy' : 'Nada pendiente', onclick: go.review, accent: due > 0 }),
       tile({ icon: '🧱', title: 'Gramática', value: lesson ? lesson.title : '¡Todo aprobado!', sub: `${passed}/${G.LESSONS.length} lecciones`, onclick: go.grammar }),
       tile({ icon: '📚', title: 'Frases', value: `${learnedIds(s.vocab).size}/${PHRASES.length}`, sub: 'frases esenciales', onclick: go.essentials }),
+      tile({ icon: '🚀', title: 'Técnicas', value: techLabel(s), sub: 'dictado, sombra, un minuto sin parar, mis frases…', onclick: go.tecnicas, wide: true }),
       tile({ icon: '🎓', title: 'Por nivel', value: `Nivel ${rankById(s.rank).code}`, sub: 'contenido de A1 a C2', onclick: go.levels }),
       tile({ icon: '📒', title: 'Mis errores', value: errors ? `${errors} activos` : 'Ninguno', sub: 'su bitácora', onclick: go.errors }),
       tile({ icon: '📖', title: 'Vocabulario', value: String(s.vocab.filter(v => !v.archived).length), sub: 'palabras guardadas', onclick: go.vocab }),

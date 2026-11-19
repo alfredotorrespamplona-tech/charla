@@ -1755,3 +1755,205 @@ test('mil palabras: el avance va en la copia de seguridad y la portada arma el p
   assert.equal(store.get().mil.newPerDay, 10);
   assert.deepEqual(store.get().mil.cards, {});
 });
+
+// ---------------- Técnicas avanzadas (del cerebro de inglés) ----------------
+test('técnicas: 10 técnicas con qué es, por qué funciona y cómo se hace, en español y sin jerga', async () => {
+  const X = await import('../js/tecnicas.js');
+  const JERGA = /participio|condicional|subjuntivo|pasiva|cláusula|gerundio|infinitivo|auxiliar|pretérito|tiempo verbal/i;
+  assert.equal(X.TECHNIQUES.length, 10);
+  assert.equal(new Set(X.TECHNIQUES.map(t => t.id)).size, 10);
+  for (const t of X.TECHNIQUES) {
+    assert.ok(t.what && t.why && t.how.length >= 2, t.id);
+    assert.ok(X.GROUPS.some(g => g.id === t.group), t.id);
+    assert.doesNotMatch([t.what, t.why, ...t.how].join(' '), JERGA, t.id);
+  }
+  for (const s of [...X.STORIES, ...X.TEXTS, ...X.GROWING]) assert.ok(s.title && s.icon, s.id);
+});
+
+test('técnicas: frases de entrevista, de su nivel, suyas y de su repaso; «las 5 de hoy» no cambian en el día', async () => {
+  const X = await import('../js/tecnicas.js');
+  assert.ok(X.INTERVIEW.length >= 25);
+  for (const x of X.INTERVIEW) assert.ok(x.en && x.es, x.en);
+  const s = { rank: 3, vocab: [{ text: 'I would like a coffee please', translation: 'Quisiera un café, por favor' }, { text: 'hi', translation: 'hola' }],
+    tecnicas: { islas: [{ en: 'I work in sales.', es: 'Trabajo en ventas.' }] } };
+  assert.ok(X.sourcePool('nivel', s).length >= 100);
+  assert.deepEqual(X.sourcePool('repaso', s).map(x => x.en), ['I would like a coffee please']);   // frases de 4 palabras o más
+  assert.equal(X.sourcePool('mias', s).length, 1);
+  const a = X.dailySet(X.INTERVIEW, '2026-11-19'), b = X.dailySet(X.INTERVIEW, '2026-11-19'), c = X.dailySet(X.INTERVIEW, '2026-11-20');
+  assert.equal(a.length, X.DAILY_SIZE);
+  assert.deepEqual(a, b);
+  assert.notDeepEqual(a.map(x => x.en), c.map(x => x.en));
+  assert.equal(new Set(a.map(x => x.en)).size, X.DAILY_SIZE);
+});
+
+test('técnicas: dictado y habla conectada', async () => {
+  const X = await import('../js/tecnicas.js');
+  assert.equal(X.compare("I'm looking for a new job.", 'i am looking for a new job').exact, true);
+  const r = X.compare("I'm looking for a new job.", 'I looking for new job');
+  assert.equal(r.exact, false);
+  assert.ok(r.score > 0.5 && r.score < 1);
+  assert.equal(X.compare('Hello there friend', '').score, 0);
+  assert.deepEqual(X.connectedHints("What do you want to do? I don't know.").map(c => c.sounds), ['wanna', 'dunno', 'whaddaya']);
+  assert.deepEqual(X.connectedHints("I'm going to the office."), []);   // «going to» + lugar no es «gonna»
+  assert.deepEqual(X.connectedHints("I'm going to call you.").map(c => c.sounds), ['gonna']);
+});
+
+test('técnicas: sombra con intención marca palabras fuertes, la melodía final y los finales', async () => {
+  const X = await import('../js/tecnicas.js');
+  assert.deepEqual(X.stressMap("I don't like the new office.").filter(x => x.strong).map(x => x.w), ["don't", 'like', 'new', 'office.']);
+  assert.equal(X.tune('Do you like it?').dir, 'up');
+  assert.equal(X.tune('Where do you work?').dir, 'down');
+  assert.equal(X.tune('I work in sales.').dir, 'down');
+  const ends = X.endingMap("He asked why she doesn't work here first.").filter(x => x.end);
+  assert.deepEqual(ends.map(x => x.base + '|' + x.end), ['ask|ed', "does|n't", 'fir|st']);
+  assert.ok(X.endingMap('This is his bus.').every(x => !x.end));   // this, is, his, bus: no son finales con -s que se pierdan
+  assert.equal(X.INTENTIONS.length, 4);
+});
+
+test('técnicas: adivine el final arma 3 finales distintos con el bueno entre ellos', async () => {
+  const X = await import('../js/tecnicas.js');
+  assert.equal(X.splitForPrediction('Too short here.'), null);
+  const sp = X.splitForPrediction('Can you tell me more about the team?');
+  assert.equal(`${sp.start} ${sp.end}`, 'Can you tell me more about the team?');
+  assert.ok(sp.end.split(' ').length >= 2);
+  const set = X.predictionSet(X.INTERVIEW, X.PREDICT_SIZE);
+  assert.equal(set.length, X.PREDICT_SIZE);
+  for (const x of set) {
+    assert.equal(x.options.length, 3);
+    assert.ok(x.options.includes(x.end));
+    assert.equal(new Set(x.options).size, 3);
+    assert.equal(`${x.start} ${x.end}`, x.full);
+  }
+});
+
+test('técnicas: un minuto sin parar cuenta palabras por minuto, muletillas y pausas largas', async () => {
+  const X = await import('../js/tecnicas.js');
+  const st = X.talkStats('um I think uh you know working from home is great because I can', 60, 2);
+  assert.equal(st.fillers, 3);
+  assert.equal(st.words, 10);
+  assert.equal(st.wpm, 10);
+  assert.equal(st.pauses, 2);
+  assert.equal(X.talkStats('one two three four five six', 30).wpm, 12);
+  assert.deepEqual(X.jamProgress([{ wpm: 80 }, { wpm: 90 }, { wpm: 100 }]), { first: 80, last: 100, gain: 25 });
+  assert.equal(X.JAM_ROUNDS.length, 3);
+  assert.ok(X.JAM_TOPICS.filter(t => t.group === 'entrevista').length >= 6);
+  for (const t of X.JAM_TOPICS) assert.ok(t.es && t.en && X.JAM_GROUPS.some(g => g.id === t.group));
+});
+
+test('técnicas: frase que crece (cada nivel repite el anterior y agrega una pieza)', async () => {
+  const X = await import('../js/tecnicas.js');
+  assert.ok(X.GROWING.length >= 10);
+  for (const g of X.GROWING) {
+    assert.ok(g.steps.length >= 5, g.id);
+    for (let i = 1; i < g.steps.length; i++) {
+      assert.ok(g.steps[i][0].startsWith(g.steps[i - 1][0].replace(/[.!?]$/, '')), `${g.id} ${i}`);
+      assert.ok(X.newPiece(g.steps, i).length > 2, `${g.id} ${i}`);
+      assert.ok(g.steps[i][1], `${g.id} ${i} sin español`);
+    }
+  }
+  assert.equal(X.newPiece(X.GROWING[0].steps, 1), 'at a small company.');
+});
+
+test('técnicas: cuéntelo de otra persona cambia I por he/she y acepta el nombre', async () => {
+  const X = await import('../js/tecnicas.js');
+  for (const st of X.STORIES) {
+    assert.ok(['he', 'she'].includes(st.who) && st.name, st.id);
+    for (const [first, third, es] of st.lines) {
+      assert.ok(es, first);
+      assert.notEqual(first, third);
+      assert.doesNotMatch(third, /\b(I|my|me|I'm|I'd|I'll|myself)\b/, third);
+      assert.equal(X.compare(third, third).exact, true);
+    }
+  }
+  const st = X.STORIES[0], third = st.lines[0][1];
+  assert.equal(X.compare(third, 'Carlos got his first job when he was eighteen', X.retellAccept(st, third)).exact, true);
+  assert.equal(X.compare(third, 'He got my first job when he was eighteen', X.retellAccept(st, third)).exact, false);
+  assert.deepEqual(X.changedWords('I take the bus to work.', 'He takes the bus to work.').filter(x => x.changed).map(x => x.w), ['He', 'takes']);
+});
+
+test('técnicas: ida y vuelta deja descansar el texto antes de la vuelta', async () => {
+  const X = await import('../js/tecnicas.js');
+  assert.ok(X.TEXTS.length >= 8);
+  for (const t of X.TEXTS) for (const [en, es] of t.lines) assert.ok(en && es, t.id);
+  const now = Date.now();
+  assert.equal(X.idaState(undefined).state, 'nuevo');
+  const fresh = X.idaState({ es: ['hola'], at: now - 3600000 }, now);
+  assert.equal(fresh.state, 'descansando');
+  assert.equal(fresh.hours, 7);
+  assert.equal(X.idaState({ es: ['hola'], at: now - X.INCUBATION_MS - 1 }, now).state, 'listo');
+  assert.deepEqual(X.idaState({ es: ['hola'], at: now, back: 0.8 }, now), { state: 'hecho', score: 0.8 });
+});
+
+test('técnicas: mis frases (islas de lenguaje), STAR y lo que devuelve la IA', async () => {
+  const X = await import('../js/tecnicas.js');
+  const P = await import('../js/prompts.js');
+  assert.ok(X.islandById('entrevista').star);
+  assert.equal(X.STAR.map(p => p.key).join(''), 'STAR');
+  assert.deepEqual(X.splitLines('Trabajo en ventas\n\n  Me gusta mi trabajo \nTrabajo en ventas\nok'), ['Trabajo en ventas', 'Me gusta mi trabajo']);
+  assert.deepEqual(X.validIslandItems([{ es: 'Hola', en: 'Hi' }, { es: '', en: 'x' }, { es: 'a', en: '¿?' }, null]), [{ es: 'Hola', en: 'Hi' }]);
+  let list = X.addIslandItems([], 'trabajo', [{ es: 'Trabajo en ventas.', en: 'I work in sales.' }, { es: 'Igual', en: 'i work in sales' }], 1000);
+  assert.equal(list.length, 1);
+  list = X.addIslandItems(list, 'dia', [{ es: 'Me levanto a las seis.', en: 'I get up at six.' }], 2000);
+  assert.deepEqual(list.map(x => x.island), ['trabajo', 'dia']);
+  assert.equal(new Set(list.map(x => x.id)).size, 2);
+  const m = P.islasMessages({ lines: ['S: en mi trabajo', 'R: lo logramos'], island: 'Mi entrevista', rankId: 3, star: true });
+  assert.match(m[0].content, /Situation, Task, Action, Result/);
+  assert.match(m[0].content, /"items"/);
+  const j = P.jamMessages({ topic: 'Tell me about yourself.', text: 'I am agree with', rankId: 3 });
+  assert.match(j[0].content, /never using grammar labels/);
+  assert.match(j[0].content, /"version": \[/);
+});
+
+test('técnicas: una frase en 5 capas mide la velocidad y revisa que use la frase', async () => {
+  const X = await import('../js/tecnicas.js');
+  assert.deepEqual(X.LAYERS.map(l => l.id), ['lento', 'normal', 'emociones', 'rapido', 'contexto']);
+  assert.equal(X.LAYERS.find(l => l.id === 'emociones').emotions.length, 3);
+  assert.equal(X.LAYERS.find(l => l.id === 'contexto').contexts.length, 3);
+  assert.equal(X.speechWpm('one two three four five six', 3000), 120);
+  assert.equal(X.speechWpm('hi', 0), 0);
+  assert.equal(X.usesPhrase("I'd like to grow with the company.", 'In the interview I said that I would like to grow with the company'), true);
+  assert.equal(X.usesPhrase('I could start in two weeks.', 'Sorry I am late again'), false);
+});
+
+test('técnicas: simulacro con imprevisto esconde el problema en la misión de la charla', async () => {
+  const X = await import('../js/tecnicas.js');
+  for (const sim of X.SIMULACROS) {
+    assert.ok(data.PLACES.some(p => p.id === sim.place), sim.place);
+    assert.ok(sim.twists.length >= 3, sim.id);
+    const m = X.simMission(sim, () => 0);
+    assert.ok(m.instruction.includes(sim.twists[0]));
+    assert.match(m.instruction, /do not announce it/);
+    assert.equal(m.objectives.length, 3);
+    assert.ok(m.objectives.some(o => o.id === 'twist'));
+    assert.ok(m.expressions.length >= 2);
+  }
+  assert.ok(X.SIMULACROS.filter(s => s.place === 'interview').length >= 2);
+});
+
+test('técnicas: el avance se guarda, viaja en la copia de seguridad y la portada lo muestra', async () => {
+  const D = await import('../js/dashboard.js');
+  assert.deepEqual(store.get().tecnicas, { done: {}, best: {}, jam: [], ida: {}, islas: [], today: { date: '', steps: [] } });
+  assert.equal(D.techLabel(store.get()), '10 técnicas');
+  store.update(s => { s.tecnicas.done.dictado = 2; s.tecnicas.islas.push({ id: 'a', island: 'dia', en: 'I get up at six.', es: 'Me levanto a las seis.' }); });
+  assert.equal(D.techLabel(store.get()), '1 probadas');
+  store.update(s => { s.tecnicas.today = { date: store.todayIso(), steps: ['dictado'] }; });
+  assert.equal(D.techLabel(store.get()), 'Hoy: 1/3');
+  const backup = store.exportJson();
+  store.reset();
+  store.importJson(backup);
+  assert.equal(store.get().tecnicas.islas.length, 1);
+  store.importJson(JSON.stringify({ settings: {}, tecnicas: { islas: [{ en: 'x' }], jam: 'mal' } }));   // respaldo raro: se arregla
+  assert.deepEqual(store.get().tecnicas.islas, []);
+  assert.deepEqual(store.get().tecnicas.jam, []);
+});
+
+test('técnicas: modo demo responde a «Mis frases» y al minuto', async () => {
+  const { chatJson } = await import('../js/llm.js');
+  const P = await import('../js/prompts.js');
+  store.update(s => { s.settings.apiKey = 'demo'; });
+  const r = await chatJson('islas', P.islasMessages({ lines: ['Trabajo en ventas', 'Me levanto a las seis'], rankId: 3 }));
+  assert.equal(r.items.length, 2);
+  const j = await chatJson('jam', P.jamMessages({ topic: 'x', text: 'y', rankId: 3 }));
+  assert.ok(Array.isArray(j.version) && j.version.every(v => v.en && v.es));
+  assert.ok(j.fixes.length);
+});

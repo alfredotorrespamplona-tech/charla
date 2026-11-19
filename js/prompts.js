@@ -320,6 +320,37 @@ ${coachRules()}Return ONLY JSON: {"items": [{"es": "...", "en": "... ___ ...", "
   ];
 }
 
+// ---- Técnicas: «Mis frases» (islas de lenguaje) ----
+// Sus propias frases en español → inglés natural, a su nivel. Con STAR: una respuesta de entrevista.
+export function islasMessages({ lines, island = '', rankId, star = false }) {
+  const rank = rankById(rankId);
+  const task = star
+    ? `The learner wrote, in ${LEARNER_LANG}, the four parts of a true story for a job interview (Situation, Task, Action, Result). Turn it into a natural spoken interview answer in English, in the first person, 4 to 7 short sentences, keeping exactly their facts (do not invent numbers or details).`
+    : `The learner wrote sentences in ${LEARNER_LANG} about their own life (topic: ${island || 'daily life'}). Turn each one into the natural English a person would really SAY, in the first person, keeping their meaning and facts (do not add details). If a line has several ideas, you may split it into two short sentences.`;
+  return [
+    { role: 'system', content: `${task}
+Level ${rank.code}: ${rank.prompt}
+Prefer short, common, spoken sentences (contractions are fine). For each English sentence give "es": a natural ${LEARNER_LANG} version of exactly that sentence, so the learner can practise saying it from ${LEARNER_LANG}.
+${coachRules()}Return ONLY JSON: {"items": [{"es": "...", "en": "..."}]}` },
+    { role: 'user', content: lines.join('\n') },
+  ];
+}
+
+// ---- Técnicas: «Un minuto sin parar» (JAM): qué decir mejor, en español primero ----
+export function jamMessages({ topic, text, rankId }) {
+  const rank = rankById(rankId);
+  return [
+    { role: 'system', content: `The learner (native ${LEARNER_LANG}, level ${rank.code}) spoke for one minute without stopping about: "${topic}". You get the speech-recognition transcript: ignore recognition mistakes, missing punctuation and fillers.
+Give short, encouraging feedback for a speaker, in plain ${LEARNER_LANG}, never using grammar labels:
+- "good": one sentence about what went well;
+- "fixes": up to 3 of the most useful corrections, each {"said": "what they said", "better": "how to say it", "why": "very short ${LEARNER_LANG} reason, starting from the meaning"};
+- "version": the same ideas said naturally in English at their level, as 4 to 6 short sentences in the first person, each {"en": "...", "es": "natural ${LEARNER_LANG} version"};
+- "tip": one short idea to try in the next minute.
+${coachRules()}${knownErrorsText()}Return ONLY JSON: {"good": "...", "fixes": [{"said": "...", "better": "...", "why": "..."}], "version": [{"en": "...", "es": "..."}], "tip": "..."}` },
+    { role: 'user', content: text },
+  ];
+}
+
 // ---- Repaso personalizado (tarjetas con {{gap}}) ----
 export function reviewMessages(items, rankId) {
   const rank = rankById(rankId);

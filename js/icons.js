@@ -112,6 +112,11 @@ export const ICONS = {
   send: '<path d="M21 3 3.5 10.5l7 3 3 7z"/><path d="m10.5 13.5 4-4"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   image: '<rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-9 8.5"/>',
+  headphones: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3.5" y="14" width="4" height="6.5" rx="1.5"/><rect x="16.5" y="14" width="4" height="6.5" rx="1.5"/>',
+  rocket: '<path d="M12 3c3.5 2 5 5.5 5 9.5l-2 3h-6l-2-3C7 8.5 8.5 5 12 3z"/><circle cx="12" cy="10" r="1.8"/><path d="M9 15.5 6.5 18v2.5L9.5 19M15 15.5l2.5 2.5v2.5L14.5 19M12 18v3"/>',
+  stopwatch: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V10M10 2.5h4M12 2.5V6M18.5 6.5l1.5-1.5"/>',
+  rise: '<path d="M6 18 18 6M9 6h9v9"/>',
+  fall: '<path d="M6 6l12 12M18 9v9H9"/>',
   copy: '<rect x="8" y="8" width="12.5" height="12.5" rx="2.5"/><path d="M16 8V5.5A2 2 0 0 0 14 3.5H5.5a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2H8"/>',
 };
 
@@ -144,6 +149,7 @@ const MAP = {
   '📏': 'ruler', '⚖': 'scale', '🛒': 'cart', '🛍': 'bag', '🏬': 'bag', '🔍': 'search', '🔎': 'search', '🎫': 'ticket',
   '📍': 'pin', '🌧': 'cloud', '🌦': 'cloud', '📤': 'share', '🐢': 'gauge', '🎮': 'gamepad', '🏙': 'building',
   '💈': 'scissors', '✂': 'scissors',
+  '🎧': 'headphones', '🚀': 'rocket', '⏱': 'stopwatch', '🐇': 'zap', '🙈': 'eye-off', '😄': 'smile', '😠': 'frown', '↗': 'rise', '↘': 'fall', '👍': 'smile', '⏩': 'play',
   '➕': 'plus', '📇': 'cards', '📂': 'archive', '🖼': 'image', '🆕': 'sparkles',
 };
 

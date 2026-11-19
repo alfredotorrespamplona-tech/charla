@@ -299,6 +299,21 @@ async function demo(task, messages) {
       { es: '(demo) Ella vive aquí desde 2019.', en: 'She ___ here since 2019.', answer: 'has lived', wrong: ['lives', 'is living'], why: 'Desde 2019 hasta hoy → has + forma terminada.' },
       { es: '(demo) ¿Cuándo llegaste?', en: 'When ___ you arrive?', answer: 'did', wrong: ['have', 'do'], why: 'Cuándo pregunta por un momento exacto → did.' },
     ] };
+    case 'islas': {
+      // Demo: frases de ejemplo (la IA real pasa a inglés lo que escribió).
+      const lines = last.split('\n').filter(Boolean);
+      const en = ['I work in sales, and I talk to clients every day.', 'I usually get up at six.', 'I like my job because I learn something new every day.',
+        "I'm looking for a job where I can use my English.", 'In my last job, I solved a big problem with a client.', 'In the end, the client stayed with us.'];
+      return { items: lines.slice(0, 6).map((l, i) => ({ es: `(demo) ${l}`, en: en[i % en.length] })) };
+    }
+    case 'jam': return { good: '(demo) Habló el minuto completo y se le entendió la idea principal.',
+      fixes: [{ said: 'I am agree', better: 'I agree', why: 'En inglés «estar de acuerdo» es un solo verbo: agree.' },
+        { said: 'People is busy', better: 'People are busy', why: '«People» es varias personas: va con are.' }],
+      version: [{ en: 'I think working from home is great.', es: 'Creo que trabajar desde la casa es genial.' },
+        { en: "I save time because I don't travel.", es: 'Ahorro tiempo porque no me desplazo.' },
+        { en: 'But sometimes I feel alone.', es: 'Pero a veces me siento solo.' },
+        { en: 'So I go to the office once a week.', es: 'Así que voy a la oficina una vez por semana.' }],
+      tip: 'Use «because» y «for example» para estirar cada idea.' };
     case 'grammar': {
       // Demo: siempre el mismo ejercicio de «si hubiera…, habría…» (sin IA no se analiza la frase del alumno).
       return { items: [{ es: 'Si hubiera sabido, te habría llamado.',

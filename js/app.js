@@ -27,6 +27,7 @@ import { TOPICS, TOPIC_GROUPS, drawMissions } from './topics.js';
 import { activeSeasonal } from './seasons.js';
 import * as tutorial from './tutorial.js';
 import { workshop } from './workshop.js';
+import { tecnicasScreen } from './tecnicasscreen.js';
 import { grammarScreen, homeLabel as grammarLabel } from './grammarscreen.js';
 import * as safety from './safety.js';
 import { spendStatus, usd, PRICES } from './budget.js';
@@ -94,6 +95,7 @@ export function cover() {
     settings: () => settings({ back: cover }),
     mil: () => milScreen({ home: cover }),
     levels: () => levelScreen(undefined, cover),
+    tecnicas: () => techniques(cover),
   });
 }
 
@@ -102,6 +104,15 @@ function levelScreen(rank, back = home) {
   levelStudy({ home: back, rank, startTopic: (topic, shown) => {
     const place = PLACES[0], character = CHARACTERS[place.characters[0]];
     startConversation({ place, character, mission: topic, onExit: () => levelScreen(shown, back), onFinish: session => summary(session) });
+  } });
+}
+
+// Técnicas avanzadas. El simulacro con imprevisto se charla en su lugar (aeropuerto, entrevista…) con su personaje.
+function techniques(back = home) {
+  tecnicasScreen({ home: back, startSim: (placeId, mission, onBack) => {
+    const place = PLACES.find(p => p.id === placeId) || PLACES[0];
+    const character = CHARACTERS[place.characters[0]];
+    startConversation({ place, character, mission, onExit: onBack, onFinish: session => summary(session) });
   } });
 }
 
@@ -167,6 +178,7 @@ export function home() {
       h('button.action', { onclick: () => essentials({ home }) }, '📚 Frases', h('small', {}, `${learnedIds(s.vocab).size}/${PHRASES.length}`)),
       h('button.action', { onclick: () => vocabScreen() }, '📒 Vocabulario', h('small', {}, `${s.vocab.filter(v => !v.archived).length}${pendingSuggestions(s).length ? ' · 💡' + pendingSuggestions(s).length : ''}`)),
       h('button.action', { onclick: () => grammarScreen({ home }) }, '🧱 Gramática', h('small', {}, grammarLabel(s))),
+      h('button.action', { onclick: () => techniques() }, '🚀 Técnicas', h('small', {}, 'aprender más rápido')),
       h('button.action', { onclick: () => workshop({ home }) }, '🧩 Taller', h('small', {}, (s.drills?.inbox?.length ? '💡' + s.drills.inbox.length + ' · ' : '') + 'juggle y esqueletos')),
       h('button.action', { onclick: () => contactsScreen() }, '👥 Contactos'),
       h('button.action', { onclick: () => statsScreen({ home }) }, '📊 Estadísticas'),

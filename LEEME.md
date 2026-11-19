@@ -76,6 +76,38 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
     empieza la charla en la cafetería y al salir vuelve al mismo nivel.
   - «Charlar en nivel X» cambia el nivel de sus charlas sin pasar por Ajustes.
   - Todo el contenido nuevo está escrito para Charla, con palabras propias.
+- **🚀 Técnicas avanzadas** (v38; botón «Técnicas» del inicio y cuadro ancho de la portada): 10 técnicas
+  sacadas del cerebro de inglés para aprender más rápido. Cada una abre con «Qué es», «Por qué funciona» y
+  «Cómo se hace», en español y sin palabras de gramática. Están en 4 grupos:
+  - **Entender inglés rápido**
+    - 🎧 **Dictado activo** (DLI): oye la frase, la escribe y ve en color lo que no oyó, con pistas de las
+      palabras que se unen al hablar («want to» → «wanna»).
+    - 🔮 **Adivine el final**: oye el comienzo y elige entre 3 finales antes de oír la frase completa.
+    - 🗣 **Sombra con intención**: repite igual que la voz con una intención (palabras fuertes, final que
+      sube o baja, finales de palabra, palabras unidas); 3 velocidades y nota con el micrófono.
+  - **Hablar con fluidez**
+    - ⏱ **Un minuto sin parar (JAM)**: 3 rondas de un minuto (a ciegas, con notas, con más detalles) sobre
+      24 temas (entrevista, vida, opinión). Mide palabras por minuto, pausas de más de 3 s y muletillas, y
+      muestra cuánto mejoró. Con clave, la IA revisa el minuto y da una versión natural que se puede
+      repetir en sombra o guardar en «Mis frases». Sin micrófono se hace solo con el reloj.
+    - 🧱 **Frase que crece**: 10 frases que crecen pieza a pieza hasta 18–28 palabras; se dice completa
+      cada vez, y se puede ocultar el texto.
+    - 🎭 **Una frase, 5 capas**: calentamiento de boca, despacio, normal, 3 emociones, rápido y 3
+      situaciones; mide la velocidad de cada capa.
+  - **Armar frases usted solo**
+    - 🔄 **Cuéntelo de otra persona**: 8 historias con «I…» que se cuentan con «He…» o «She…».
+    - 🔁 **Ida y vuelta** (Luca Lampariello): 8 textos de 5 frases; los pasa al español, descansan unas
+      8 horas y luego los devuelve al inglés y compara con el original.
+    - 🏝 **Mis frases (islas)**: 6 islas (mi entrevista, mi trabajo, mi día…). Escribe en español lo que de
+      verdad dice y la IA lo pasa a inglés natural. «Mi entrevista» tiene el formulario STAR (situación,
+      tarea, acción, resultado). Se practican de memoria, en sombra y en dictado.
+  - **Reaccionar cuando algo cambia**
+    - 🎲 **Simulacro con imprevisto** (DLI): 6 charlas (2 de entrevista, aeropuerto, restaurante, hotel,
+      consultorio) en las que, sin avisar, algo sale mal.
+  - **🔁 Las 5 de hoy**: las mismas 5 frases todo el día de 3 maneras (oírlas, repetirlas, decirlas de
+    memoria). Se eligen de: entrevista de trabajo, frases de su nivel, «Mis frases» o su repaso.
+  - **🎯 Para su entrevista**: acceso directo a STAR, al minuto con preguntas de entrevista y al simulacro.
+  - Todo el contenido es propio; el avance se guarda en `tecnicas` y viaja en la copia de seguridad.
 - 19 lugares (cafetería, aeropuerto, hotel, oficina, parque, restaurante, consultorio, calle, tienda,
   gimnasio, fiesta, entrevista de trabajo, **tu barrio, supermercado, ayuntamiento, banco, escuela de
   idiomas, centro comercial y peluquería**) con 72 misiones, todas abiertas.
