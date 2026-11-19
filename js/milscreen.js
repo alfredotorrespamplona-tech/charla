@@ -1,13 +1,12 @@
-// Pantallas del mazo de mil palabras (Refold Inglés-mil): importar el .apkg, estudiar y ver la lista.
+// Pantallas de «Mil palabras»: las 1000 palabras más usadas del inglés, ya incluidas en la app
+// (js/milwords.js, sacadas de la lista de su cerebro de inglés). No hay nada que importar.
 // Cómo se estudia (como en Anki, al estilo Refold):
 //  1. Ve la palabra y la escucha. Intenta recordar qué significa, sin mirar.
-//  2. Toca «Mostrar»: ve el significado, la frase de ejemplo con su audio y la traducción.
+//  2. Toca «Mostrar»: ve el significado, la frase de ejemplo (la lee la voz) y la traducción.
 //  3. Se califica con honestidad: Otra vez · Difícil · Bien · Fácil. Eso decide cuándo vuelve.
 import * as store from './store.js';
 import * as M from './mil.js';
-import * as D from './deckdb.js';
-import { openApkg, zipBlob, mimeOf } from './apkg.js';
-import { h, mount, sheet, closeSheet, toast, progressBar, spinner, buzz, setText } from './ui.js';
+import { h, mount, sheet, toast, progressBar, spinner, buzz, setText } from './ui.js';
 import { speak, stopSpeaking } from './speech.js';
 import { practicePronunciation } from './pronounce.js';
 import { addVocab, findVocab } from './words.js';
@@ -17,80 +16,30 @@ import { whenLabel } from './srs.js';
 export const milOf = (s = store.get()) => M.normalize(s.mil);
 function updateMil(fn) { store.update(s => { s.mil = M.normalize(s.mil); fn(s.mil, s); }); }
 
-// ---------------- Audio del mazo ----------------
-let player = null, playToken = 0;
-const urls = new Map();
-function urlFor(name, blob) {
-  let u = urls.get(name);
-  if (!u) {
-    u = URL.createObjectURL(blob);
-    urls.set(name, u);
-    if (urls.size > 40) { const [k, old] = urls.entries().next().value; URL.revokeObjectURL(old); urls.delete(k); }
-  }
-  return u;
-}
-export function stopAudio() { playToken++; if (player) { player.pause(); player = null; } stopSpeaking(); }
-function releaseAudio() { stopAudio(); for (const u of urls.values()) URL.revokeObjectURL(u); urls.clear(); }
-
-// Suena el audio del mazo; si no está (no se importó), lo lee la voz del teléfono.
-async function play(name, fallback, token = ++playToken) {
-  if (player) { player.pause(); player = null; }
+// ---------------- Voz ----------------
+// La lee la voz del teléfono (la misma voz de mujer de las charlas).
+const VOICE = { voice: { gender: 'female' } };
+let playToken = 0;
+export function stopAudio() { playToken++; stopSpeaking(); }
+function play(text, rate = 0.9) {
+  playToken++;
   stopSpeaking();
-  const blob = name ? await D.getMedia(name).catch(() => null) : null;
-  if (token !== playToken) return;
-  if (!blob) { if (fallback) await speak(fallback, { rate: 0.9 }); return; }
-  const a = new Audio(urlFor(name, blob));
-  player = a;
-  await new Promise(res => { a.onended = res; a.onerror = res; a.play().catch(res); });
-  if (player === a) player = null;
-}
-// Varias seguidas (palabra y luego frase), cancelables.
-async function playSeq(items) {
-  const token = ++playToken;
-  for (const [name, text] of items) {
-    if (token !== playToken) return;
-    await play(name, text, token);
-    if (token !== playToken) return;
-    await new Promise(r => setTimeout(r, 250));
-  }
-}
-
-function imageEl(name) {
-  if (!name) return null;
-  const img = h('img.mil-img', { alt: '', decoding: 'async' });
-  D.getMedia(name).then(b => { if (b) img.src = urlFor(name, b); else img.remove(); }).catch(() => img.remove());
-  return img;
-}
-
-// Achica una imagen a 480 px (las del mazo pesan ~150 KB cada una; así quedan en ~25 KB).
-async function shrinkImage(blob, max = 480) {
-  try {
-    const bmp = await createImageBitmap(blob);
-    const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
-    const w = Math.max(1, Math.round(bmp.width * k)), hh = Math.max(1, Math.round(bmp.height * k));
-    const canvas = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, hh) : Object.assign(document.createElement('canvas'), { width: w, height: hh });
-    canvas.getContext('2d').drawImage(bmp, 0, 0, w, hh);
-    bmp.close?.();
-    const out = canvas.convertToBlob
-      ? await canvas.convertToBlob({ type: 'image/webp', quality: 0.8 })
-      : await new Promise(r => canvas.toBlob(r, 'image/webp', 0.8));
-    return out && out.size && out.size < blob.size ? out : blob;
-  } catch { return blob; }
+  return text ? speak(text, { rate, character: VOICE }) : Promise.resolve();
 }
 
 // ---------------- Pantalla principal del mazo ----------------
 export async function milScreen({ home }) {
-  releaseAudio();
+  stopAudio();
   const screen = h('div.screen.mil', {},
-    h('div.topbar', {}, h('button.icon', { 'aria-label': 'Volver', onclick: () => { releaseAudio(); home(); } }, '←'), h('h2', {}, '📇 Mil palabras')),
+    h('div.topbar', {}, h('button.icon', { 'aria-label': 'Volver', onclick: () => { stopAudio(); home(); } }, '←'), h('h2', {}, '📇 Mil palabras')),
     spinner('Abriendo el mazo…'));
   mount(screen);
-  const cards = await D.loadCards();
+  let cards = null;
+  try { cards = await M.loadMilCards(); } catch (e) { console.error(e); }
   if (!screen.isConnected) return;
   screen.lastChild.remove();
-  const ctx = { home, cards };
-  if (!cards?.length) { screen.append(...importView(ctx)); return; }
-  screen.append(...deckView(ctx));
+  if (!cards?.length) { screen.append(h('p.bad', {}, '⚠️ No se pudo abrir la lista de palabras. Revise la conexión y vuelva a intentarlo.')); return; }
+  screen.append(...deckView({ home, cards }));
 }
 
 function deckView(ctx) {
@@ -110,7 +59,7 @@ function deckView(ctx) {
   return [
     h('div.card.mil-hero', {},
       h('div.mil-hero-top', {},
-        h('div', {}, h('b', {}, m.name || 'Refold Inglés-mil'), h('small.muted', {}, `${c.total} palabras, de la más usada a la menos usada`)),
+        h('div', {}, h('b', {}, 'Las 1000 palabras más usadas'), h('small.muted', {}, 'De la más usada a la menos usada, cada una con su frase')),
         h('div.mil-big', {}, h('b', {}, String(c.learned)), h('small', {}, `de ${c.total}`))),
       progressBar(c.learned / Math.max(1, c.total), 'var(--good)'),
       h('div.mil-chips', {},
@@ -135,90 +84,9 @@ function deckView(ctx) {
     h('div.card', {},
       h('b', {}, '⚙️ Ajustes del mazo'),
       h('label', {}, 'Palabras nuevas'), newSel,
-      h('label.check', {}, auto, ' 🔊 Reproducir el audio solo'),
-      h('p.muted', {}, `El mazo está guardado solo en este teléfono${m.images ? ', con imágenes' : ''}. Su avance va en la copia de seguridad; el mazo no (en otro teléfono se vuelve a importar el archivo).`),
-      h('div.row', {},
-        h('button.small', { onclick: () => { mount(h('div.screen.mil', {}, h('div.topbar', {}, h('button.icon', { 'aria-label': 'Volver', onclick: () => milScreen(ctx) }, '←'), h('h2', {}, '📂 Importar de nuevo')), ...importView({ ...ctx, again: true }))); } }, '📂 Importar de nuevo'),
-        h('button.small.danger', { onclick: e => {
-          const b = e.currentTarget;
-          if (!b.dataset.armed) { b.dataset.armed = '1'; setText(b, '¿Seguro? Toque otra vez'); return; }
-          D.clearDeck().then(() => { updateMil(x => { x.imported = false; }); toast('Mazo quitado del teléfono. Su avance se conserva.'); milScreen(ctx); })
-            .catch(err => toast(err.message, 'bad'));
-        } }, '🗑 Quitar el mazo'))),
+      h('label.check', {}, auto, ' 🔊 Leer la palabra y la frase en voz alta solas'),
+      h('p.muted', {}, 'Las palabras vienen con la app y funcionan sin internet. Su avance va en la copia de seguridad.')),
   ];
-}
-
-// ---------------- Importar ----------------
-function importView(ctx) {
-  const m = milOf();
-  const images = h('input', { type: 'checkbox', checked: !m.importedAt || m.images });
-  const out = h('div.mil-import-out');
-  const pick = h('button.primary.wide', { onclick: () => {
-    const f = h('input', { type: 'file', accept: '.apkg,application/octet-stream,application/zip' });
-    f.onchange = () => { if (f.files[0]) runImport(f.files[0], images.checked, out, pick, ctx); };
-    f.click();
-  } }, '📂 Elegir el archivo .apkg');
-  const resumed = Object.keys(m.cards).length;
-  return [
-    h('div.card', {},
-      h('p', {}, h('b', {}, 'Su mazo de Anki «Refold Inglés-mil»'), ': las 1000 palabras más usadas del inglés, cada una con su significado, una frase de ejemplo con traducción, y el audio de la palabra y de la frase.'),
-      ctx.again ? null : h('p.muted', {}, '🔒 El archivo se lee aquí mismo, en el teléfono, y queda guardado solo en él. No se sube a internet.'),
-      resumed ? h('p.good', {}, `Su avance (${resumed} palabras vistas) se conserva al importar.`) : null,
-      h('ol.steps', {},
-        h('li', {}, 'Pase ', h('b', {}, 'Refold-Ingles-mil-v2.apkg'), ' al teléfono: por ejemplo súbalo a Google Drive desde el computador, o envíeselo por correo o WhatsApp y descárguelo.'),
-        h('li', {}, 'Toque el botón y búsquelo (en Drive o en Descargas).'),
-        h('li', {}, 'Espere a que termine: tarda uno o dos minutos. Después funciona sin internet.')),
-      h('label.check', {}, images, ' 🖼 Guardar también las imágenes (ocupa unos 10 MB más)'),
-      pick,
-      out),
-  ];
-}
-
-async function runImport(file, withImages, out, pick, ctx) {
-  pick.disabled = true;
-  const status = h('p.muted', {}, 'Leyendo el mazo…');
-  const bar = h('div', {}, progressBar(0));
-  out.replaceChildren(status, bar);
-  const paint = (text, frac) => { setText(status, text); bar.replaceChildren(progressBar(frac)); };
-  // Que la pantalla no se apague mientras importa (si el teléfono lo permite).
-  let lock = null;
-  try { lock = await navigator.wakeLock?.request('screen'); } catch {}
-  try {
-    const deck = await openApkg(file);
-    const have = await D.mediaNames().catch(() => new Set());
-    const keepImage = c => c.image && deck.media.has(c.image) && (withImages || have.has(c.image));
-    const needed = new Set();
-    for (const c of deck.cards) {
-      for (const n of [c.wordAudio, c.sentenceAudio]) if (n && deck.media.has(n)) needed.add(n);
-      if (withImages && keepImage(c)) needed.add(c.image);
-    }
-    const todo = [...needed].filter(n => !have.has(n));
-    paint(`Guardando ${deck.cards.length} palabras con sus audios…`, 0);
-    let batch = [], done = 0;
-    for (const name of todo) {
-      const type = mimeOf(name);
-      let blob = await zipBlob(file, deck.media.get(name), type);
-      if (type.startsWith('image/')) blob = await shrinkImage(blob);
-      batch.push([name, blob]);
-      done++;
-      if (batch.length >= 40) { await D.putMedia(batch); batch = []; }
-      if (done % 20 === 0 || done === todo.length) paint(`Guardando audios${withImages ? ' e imágenes' : ''}… ${done} de ${todo.length}`, done / todo.length);
-    }
-    if (batch.length) await D.putMedia(batch);
-    const cards = deck.cards.map(c => ({ ...c, image: keepImage(c) ? c.image : '' }));
-    await D.saveCards(cards, { name: deck.name, count: cards.length, importedAt: Date.now(), images: withImages });
-    updateMil(x => { x.imported = true; x.total = cards.length; x.name = deck.name; x.importedAt = Date.now(); x.images = withImages; });
-    store.persistStorage();
-    buzz('good');
-    toast(`📇 Listo: ${cards.length} palabras en su teléfono`, 'good');
-    milScreen({ home: ctx.home });
-  } catch (e) {
-    console.error(e);
-    pick.disabled = false;
-    out.replaceChildren(h('p.bad', {}, '⚠️ ', e.message || 'No se pudo importar el mazo.'));
-  } finally {
-    try { await lock?.release(); } catch {}
-  }
 }
 
 // ---------------- Reverso de la tarjeta ----------------
@@ -229,15 +97,14 @@ function sentenceLine(card) {
 function cardBack(card) {
   const saved = !!findVocab(card.word);
   return h('div.mil-back', {},
-    imageEl(card.image),
     h('ul.mil-defs', {}, card.defs.map(d => h('li', {}, d))),
     card.forms.length ? h('p.muted.mil-forms', {}, 'Formas: ', h('b', {}, card.forms.join(' · '))) : null,
     card.sentence ? h('div.mil-example', {},
       sentenceLine(card),
       h('p.muted.mil-tr', {}, card.translation),
       h('div.row', {},
-        h('button.tiny', { onclick: () => play(card.sentenceAudio, card.sentence) }, '🔊 Frase'),
-        h('button.tiny', { onclick: () => { stopAudio(); speak(card.sentence, { rate: 0.7 }); } }, '🐢 Despacio'),
+        h('button.tiny', { onclick: () => play(card.sentence) }, '🔊 Frase'),
+        h('button.tiny', { onclick: () => play(card.sentence, 0.65) }, '🐢 Despacio'),
         h('button.tiny', { onclick: () => { stopAudio(); practicePronunciation(card.sentence); } }, '🎤 Decirla'),
         h('button.tiny', { disabled: saved, onclick: e => {
           if (addVocab({ text: card.word, translation: card.defs[0]?.replace(/^\([^)]*\)\s*/, '').replace(/\.$/, '') || '', type: typeFromDef(card.defs[0]), context: card.sentence })) { e.currentTarget.disabled = true; setText(e.currentTarget, '⭐ Guardada'); }
@@ -282,7 +149,7 @@ function study(ctx) {
   const onHide = () => { if (document.hidden) stopAudio(); };
   document.addEventListener('keydown', onKey);
   document.addEventListener('visibilitychange', onHide);
-  const cleanup = () => { document.removeEventListener('keydown', onKey); document.removeEventListener('visibilitychange', onHide); releaseAudio(); };
+  const cleanup = () => { document.removeEventListener('keydown', onKey); document.removeEventListener('visibilitychange', onHide); stopAudio(); };
 
   const remaining = () => {
     const m = milOf();
@@ -312,11 +179,11 @@ function study(ctx) {
       h('div.card.mil-card', {},
         h('div.mil-meta', {}, h('small.muted', {}, `#${card.id}`), h('span.mil-stage', { class: stage.key }, stage.label)),
         h('div.mil-word', {}, card.front),
-        h('button.mil-play', { 'aria-label': 'Escuchar la palabra', onclick: () => play(card.wordAudio, card.word) }, '🔊'),
+        h('button.mil-play', { 'aria-label': 'Escuchar la palabra', onclick: () => play(card.word, 0.8) }, '🔊'),
         back),
       showBtn,
       answersRow);
-    if (milOf().autoplay !== false) play(card.wordAudio, card.word);
+    if (milOf().autoplay !== false) play(card.word, 0.8);
   }
 
   function reveal() {
@@ -326,7 +193,7 @@ function study(ctx) {
     back.classList.remove('hidden');
     showBtn.remove();
     answersRow.classList.remove('hidden');
-    if (milOf().autoplay !== false && card.sentence) playSeq([[card.sentenceAudio, card.sentence]]);
+    if (milOf().autoplay !== false && card.sentence) play(card.sentence);
     back.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   }
 
@@ -428,12 +295,12 @@ function listScreen(ctx) {
     const x = m.cards[c.id];
     sheet(h('div.mil-detail', {},
       h('div.mil-meta', {}, h('small.muted', {}, `#${c.id}`), h('span.mil-stage', { class: st.key }, st.label)),
-      h('div.mil-word', {}, c.front, ' ', h('button.tiny', { onclick: () => play(c.wordAudio, c.word) }, '🔊')),
+      h('div.mil-word', {}, c.front, ' ', h('button.tiny', { onclick: () => play(c.word, 0.8) }, '🔊')),
       cardBack(c),
       x && x.ivl >= 1 ? h('p.muted', {}, `Vuelve ${whenLabel(x.due)} · la ha visto ${x.reps} ${x.reps === 1 ? 'vez' : 'veces'}`) : null), { onClose: stopAudio });
   };
   mount(h('div.screen.mil', {},
-    h('div.topbar', {}, h('button.icon', { 'aria-label': 'Volver', onclick: () => { releaseAudio(); milScreen(ctx); } }, '←'), h('h2', {}, '📋 Las mil palabras')),
+    h('div.topbar', {}, h('button.icon', { 'aria-label': 'Volver', onclick: () => { stopAudio(); milScreen(ctx); } }, '←'), h('h2', {}, '📋 Las mil palabras')),
     search, seg, count, list));
   paint();
 }

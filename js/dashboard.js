@@ -10,7 +10,7 @@ import { PHRASES, learnedIds } from './phrases.js';
 import { activeErrors } from './bitacora.js';
 import { practiceDays } from './stats.js';
 import * as M from './mil.js';
-import * as D from './deckdb.js';
+import { speak } from './speech.js';
 
 const DAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -71,10 +71,8 @@ export function todayPlan(s = store.get(), now = new Date()) {
   const items = [
     { key: 'talk', icon: '🎤', title: 'Charlar', done: today.pct >= 1,
       detail: today.pct >= 1 ? `${today.min} min · meta cumplida` : `${today.min} de ${today.goal} min` },
-    mil.imported
-      ? { key: 'mil', icon: '📇', title: 'Mil palabras', done: deck.toStudy === 0,
-        detail: deck.toStudy === 0 ? `al día · sabe ${deck.learned}` : [deck.due && `${deck.due} ${deck.due === 1 ? 'repaso' : 'repasos'}`, deck.fresh && `${deck.fresh} ${deck.fresh === 1 ? 'nueva' : 'nuevas'}`].filter(Boolean).join(' + ') }
-      : { key: 'mil', icon: '📇', title: 'Mil palabras', done: false, detail: 'importe su mazo de Refold' },
+    { key: 'mil', icon: '📇', title: 'Mil palabras', done: deck.toStudy === 0,
+      detail: deck.toStudy === 0 ? `al día · sabe ${deck.learned}` : [deck.due && `${deck.due} ${deck.due === 1 ? 'repaso' : 'repasos'}`, deck.fresh && `${deck.fresh} ${deck.fresh === 1 ? 'nueva' : 'nuevas'}`].filter(Boolean).join(' + ') },
     // El repaso de su vocabulario solo aparece cuando ya tiene palabras guardadas.
     s.vocab.some(srs.isActive) ? { key: 'review', icon: '🧠', title: 'Repaso', done: due === 0,
       detail: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'nada pendiente' } : null,
@@ -82,27 +80,20 @@ export function todayPlan(s = store.get(), now = new Date()) {
   return { items, done: items.filter(i => i.done).length };
 }
 
-// Palabra del día: la próxima nueva del mazo (o la última que vio), con su audio y su frase.
+// Palabra del día: la próxima nueva del mazo (o una de repaso), con su voz y su frase.
 async function wordOfDay(box, go) {
-  const cards = await D.loadCards().catch(() => null);
+  const cards = await M.loadMilCards().catch(() => null);
   if (!cards?.length || !box.isConnected) { box.remove(); return; }
   const mil = M.normalize(store.get().mil);
   const fresh = cards.find(c => !mil.cards[c.id]);
   const c = fresh || cards[(new Date().getDate() * 37) % cards.length];
-  const audio = name => async () => {
-    const b = await D.getMedia(name).catch(() => null);
-    if (!b) return;
-    const url = URL.createObjectURL(b);
-    const a = new Audio(url);
-    a.onended = a.onerror = () => URL.revokeObjectURL(url);
-    a.play().catch(() => URL.revokeObjectURL(url));
-  };
+  const audio = (text, rate = 0.9) => () => speak(text, { rate, character: { voice: { gender: 'female' } } });
   box.replaceChildren(
     h('div.dash-wod-head', {}, h('small', {}, fresh ? `Palabra nueva #${c.id}` : `Para recordar #${c.id}`),
       h('button.tiny', { onclick: go.mil }, 'Estudiar →')),
-    h('div.dash-wod-word', {}, h('b', {}, c.front), h('button.icon', { 'aria-label': 'Escuchar la palabra', onclick: audio(c.wordAudio) }, '🔊')),
+    h('div.dash-wod-word', {}, h('b', {}, c.front), h('button.icon', { 'aria-label': 'Escuchar la palabra', onclick: audio(c.word, 0.8) }, '🔊')),
     h('div.muted', {}, c.defs.join(' · ')),
-    c.sentence ? h('div.dash-wod-ex', {}, h('span', {}, c.sentence), h('button.icon', { 'aria-label': 'Escuchar la frase', onclick: audio(c.sentenceAudio) }, '🔊')) : null,
+    c.sentence ? h('div.dash-wod-ex', {}, h('span', {}, c.sentence), h('button.icon', { 'aria-label': 'Escuchar la frase', onclick: audio(c.sentence) }, '🔊')) : null,
     c.translation ? h('small.muted', {}, c.translation) : null);
   box.classList.remove('hidden');
 }
@@ -126,7 +117,7 @@ export function dashboard(go) {
   const deck = M.quickCounts(mil, now.getTime(), store.todayIso(now));
   const planGo = { talk: draft ? () => go.resume(draft) : go.map, mil: go.mil, review: go.review };
   const wod = h('section.card.dash-wod.hidden');
-  if (mil.imported) wordOfDay(wod, go);
+  wordOfDay(wod, go);
 
   const cta = draft
     ? h('button.primary.dash-cta', { onclick: () => go.resume(draft) },
@@ -162,7 +153,7 @@ export function dashboard(go) {
         h('span', {}, d.label), h('i', {}, d.done ? '✓' : d.frozen ? '🧊' : ''))))),
     h('h2.dash-title', {}, 'Practicar'),
     h('div.dash-grid', {},
-      tile({ icon: '📇', title: 'Mil palabras', value: mil.imported ? `${deck.learned}/${deck.total}` : 'Importar', sub: mil.imported ? (deck.toStudy ? `${deck.toStudy} para hoy` : 'al día') : 'su mazo de Refold', onclick: go.mil, accent: mil.imported && deck.toStudy > 0 }),
+      tile({ icon: '📇', title: 'Mil palabras', value: `${deck.learned}/${deck.total}`, sub: deck.toStudy ? `${deck.toStudy} para hoy` : 'al día', onclick: go.mil, accent: deck.toStudy > 0 }),
       tile({ icon: '🧠', title: 'Repaso', value: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'Al día', sub: due ? 'Le toca hoy' : 'Nada pendiente', onclick: go.review, accent: due > 0 }),
       tile({ icon: '🧱', title: 'Gramática', value: lesson ? lesson.title : '¡Todo aprobado!', sub: `${passed}/${G.LESSONS.length} lecciones`, onclick: go.grammar }),
       tile({ icon: '📚', title: 'Frases', value: `${learnedIds(s.vocab).size}/${PHRASES.length}`, sub: 'frases esenciales', onclick: go.essentials }),

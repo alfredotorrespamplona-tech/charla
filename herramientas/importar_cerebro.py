@@ -208,6 +208,7 @@ MORE_IRREGULAR = {'wake': {'woke', 'woken'}, 'win': {'won'}, 'get': {'got', 'got
 
 
 rows = [r for r in table_rows(read('wiki/vocabulario/lista_1000_refold.md'), stop_at='> **Fuente') if r[0].isdigit()]
+refold_rows = rows
 by_rank = []
 missing = []
 for r in rows:
@@ -346,6 +347,21 @@ lines += ['  ' + json.dumps(b, ensure_ascii=False) + ',' for b in bitacora]
 lines.append('];')
 with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
     f.write('\n'.join(lines) + '\n')
+
+# ---- Las mil palabras completas para la pantalla «Mil palabras» (js/milwords.js) ----
+# [rank, palabra, significado, formas irregulares, frase en inglés, traducción]. Se carga solo al abrir el mazo.
+mil_words = []
+for r in refold_rows:
+    forms = '' if r[3].strip() in ('—', '-', '') else r[3].strip()
+    mil_words.append([int(r[0]), r[1].strip('*').strip(), r[2].strip(), forms, r[4].strip('*').strip(), r[5].strip()])
+mil_lines = ['// Generado por herramientas/importar_cerebro.py desde wiki/vocabulario/lista_1000_refold.md: no editar a mano.',
+             '// Las 1000 palabras más usadas: [rank, palabra, significado, formas irregulares, frase en inglés, traducción].',
+             'export const MIL_WORDS = [']
+mil_lines += ['  ' + json.dumps(w, ensure_ascii=False) + ',' for w in mil_words]
+mil_lines.append('];')
+with open(os.path.join(os.path.dirname(OUT), 'milwords.js'), 'w', encoding='utf-8', newline='\n') as f:
+    f.write('\n'.join(mil_lines) + '\n')
+report.append(('Mil palabras (milwords.js)', len(mil_words)))
 
 for name, n in report:
     print(f'{name}: {n}')

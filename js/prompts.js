@@ -125,12 +125,12 @@ ${coachRules()}${knownErrorsText()}Return ONLY JSON:
 }
 
 // ---- ConversationSuggestion ----
-export function suggestionMessages({ history, rankId, mission }) {
+export function suggestionMessages({ history, rankId, mission, avoid = '' }) {
   const rank = rankById(rankId);
   return [
     { role: 'system', content: `You help an English learner (${rank.code}, native ${LEARNER_LANG}) answer in a role-play.
 Scenario: ${mission.name} — ${mission.description}. Pending objectives: ${mission.objectives.map(o => o.text).join('; ') || 'none'}.
-Give 3 different replies the learner could say next, helpful for the objectives.
+Give ONE reply the learner could say next: the most natural one, helpful for the objectives.${avoid ? ` It must be different from: "${avoid}".` : ''}
 Their length, vocabulary and grammar must match this level: ${rank.prompt}
 Return ONLY JSON: {"suggestions": [{"text": "English reply", "translation": "${LEARNER_LANG} translation"}]}` },
     { role: 'user', content: historyText(history) },

@@ -38,12 +38,16 @@ export function tour(key, steps) {
       nextBtn.textContent = i + 1 < steps.length ? 'Siguiente' : 'Entendido';
       place();
     }
+    // skipped: true = lo saltó, false = lo terminó, null = la pantalla cambió (se mostrará la próxima vez).
     function end(skipped) {
       window.removeEventListener('resize', place);
+      clearInterval(watch);
       layer.remove();
-      mark(skipped ? { [key]: true, skipped: true } : { [key]: true });
+      if (skipped !== null) mark(skipped ? { [key]: true, skipped: true } : { [key]: true });
       resolve();
     }
+    // Si la pantalla cambia debajo (volvió de otra app, se cerró la charla), el tutorial no se queda flotando.
+    const watch = setInterval(() => { if (!steps[i].el.isConnected) end(null); }, 400);
     window.addEventListener('resize', place);
     document.body.appendChild(layer);
     go(0);

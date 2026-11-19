@@ -5,6 +5,7 @@
 import * as store from './store.js';
 import { h, mount, sheet, closeSheet, toast, progressBar } from './ui.js';
 import { miniAvatar } from './avatar.js';
+import { roleLine } from './cast.js';
 import { PLACES, CHARACTERS, RELATIONSHIP_STATUS, relationshipStatus, AFFECTION_MIN, AFFECTION_PER_LEVEL } from './data.js';
 
 export { AFFECTION_MIN, AFFECTION_PER_LEVEL };
@@ -120,7 +121,7 @@ export function characterSheet(character, { onChange } = {}) {
 
   sheet(h('div.char-sheet', {},
     h('div.char-head', {}, miniAvatar(character),
-      h('div', {}, h('h3', {}, character.name), h('div.muted', {}, `${character.age} años · ${character.title || character.profession}`),
+      h('div', {}, h('h3', {}, character.name), h('div.muted', {}, roleLine(character)),
         h('div.muted', {}, `De ${character.hometown}`))),
     h('div.card', {},
       h('b', {}, `${rel.level < 0 ? '💔' : '💛'} ${st.label}`),
@@ -168,7 +169,7 @@ function personCard(c, place, isNew) {
   return h('div.character-card.person', {},
     h('button.person-main', { onclick: () => characterSheet(c, { onChange: contactsScreen }) },
       miniAvatar(c),
-      h('div', {}, h('b', {}, c.name), h('div.muted', {}, `${c.age} años · ${c.title || c.profession}`),
+      h('div', {}, h('b', {}, c.name), h('div.muted', {}, roleLine(c)),
         h('div.rel', {}, isNew ? `${place?.emoji || ''} ${place?.name || ''} · le gusta ${c.interests[0]}` : relationLine(rel)))),
     place ? h('button.small', { onclick: () => nav.chooseMission(place, c) }, 'Hablar') : null);
 }

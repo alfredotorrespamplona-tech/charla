@@ -334,6 +334,7 @@ export function startConversation({ place, character, mission, onFinish, onExit,
       onBoundary: i => reveal?.at(from + i),
       onSegment: seg => reveal?.segment(from + seg.offset, seg.length, seg.inMs, seg.durMs),
       onLevel: l => avatar.setLevel(l),
+      onMouth: v => avatar.setMouth(v),
       onEnd: () => avatar.setLevel(0),
     });
     reveal?.pieceEnd(from, text.length);
@@ -728,21 +729,27 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     } catch (e) { setStatus(''); toast(e.message, 'bad'); }
   }
 
-  // Sugerencias (ConversationSuggestion)
-  async function showSuggestions() {
+  // Sugerencia (ConversationSuggestion): una sola, con «Otra idea» por si no le sirve.
+  let lastIdea = '';
+  async function showSuggestions(another = false) {
     if (busy || session.finished) return;
+    if (!another) lastIdea = '';
     suggestBox.classList.remove('hidden');
     suggestBox.innerHTML = '';
     suggestBox.appendChild(spinner('Pensando ideas…'));
     try {
-      const r = await chatJson('suggestions', P.suggestionMessages({ history: session.history, rankId: store.get().rank, mission: { ...mission, objectives: mission.objectives.filter(o => !session.completed.has(o.id)) } }), { temperature: 0.7, maxTokens: 300 });
+      const r = await chatJson('suggestions', P.suggestionMessages({ history: session.history, rankId: store.get().rank, mission: { ...mission, objectives: mission.objectives.filter(o => !session.completed.has(o.id)) }, avoid: lastIdea }), { temperature: another ? 0.9 : 0.7, maxTokens: 140 });
       suggestBox.innerHTML = '';
-      for (const sug of (r.suggestions || []).slice(0, 3)) {
+      const list = (r.suggestions || []).filter(x => x?.text);
+      const pickIdea = list.find(x => x.text !== lastIdea) || list[0];
+      for (const sug of pickIdea ? [pickIdea] : []) {
+        lastIdea = sug.text;
         // En modo automático la pista va en la tarjeta; a pedido, en la tarjeta de practicar.
         const { el: line, spans } = wordLine(sug.text, 'span.hint-line');
         if (level().pronunciation === 'auto') attachHints(line, spans, sug.text, 'auto');
         suggestBox.appendChild(h('button.suggestion', { onclick: () => offerSuggestion(sug.text, sug.translation) },
           line, h('small', {}, sug.translation || '')));
+        suggestBox.appendChild(h('button.tiny.another-idea', { onclick: () => showSuggestions(true) }, '🔄 Otra idea'));
       }
     } catch (e) { suggestBox.innerHTML = ''; suggestBox.appendChild(h('div.muted', {}, e.message)); }
   }

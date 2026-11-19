@@ -16,6 +16,7 @@ const DEFAULT = {
     autoListen: false,       // manos libres (LiveMode): escucha sola y envía tras una pausa
     haptics: true,           // vibrar al acertar, fallar, cumplir objetivos (HapticsManager)
     comedy: false,           // modo comedia: personajes más graciosos (SettingsUseComedyMode)
+    oneCharacter: true,      // una sola compañera (Amy, dibujada, con labios sincronizados) en todas las charlas
     monthlyCap: 3,           // tope de gasto del mes en US$ (0 = sin tope): avisa al 80 % y al llegar
     capBlock: false,         // al llegar al tope, pausar la IA hasta el mes siguiente
   },

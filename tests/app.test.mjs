@@ -1344,84 +1344,86 @@ test('respuesta por partes: con DeepSeek simulado habla por partes y, si no la a
   }
 });
 
-// ---------------- Mil palabras (mazo de Refold importado) ----------------
-// Arma un .apkg de prueba: base de datos de Anki (SQLite) comprimida + audios guardados tal cual.
-async function fakeApkg({ notes = 300, newFormat = false } = {}) {
-  const { DatabaseSync } = await import('node:sqlite');
-  const { mkdtempSync, readFileSync } = await import('node:fs');
-  const { tmpdir } = await import('node:os');
-  const zlib = await import('node:zlib');
-  const path = join(mkdtempSync(join(tmpdir(), 'apkg-')), 'c.anki21');
-  const db = new DatabaseSync(path);
-  db.exec(`CREATE TABLE col (id integer primary key, crt integer not null, mod integer not null, scm integer not null, ver integer not null, dty integer not null, usn integer not null, ls integer not null, conf text not null, models text not null, decks text not null, dconf text not null, tags text not null);
-    CREATE TABLE notes (id integer primary key, guid text not null, mid integer not null, mod integer not null, usn integer not null, tags text not null, flds text not null, sfld integer not null, csum integer not null, flags integer not null, data text not null);`);
-  const names = ['Índice de ordenación', 'Palabra', 'Anverso de la tarjeta', 'Definiciónes 1', 'Definiciónes 2', 'Formas irregulares 1', 'Formas irregulares 2', 'Formas irregulares 3', 'Ejemplo de frase', 'Traducción', 'audio_de_la_palabra', 'audio_de_la_frase', 'Imagen'];
-  const models = { 1700: { id: 1700, name: 'Inglés-mil', flds: names.map(name => ({ name })), css: 'x'.repeat(9000) } };
-  db.prepare('INSERT INTO col VALUES (1,0,0,0,11,0,0,0,?,?,?,?,?)').run('{}', JSON.stringify(models), JSON.stringify({ 1: { name: 'Default' }, 2: { name: 'Refold Inglés-mil' } }), '{}', '{}');
-  const ins = db.prepare('INSERT INTO notes VALUES (?,?,?,0,0,?,?,0,0,0,?)');
-  const SEP = String.fromCharCode(31);
-  // en desorden, y una con un campo larguísimo (ocupa páginas de desborde)
-  const order = [...Array(notes).keys()].map(i => notes - i);
-  db.exec('BEGIN');
-  for (const n of order) {
-    const w = n === 1 ? 'have' : n === 2 ? 'buy' : `word${n}`;
-    const f = [String(n), w, w, n === 2 ? '(v.) Comprar.' : '(sus.) Algo', n === 7 ? 'larga '.repeat(2000) : '', n === 2 ? 'bought' : '', '', '',
-      n === 2 ? 'Yesterday I <b>bought</b> bread.' : `This is ${w}.`, n === 2 ? 'Ayer compré pan.' : 'Esto es.', `[sound:w${n}.mp3]`, `[sound:s${n}.mp3]`, n === 2 ? '<img src="buy.jpg" />' : ''];
-    ins.run(1e12 + n, 'g' + n, 1700, 'tag', f.join(SEP), '');
+// ---------------- Mil palabras (vienen en la app) ----------------
+test('mil palabras: las 1000 vienen en la app, en orden, con significado, frase y traducción', async () => {
+  const M = await import('../js/mil.js');
+  const cards = await M.loadMilCards();
+  assert.equal(cards.length, M.MIL_TOTAL);
+  assert.deepEqual(cards.map(c => c.id), Array.from({ length: 1000 }, (_, i) => i + 1));
+  for (const c of cards) {
+    assert.ok(c.word && c.front && c.defs.length && c.sentence && c.translation, `tarjeta ${c.id} incompleta`);
   }
-  db.exec('COMMIT');
-  db.close();
-  const dbBytes = readFileSync(path);
-  const media = { 0: 'w1.mp3', 1: 's1.mp3', 2: 'w2.mp3', 3: 'buy.jpg', 4: 'font.ttf' };
-  const files = [
-    [newFormat ? 'collection.anki21b' : 'collection.anki21', zlib.deflateRawSync(dbBytes), 8, dbBytes.length],
-    ['media', Buffer.from(JSON.stringify(media)), 0],
-    ['0', Buffer.from('ID3word1'), 0], ['1', Buffer.from('ID3sent1'), 0], ['2', Buffer.from('ID3word2'), 0], ['3', Buffer.from([0xff, 0xd8, 0xff]), 0], ['4', Buffer.from('ttf'), 0],
-  ];
-  const parts = [], central = [];
-  let off = 0;
-  for (const [name, data, method, raw = data.length] of files) {
-    const nm = Buffer.from(name);
-    const loc = Buffer.alloc(30);
-    loc.writeUInt32LE(0x04034b50, 0); loc.writeUInt16LE(20, 4); loc.writeUInt16LE(method, 8);
-    loc.writeUInt32LE(data.length, 18); loc.writeUInt32LE(raw, 22); loc.writeUInt16LE(nm.length, 26); loc.writeUInt16LE(3, 28);
-    parts.push(loc, nm, Buffer.from([1, 2, 3]), data);   // campo extra local distinto del central (pasa en zips reales)
-    const cd = Buffer.alloc(46);
-    cd.writeUInt32LE(0x02014b50, 0); cd.writeUInt16LE(20, 4); cd.writeUInt16LE(20, 6); cd.writeUInt16LE(method, 10);
-    cd.writeUInt32LE(data.length, 20); cd.writeUInt32LE(raw, 24); cd.writeUInt16LE(nm.length, 28); cd.writeUInt32LE(off, 42);
-    central.push(cd, nm);
-    off += 30 + nm.length + 3 + data.length;
-  }
-  const cdBuf = Buffer.concat(central);
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(files.length, 8); end.writeUInt16LE(files.length, 10);
-  end.writeUInt32LE(cdBuf.length, 12); end.writeUInt32LE(off, 16);
-  return new File([Buffer.concat([...parts, cdBuf, end])], 'Refold-Ingles-mil-v2.apkg');
-}
+  const have = cards[0];
+  assert.equal(have.word, 'have');
+  assert.deepEqual(have.defs, ['(v.) Tener.', '(v.) Haber.']);
+  assert.deepEqual(have.forms, ['has', 'had']);
+  // La palabra (o una de sus formas) se marca en casi todas las frases.
+  const hits = cards.filter(c => M.highlightParts(c.sentence, c).some(p => p.hit)).length;
+  assert.ok(hits >= 960, `solo ${hits} frases marcan su palabra`);
+  assert.equal(await M.loadMilCards(), cards);                          // se carga una sola vez
+  assert.deepEqual(M.rowToCard([5, 'get', '(v.) Obtener.', '', 'I get it.', 'Lo entiendo.']).forms, []);
+});
 
-test('mil palabras: lee el .apkg de Anki en el teléfono (zip + SQLite con desbordes) y arma las tarjetas', async () => {
-  const A = await import('../js/apkg.js');
-  const deck = await A.openApkg(await fakeApkg());
-  assert.equal(deck.cards.length, 300);
-  assert.equal(deck.name, 'Refold Inglés-mil');
-  assert.deepEqual(deck.cards.map(c => c.id).slice(0, 3), [1, 2, 3]);   // orden de frecuencia
-  const buy = deck.cards[1];
-  assert.equal(buy.word, 'buy');
-  assert.deepEqual(buy.defs, ['(v.) Comprar.']);
-  assert.deepEqual(buy.forms, ['bought']);
-  assert.equal(buy.sentence, 'Yesterday I bought bread.');            // sin HTML
-  assert.equal(buy.translation, 'Ayer compré pan.');
-  assert.equal(buy.wordAudio, 'w2.mp3');
-  assert.equal(buy.image, 'buy.jpg');
-  assert.equal(deck.cards[6].defs[1].length, 'larga '.repeat(2000).trim().length);   // campo en páginas de desborde
-  assert.ok(deck.media.has('w1.mp3') && deck.media.has('buy.jpg'));
-  const file = await fakeApkg();
-  const zip = await A.readZip(file);
-  const blob = await A.zipBlob(file, zip.get('0'), A.mimeOf('w1.mp3'));
-  assert.equal(await blob.text(), 'ID3word1');
-  assert.equal(blob.type, 'audio/mpeg');
-  await assert.rejects(A.openApkg(await fakeApkg({ newFormat: true })), /Compatibilidad con versiones antiguas/);
-  await assert.rejects(A.openApkg(new File([Buffer.from('no soy un zip')], 'x.apkg')), /no es un zip/);
+test('labios: cada sílaba con su forma, pausas en la puntuación y la voz manda el ritmo', async () => {
+  const L = await import('../js/lipsync.js');
+  const mom = L.wordShapes('mom');
+  assert.equal(mom[0].shape.open, 0);                                   // m: labios cerrados
+  assert.ok(mom[1].shape.round > 0.5);                                  // o: redonda
+  assert.ok(L.wordShapes('see')[1].shape.wide > 0.9);                   // ee: estirada
+  assert.equal(L.wordShapes('make').length, 3);                         // la e final no suena: m-a-k
+  const t = L.lipTrack('Hi, how are you?');
+  assert.deepEqual(t.words.map(w => w.char), [0, 4, 8, 12]);
+  assert.ok(t.frames.some(f => f.d === L.UNIT.comma && f.shape === L.REST));
+  assert.equal(L.sampleAt(t, -1), L.REST);
+  assert.equal(L.sampleAt(t, t.units + 1), L.REST);
+  assert.ok(L.sampleAt(t, 0.5).open > 0);                               // «h» casi cerrada, luego «i»
+  assert.equal(L.wordAt(t, 9), 2);
+  // Reloj: sin avisos va con el ritmo estimado; con avisos espera a la voz en la palabra siguiente.
+  const clock = L.lipClock(t, 100);
+  clock.start(0);
+  assert.equal(clock.pos(250), 2.5);
+  clock.word(4, 300);                                                    // la voz dice «how»
+  assert.equal(clock.pos(300), t.words[1].u);
+  assert.ok(clock.pos(5000) < t.words[2].u);                             // no se adelanta a «are»
+  clock.word(12, 900);                                                   // la voz va más lenta: se ajusta
+  assert.ok(clock.msPerUnit > 100);
+});
+
+test('Amy: una sola compañera con voz de mujer, labios que se abren y se puede volver a los personajes', async () => {
+  const { CHARACTERS } = await import('../js/data.js');
+  const C = await import('../js/cast.js');
+  const A = await import('../js/avatar.js');
+  C.applyCast(true);
+  for (const c of Object.values(CHARACTERS)) {
+    assert.equal(c.name, 'Amy');
+    assert.equal(c.voice.gender, 'female');
+    assert.equal(c.images, undefined);
+    assert.ok(c.solo && c.profession);                                   // conserva su papel en el lugar
+  }
+  assert.equal(C.castNames(['maya', 'tom']), 'Amy');
+  C.applyCast(false);
+  assert.equal(CHARACTERS.tom.name, 'Tom');
+  assert.equal(CHARACTERS.tom.voice.gender, 'male');
+  assert.ok(CHARACTERS.tom.images?.frames.includes('neutral'));
+  assert.equal(C.castNames(['maya', 'tom']), 'Maya · Tom');
+  C.applyCast(true);
+  const closed = A.mouthGeometry({ open: 0, wide: 0.5, round: 0 });
+  const open = A.mouthGeometry({ open: 1, wide: 0.6, round: 0 });
+  const round = A.mouthGeometry({ open: 0.7, wide: 0.2, round: 0.8 });
+  assert.equal(closed.height, 0);
+  assert.ok(open.height > 9);
+  assert.ok(round.width < open.width);
+  assert.ok(!/NaN/.test(open.upper + open.lower + open.inner + round.inner));
+});
+
+test('sugerencias: pide una sola respuesta y, con «Otra idea», una distinta', async () => {
+  const P = await import('../js/prompts.js');
+  const mission = { name: 'Pide tu desayuno', description: 'Ordena', objectives: [] };
+  const one = P.suggestionMessages({ history: [], rankId: 1, mission })[0].content;
+  assert.match(one, /Give ONE reply/);
+  assert.doesNotMatch(one, /3 different/);
+  const other = P.suggestionMessages({ history: [], rankId: 1, mission, avoid: "I'd like a coffee." })[0].content;
+  assert.match(other, /different from: "I'd like a coffee\."/);
 });
 
 test('mil palabras: Otra vez · Difícil · Bien · Fácil como en Anki', async () => {
@@ -1492,12 +1494,15 @@ test('mil palabras: la frase marca la palabra (o su forma), el tipo y la búsque
 
 test('mil palabras: el avance va en la copia de seguridad y la portada arma el plan de hoy', async () => {
   const D = await import('../js/dashboard.js');
-  assert.equal(store.get().mil.imported, false);
+  assert.equal(store.get().mil.total, 1000);                           // vienen en la app: nada que importar
   let plan = D.todayPlan(store.get(), new Date());
-  assert.equal(plan.items.find(i => i.key === 'mil').detail, 'importe su mazo de Refold');
-  store.update(s => { s.mil.imported = true; s.mil.total = 1000; s.mil.cards = { 1: { ivl: 4, due: Date.now() + 9e8 } }; });
+  assert.match(plan.items.find(i => i.key === 'mil').detail, /10 nuevas/);
+  store.update(s => { s.mil.cards = { 1: { ivl: 4, due: Date.now() + 9e8 } }; });
   plan = D.todayPlan(store.get(), new Date());
   assert.match(plan.items.find(i => i.key === 'mil').detail, /10 nuevas/);
+  store.importJson(JSON.stringify({ settings: {}, mil: { imported: true, name: 'Refold', images: true, cards: { 1: { ivl: 4, due: Date.now() + 9e8 } } } }));
+  assert.equal(store.get().mil.imported, undefined);                   // lo del .apkg viejo se limpia
+  assert.equal(store.get().mil.cards[1].ivl, 4);                       // el avance se conserva
   const backup = store.exportJson();
   store.reset();
   store.importJson(backup);

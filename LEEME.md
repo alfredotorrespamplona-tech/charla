@@ -3,8 +3,12 @@
 App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), con:
 - **DeepSeek** como cerebro (usted paga solo los tokens).
 - **Voz del teléfono** para escuchar y hablar (gratis).
-- **Avatares animados** para los 29 personajes y **escenas de fondo** para los 19 lugares, todos hechos con
-  ChatGPT (ver `avatars/LEEME.md` para agregar más). El avatar dibujado por código queda solo de respaldo.
+- **Amy, una sola compañera para todas las charlas** (Ajustes → Charlas): dibujada por código, con voz de
+  mujer y los **labios al ritmo de la voz** (`js/lipsync.js` parte cada palabra en sílabas: la «a» abre la
+  boca, la «o» la redondea, la «m» la cierra, y se vuelve a sincronizar con cada palabra que avisa la voz).
+  Amy hace el papel de cada lugar (barista, médica, recepcionista…). Si se quita, vuelven los 29 personajes
+  con sus avatares de ChatGPT (ver `avatars/LEEME.md`).
+- **Escenas de fondo** para los 19 lugares, hechas con ChatGPT.
 
 ## Qué hace
 - **Portada** al abrir la app: saludo, meta de hoy (anillo de minutos), racha, puntos, los 7 días de la
@@ -44,7 +48,7 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   vocabulario. Le marca en verde las palabras que se entendieron y en rojo las que debe repetir.
   No gasta tokens. Si dice bien una palabra guardada, sube su familiaridad.
 - Los personajes saben la hora y el día reales («Good morning» por la mañana).
-- Ayudas: sugerencias de respuesta, «¿cómo se dice?» (escribe en español y le da el inglés),
+- Ayudas: **una** sugerencia de respuesta (con «🔄 Otra idea» si no le sirve), «¿cómo se dice?» (escribe en español y le da el inglés),
   traducir, tocar cualquier palabra para ver significado, pronunciación y guardarla.
 - Resumen con puntos, 3 estrellas, palabras por minuto, demora al responder, palabras distintas,
   % de sugerencias, racha diaria, comentario del coach y palabras útiles para guardar.
@@ -217,26 +221,20 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   lugar tiene su escena de fondo y el personaje aparece parado delante. Mapa, escenas y personajes son
   imágenes propias hechas con ChatGPT.
 
-## Mil palabras (su mazo de Refold)
-**📇 Mil palabras** (en la portada y en el inicio) estudia las 1000 palabras más usadas con las tarjetas de
-su mazo de Refold: la palabra con su audio, la definición, una frase de ejemplo con su audio y su
-traducción, y la imagen. Se repasa como en Anki: **Otra vez · Difícil · Bien · Fácil** (cada botón dice
-cuándo vuelve la tarjeta). Las nuevas salen en orden de frecuencia, 10 por día (se cambia en la pantalla
-del mazo: 5, 10, 15, 20 o 30), y «➕ 5 palabras nuevas más hoy» sube el límite solo por hoy. Lo que falla
-vuelve en la misma sesión. Con 10 respuestas en el día cuenta para la racha.
+## Mil palabras
+**📇 Mil palabras** (en la portada y en el inicio) estudia las 1000 palabras más usadas del inglés. **Vienen
+con la app**: no hay que importar nada y funcionan sin internet. Cada tarjeta tiene la palabra, su
+significado, las formas irregulares, una frase de ejemplo y su traducción; la palabra y la frase las lee la
+voz del teléfono (🐢 para oírla despacio, 🎤 para decirla y que le corrija la pronunciación).
 
-**El mazo no está en GitHub ni en la app publicada**, porque el repositorio es público y los audios,
-frases e imágenes son de Refold. Cada teléfono lo importa una vez desde el archivo `.apkg`:
-1. Pase `Refold-Ingles-mil-v2.apkg` al celular (súbalo a Google Drive o mándeselo por WhatsApp/correo y
-   descárguelo).
-2. En Charla: **📇 Mil palabras → 📂 Elegir el archivo .apkg**. Tarda 1–2 minutos (deje la pantalla
-   encendida). Las imágenes se achican al importar; si le falta espacio, desmarque «Guardar también las imágenes».
-3. Listo: se guarda en el teléfono (unos 60 MB) y funciona sin internet.
+Se repasa como en Anki: **Otra vez · Difícil · Bien · Fácil** (cada botón dice cuándo vuelve la tarjeta). Las
+nuevas salen en orden de frecuencia, 10 por día (se cambia en la pantalla del mazo: 5, 10, 15, 20 o 30), y
+«➕ 5 palabras nuevas más hoy» sube el límite solo por hoy. Lo que falla vuelve en la misma sesión. Con 10
+respuestas en el día cuenta para la racha. El avance va en la copia de seguridad.
 
-El mazo se queda solo en el teléfono; lo que va en la copia de seguridad es el avance de cada tarjeta.
-Si cambia de teléfono, importe la copia **y** vuelva a importar el `.apkg`: el avance se conserva.
-Si Anki dice que el archivo es de formato nuevo, expórtelo marcando «Compatibilidad con versiones
-antiguas». Los archivos `*.apkg` están en `.gitignore` para que nunca se suban por error.
+Las palabras salen de la lista de su cerebro de inglés (`wiki/vocabulario/lista_1000_refold.md`):
+`herramientas/importar_cerebro.py` genera `js/milwords.js` junto con `js/cerebro.js`. Los audios e imágenes
+del mazo de Refold no se usan: son de Refold y el repositorio es público.
 
 ## Diseño
 - **Rojo y blanco.** El rojo (#d11f35) da energía y ganas de actuar, así que solo marca lo que invita a
@@ -352,10 +350,11 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 | `js/lessons.js` | Lugares nuevos, versión por nivel de cada misión, plan de aprendizaje y nivel de misión |
 | `js/coins.js` | Monedas (sin tienda: `SHOP_ENABLED = false`) y si un lugar está abierto |
 | `js/dashboard.js` | Portada: plan de hoy, palabra del día, meta de hoy, racha, semana y accesos |
-| `js/apkg.js` | Lee un `.apkg` de Anki en el teléfono (zip + base de datos SQLite) y saca las tarjetas |
-| `js/deckdb.js` | Guarda el mazo, sus audios e imágenes en el teléfono (IndexedDB) |
 | `js/mil.js` | Mil palabras: repaso como en Anki, qué toca hoy y nuevas por día (sin pantalla, se prueba con node) |
-| `js/milscreen.js` | Pantallas de Mil palabras: importar, estudiar, lista y ajustes del mazo |
+| `js/milwords.js` | Las 1000 palabras con su frase (generado por `importar_cerebro.py`: no editar a mano) |
+| `js/milscreen.js` | Pantallas de Mil palabras: estudiar, lista y ajustes del mazo |
+| `js/cast.js` | «Una sola compañera»: Amy en todas las charlas, con el papel de cada lugar |
+| `js/lipsync.js` | Labios al ritmo de la voz: sílabas, formas de la boca y reloj que sigue a la voz |
 | `js/people.js` | Relación que sube y baja, ficha del personaje, cosas por descubrir, contactos y gente nueva |
 | `js/vocab.js` | Pantalla de vocabulario (ordenar, filtrar, archivar, copiar, sugeridas) |
 | `js/stats.js` | Estadísticas por semana, mes y año, y calendario de la racha |
@@ -371,7 +370,7 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 | `js/scoring.js` | El algoritmo: puntos, estrellas, racha, relación, nivel, familiaridad |
 | `js/conversation.js` | El bucle de la conversación |
 | `js/speech.js` | Micrófono y voz |
-| `js/avatar.js` | Avatar animado (boca, parpadeo, ánimo) |
+| `js/avatar.js` | Avatar: Amy dibujada por código (labios, parpadeo, gestos) o las imágenes de cada personaje |
 | `js/pronounce.js` | Práctica de pronunciación (verde/ámbar/rojo por palabra, practicar antes de enviar) |
 | `js/review.js` | Repaso con 3 tipos de tarjeta y segundo intento; «al día» con su motivo |
 | `js/srs.js` | Repaso espaciado: cajas, intervalos y qué toca hoy |

@@ -1,4 +1,4 @@
-// Mil palabras (mazo de Refold importado): repaso espaciado como en Anki, con 4 respuestas.
+// Mil palabras (las 1000 más usadas, en js/milwords.js): repaso espaciado como en Anki, con 4 respuestas.
 //  Otra vez · Difícil · Bien · Fácil. Cada palabra nueva se ve en orden de frecuencia (la 1 es la más usada),
 //  unas pocas por día. Lo que falla vuelve en la misma sesión hasta que lo sepa, y mañana otra vez.
 // Avance por tarjeta (en store.mil.cards[id]): { ivl: días, ease, due, reps, lapses }.
@@ -15,8 +15,26 @@ export const MAX_DAYS = 3650;
 export const AGAIN_GAP = 3;            // una que falla vuelve después de 3 tarjetas
 export const STREAK_ANSWERS = 10;      // respuestas en el día para que cuente en la racha
 
+export const MIL_TOTAL = 1000;
+
 export function emptyMil() {
-  return { imported: false, total: 0, name: '', importedAt: 0, images: false, newPerDay: DEFAULT_NEW, autoplay: true, cards: {}, day: { date: '', newSeen: 0, answers: 0, bonus: 0 } };
+  return { total: MIL_TOTAL, newPerDay: DEFAULT_NEW, autoplay: true, cards: {}, day: { date: '', newSeen: 0, answers: 0, bonus: 0 } };
+}
+
+// Las tarjetas vienen en la app (js/milwords.js, generado del cerebro de inglés). Se cargan solo al usarlas.
+// Fila: [rank, palabra, significado, formas irregulares, frase, traducción].
+export function rowToCard([id, word, meaning, forms, sentence, translation]) {
+  return {
+    id, word, front: word,
+    defs: String(meaning || '').split(/;\s*/).map(d => d.trim()).filter(Boolean),
+    forms: forms ? String(forms).split(/,\s*/).map(f => f.trim()).filter(Boolean) : [],
+    sentence: sentence || '', translation: translation || '',
+  };
+}
+let cardsP = null;
+export function loadMilCards() {
+  if (!cardsP) cardsP = import('./milwords.js').then(m => m.MIL_WORDS.map(rowToCard)).catch(e => { cardsP = null; throw e; });
+  return cardsP;
 }
 
 // Completa lo que falte (datos viejos o de un respaldo).
@@ -26,6 +44,8 @@ export function normalize(m) {
   if (!out.cards || typeof out.cards !== 'object') out.cards = {};
   if (!out.day || typeof out.day !== 'object') out.day = d.day;
   if (!NEW_PER_DAY.includes(out.newPerDay)) out.newPerDay = DEFAULT_NEW;
+  out.total = MIL_TOTAL;
+  delete out.imported; delete out.name; delete out.importedAt; delete out.images;   // de cuando se importaba un .apkg
   return out;
 }
 
@@ -134,13 +154,26 @@ export function stageOf(st) {
 }
 
 // Marca en la frase la palabra estudiada (o una de sus formas: buy → bought).
+// Formas regulares de una palabra: plurales, pasados, -ing, -er, -ly (family → families, stop → stopped…).
+function variants(w) {
+  const c = new Set([w]);
+  for (const suf of ['s', 'es', 'ed', 'd', 'ing', 'er', 'est', 'ly']) c.add(w + suf);
+  if (w.endsWith('e')) { c.add(w.slice(0, -1) + 'ing'); c.add(w.slice(0, -1) + 'y'); }
+  if (w.endsWith('y')) for (const suf of ['ies', 'ied', 'ier', 'iest', 'ily']) c.add(w.slice(0, -1) + suf);
+  if (/[^aeiou][aeiou][bdgklmnprt]$/.test(w)) for (const suf of ['ed', 'ing', 'er']) c.add(w + w.at(-1) + suf);
+  return c;
+}
+
 export function highlightParts(sentence, card) {
-  const forms = [card.word, ...String(card.front || '').split(/[,;/]/), ...(card.forms || []).flatMap(f => f.split(/[,;/]/))]
-    .map(w => w.trim()).filter(w => w && w.length > 1).sort((a, b) => b.length - a.length);
-  if (!forms.length) return [{ text: sentence, hit: false }];
-  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`\\b(${forms.map(esc).join('|')})(s|es|ed|d|ing)?\\b`, 'i');
-  const m = sentence.match(re);
+  const bases = [card.word, ...String(card.front || '').split(/[,;/]/), ...(card.forms || []).flatMap(f => String(f).split(/[,;/]/))]
+    .map(w => w.trim().toLowerCase()).filter(w => w.length > 1);
+  if (!bases.length || !sentence) return [{ text: sentence, hit: false }];
+  const cand = new Set();
+  for (const b of bases) for (const v of variants(b.split(/\s+/)[0])) cand.add(v);   // «look for» → look
+  const toks = [...sentence.matchAll(/[A-Za-z]+/g)];
+  let m = toks.find(t => cand.has(t[0].toLowerCase()));
+  const head = bases[0].split(/\s+/)[0];
+  if (!m && head.length >= 3) m = toks.find(t => t[0].toLowerCase().includes(head));   // backyard, foggy
   if (!m) return [{ text: sentence, hit: false }];
   return [
     { text: sentence.slice(0, m.index), hit: false },

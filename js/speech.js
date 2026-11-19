@@ -1,6 +1,7 @@
 // Voz: reconocimiento (voz → texto) y lectura (texto → voz) usando lo que ya trae el teléfono. Gratis.
 import * as store from './store.js';
 import { naturalReady, speakNatural, stopNatural, naturalVoiceFor } from './natural-voice.js';
+import { lipTrack, lipClock, sampleAt, REST } from './lipsync.js';
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 export const canListen = !!SR;
@@ -215,7 +216,7 @@ export async function speak(text, opts = {}) {
   return speakPhone(text, opts);
 }
 
-function speakPhone(text, { character, rate = 1, onStart, onLevel, onEnd, onBoundary, lang } = {}) {
+function speakPhone(text, { character, rate = 1, onStart, onLevel, onMouth, onEnd, onBoundary, lang } = {}) {
   return new Promise(resolve => {
     if (!canSpeak || !text) { onEnd?.(); return resolve(); }
     const wasBusy = speechSynthesis.speaking || speechSynthesis.pending;
@@ -229,7 +230,11 @@ function speakPhone(text, { character, rate = 1, onStart, onLevel, onEnd, onBoun
     u.pitch = 1; // cambiar el tono deforma la voz y la hace sonar robótica
     let mouthTimer = null, keepAlive = null, safety = null, done = false, startedAt = 0, cut = false;
     let boost = 0;
+    // Labios: con onMouth la boca sigue las sílabas del texto (lipsync.js), al ritmo de esta voz.
+    const track = onMouth ? lipTrack(text) : null;
+    const clock = track ? lipClock(track, Math.max(40, (msPerWord(rate) * text.trim().split(/\s+/).length) / Math.max(1, track.units))) : null;
     const tick = () => {
+      if (clock) { onMouth(sampleAt(track, clock.pos(performance.now()))); return; }
       // Movimiento de boca: oscilación + golpe en cada palabra (evento boundary).
       boost *= 0.75;
       const base = 0.25 + 0.35 * Math.abs(Math.sin(performance.now() / 85));
@@ -246,18 +251,23 @@ function speakPhone(text, { character, rate = 1, onStart, onLevel, onEnd, onBoun
       // Mide el ritmo real de esta voz para sincronizar el texto la próxima vez.
       if (startedAt && !cut && !lang) learnPace(text.trim().split(/\s+/).length, performance.now() - startedAt, rate);
       onLevel?.(0);
+      onMouth?.(REST);
       onEnd?.();
       resolve();
     };
     u.onstart = () => {
       startedAt = performance.now();
+      clock?.start(startedAt);
       onStart?.();
-      mouthTimer = setInterval(tick, 70);
+      mouthTimer = setInterval(tick, clock ? 33 : 70);
       // Chrome de computador corta las frases largas a los ~15 s si no se le da este empujón.
       if (!IS_ANDROID) keepAlive = setInterval(() => { if (speechSynthesis.speaking) { speechSynthesis.pause(); speechSynthesis.resume(); } }, 10000);
     };
     // La voz avisa qué palabra va diciendo: el texto y la boca van exactamente con ella.
-    u.onboundary = e => { boost = 0.5; if (!e.name || e.name === 'word') onBoundary?.(e.charIndex); };
+    u.onboundary = e => {
+      boost = 0.5;
+      if (!e.name || e.name === 'word') { clock?.word(e.charIndex, performance.now()); onBoundary?.(e.charIndex); }
+    };
     u.onend = finish;
     u.onerror = () => { cut = true; finish(); };
     safety = setTimeout(() => { cut = true; if (current === u) speechSynthesis.cancel(); finish(); }, maxSpeechMs(text, rate));

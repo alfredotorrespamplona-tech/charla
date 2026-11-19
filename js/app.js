@@ -3,6 +3,7 @@ import * as store from './store.js';
 import { PLACES, CHARACTERS, FREE_TALK, CITY_MAP, RANKS, SELF_ASSESSMENT, SETTING_OPTIONS, rankById, levelSettings, relationshipStatus, STARS_TO_UNLOCK_NEXT_LEVEL, MIN_STARS_TO_COUNT } from './data.js';
 import { h, mount, sheet, closeSheet, toast, spinner, stars, progressBar, richText, placeBackground, setText, placeIcon } from './ui.js';
 import { miniAvatar } from './avatar.js';
+import { applyCast, castNames, roleLine } from './cast.js';
 import { startConversation } from './conversation.js';
 import { chatJson, testConnection } from './llm.js';
 import * as P from './prompts.js';
@@ -128,7 +129,7 @@ export function home() {
       style: { background: placeBackground(p, { shade: true }) },
       onclick: () => openPlace(p),
     }, placeIcon(p, { locked }), h('span.place-name', {}, p.name),
-      h('span.place-chars', {}, p.characters.map(id => CHARACTERS[id].name).join(' · ')));
+      h('span.place-chars', {}, castNames(p.characters)));
   }));
 
   const last = s.history.slice(-3).reverse();
@@ -166,7 +167,6 @@ export function home() {
 // Etiqueta corta del mazo de mil palabras para el inicio.
 function milLabel(s) {
   const m = milOf(s);
-  if (!m.imported) return 'importar';
   const c = quickCounts(m, Date.now(), store.todayIso());
   return c.toStudy ? `${c.toStudy} para hoy` : `${c.learned}/${c.total}`;
 }
@@ -509,7 +509,7 @@ function choosePlace(place) {
       return h('div.character-card.person', {},
         h('button.person-main', { onclick: () => chooseMission(place, c) },
           miniAvatar(c),
-          h('div', {}, h('b', {}, c.name), h('div.muted', {}, `${c.age} años · ${c.title || c.profession}`),
+          h('div', {}, h('b', {}, c.name), h('div.muted', {}, roleLine(c)),
             h('div.rel', { class: rel.level < 0 ? 'bad' : '' }, `${relationLine(rel)} · ${rel.conversations} charlas`))),
         h('button.small', { 'aria-label': `Ficha de ${c.name}`, onclick: () => characterSheet(c, { onChange: () => choosePlace(place) }) }, 'Ficha'));
     }))));
@@ -797,6 +797,7 @@ function settings({ back = home } = {}) {
     again();
   } });
   const haptics = h('input', { type: 'checkbox', checked: s.settings.haptics !== false });
+  const solo = h('input', { type: 'checkbox', checked: s.settings.oneCharacter !== false });
   const comedy = h('input', { type: 'checkbox', checked: !!s.settings.comedy });
   const u = s.usage || { input: 0, output: 0, calls: 0 };
 
@@ -822,6 +823,8 @@ function settings({ back = home } = {}) {
     h('label', {}, 'Cuando deja de hablar, enviar tras un silencio de'), pauseSel,
     h('p.muted', {}, 'Más corto = el personaje responde antes. Si le corta las frases mientras piensa, súbalo.'),
     h('h3', {}, 'Charlas'),
+    h('label.check', {}, solo, ' 👩 Una sola compañera en todas las charlas: Amy, con voz de mujer y los labios al ritmo de la voz'),
+    h('p.muted', {}, 'Amy hace el papel de cada lugar (barista, médico, recepcionista…). Si lo quita, vuelven los personajes con sus imágenes.'),
     h('label.check', {}, comedy, ' Modo comedia: los personajes bromean más'),
     h('label.check', {}, haptics, ' Vibrar al acertar, fallar o cumplir un objetivo'),
     h('button.small', { onclick: () => { tutorial.reset(); toast('El tutorial se mostrará en su próxima charla', 'good'); } }, '🧭 Ver otra vez el tutorial'),
@@ -836,8 +839,10 @@ function settings({ back = home } = {}) {
           st.settings.sendPauseMs = +pauseSel.value;
           st.settings.haptics = haptics.checked;
           st.settings.comedy = comedy.checked;
+          st.settings.oneCharacter = solo.checked;
           plan.apply(st);
         });
+        applyCast(solo.checked);
         levelEd.apply();
         toast('Guardado', 'good');
         back();
@@ -906,6 +911,11 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', noteAway);
 
 export function boot() {
+  applyCast(store.get().settings.oneCharacter !== false);
+  // Las mil palabras ya vienen en la app: si quedó un mazo importado de la versión anterior, se borra (~60 MB).
+  try {
+    if (!localStorage.getItem('charla.mazoBorrado')) { indexedDB?.deleteDatabase('charla-mazo'); localStorage.setItem('charla.mazoBorrado', '1'); }
+  } catch {}
   let away = null;
   try { away = JSON.parse(localStorage.getItem(AWAY_KEY) || 'null'); } catch {}
   try { localStorage.removeItem(AWAY_KEY); } catch {}

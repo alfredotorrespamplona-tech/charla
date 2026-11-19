@@ -188,7 +188,8 @@ label.check input { width: 20px; height: 20px; accent-color: var(--brand); }
 /* Las 3 ideas de respuesta: se pueden desplazar y el personaje se achica para dejarles espacio. */
 .convo .chat { min-height: 0; }
 .convo .suggestions { max-height: 42dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
-.convo:has(.suggestions:not(.hidden)) .stage { height: 18vh; min-height: 120px; }
+.convo:has(.suggestions:not(.hidden)) .stage { height: 26vh; min-height: 150px; }
+.suggestions .another-idea { align-self: flex-end; }
 .convo .bottom { max-height: 70dvh; display: flex; flex-direction: column; min-height: 0; }
 .convo .topbar { justify-content: space-between; margin-bottom: 8px; }
 .convo .topbar > button.icon:first-child { width: 40px; height: 40px; }
@@ -208,6 +209,10 @@ label.check input { width: 20px; height: 20px; accent-color: var(--brand); }
 .avatar { width: 100%; height: 100%; }
 .avatar-svg, .avatar-img { width: 100%; height: 100%; display: block; object-fit: contain; object-position: bottom; }
 .av-eyes { transform-origin: 100px 96px; transition: transform .08s; }
+.av-eyes.blink { transform: scaleY(.1); }
+.am-eye { transform-box: fill-box; transform-origin: center; transition: transform .07s; }
+.am-eyes.blink .am-eye { transform: scaleY(.08); }
+.avatar.listening .avatar-solo { filter: drop-shadow(0 0 12px rgba(232, 51, 74, .85)); }
 .av-head { transform-origin: 100px 160px; transition: transform .1s; }
 .avatar.listening { filter: drop-shadow(0 0 10px rgba(209, 31, 53, .7)); }
 .points-pop { position: absolute; top: 30%; right: 14px; font-weight: 800; font-size: 1.3rem; color: var(--good); background: #fff; padding: 4px 12px; border-radius: var(--pill); box-shadow: var(--shadow); animation: pop 1.8s ease-out forwards; }
