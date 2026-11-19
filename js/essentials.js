@@ -23,7 +23,10 @@ export function learnedToday(vocab, now = Date.now()) {
 export function essentials({ home }) {
   const s = store.get();
   const code = rankById(s.rank).code;
-  const rec = recommendedPack(s.vocab, code);
+  // Con el mazo de Refold importado, las 1000 palabras se estudian en «Mil palabras» (con sus audios):
+  // aquí no se repiten.
+  const deckOn = !!s.mil?.imported;
+  const rec = recommendedPack(s.vocab, code, { exclude: deckOn ? ['mil'] : [] });
   const today = learnedToday(s.vocab);
   const left = Math.max(0, NEW_PER_DAY - today);
   const done = learnedIds(s.vocab);
@@ -47,7 +50,10 @@ export function essentials({ home }) {
         ? h('button.primary.wide', { onclick: () => start(rec) }, left ? `Aprender ${Math.min(BATCH, left)} frases: ${rec.name}` : 'Por hoy ya está')
         : h('p.good', {}, '¡Aprendió todas las frases esenciales!'),
       h('p.muted.center', {}, left ? `Hoy: ${today} de ${NEW_PER_DAY} frases nuevas` : `Hoy aprendió ${today} frases. Mañana siguen las nuevas.`)),
-    ...GROUPS.map(g => packList(g, s.vocab, done, start))));
+    ...GROUPS.map(g => deckOn && g.id === 'mil'
+      ? h('div', {}, h('div.section-head', {}, h('h2', {}, g.name)),
+        h('p.muted', {}, '📇 Ahora las estudia en «Mil palabras», con los audios de su mazo de Refold.'))
+      : packList(g, s.vocab, done, start))));
 }
 
 // Una sección de paquetes con su progreso.

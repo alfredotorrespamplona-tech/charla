@@ -377,7 +377,9 @@ export function startConversation({ place, character, mission, onFinish, onExit,
       else if (rest) bubble.addText(rest);
       bubble.complete();
       await early.speaking;
-      if (rest && alive) await say(rest, bubble.reveal, bubble.fullText().length - rest.length);
+      // Si la respuesta final cambió (DeepSeek la rehízo), se dice la nueva entera para que voz y texto coincidan.
+      if (rest === null && alive) await say(text, bubble.reveal);
+      else if (rest && alive) await say(rest, bubble.reveal, bubble.fullText().length - rest.length);
     } else {
       bubble = characterBubble(text);
       bubble.complete();
@@ -397,7 +399,7 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     if (!session.turns.length && tutorial.needed('conv')) { await tutorial.tour('conv', tourSteps(bubble)); if (!alive) return; }
     armSuggestions();
     armNudge();
-    if (handsFree() && canListen) toggleMic();
+    if (handsFree() && canListen && !document.hidden) toggleMic();
   }
 
   // Tutorial de la primera charla: qué hace cada botón.
@@ -452,14 +454,14 @@ export function startConversation({ place, character, mission, onFinish, onExit,
   function armSuggestions() {
     clearTimeout(suggestionTimer);
     const d = level().suggestionMs;   // 0 = solo si las pide con 💡
-    if (d > 0) suggestionTimer = setTimeout(() => { if (!busy && !listener.active) showSuggestions(); }, d);
+    if (d > 0) suggestionTimer = setTimeout(() => { if (!busy && !listener.active && !document.hidden) showSuggestions(); }, d);
   }
 
   // Si no responde en un rato, el personaje lo anima a hablar.
   function armNudge() {
     clearTimeout(nudgeTimer);
     nudgeTimer = setTimeout(async () => {
-      if (!alive || busy || listener.active || session.finished || document.activeElement === input) return;
+      if (!alive || busy || listener.active || session.finished || document.hidden || document.activeElement === input) return;
       micBtn.classList.add('pulse');
       if (nudged) { turnStatus('🎤 ¡Su turno! Toque el micrófono o pida una idea con 💡'); return; }
       nudged = true;

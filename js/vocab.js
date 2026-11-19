@@ -159,7 +159,7 @@ export function vocabScreen({ home }) {
           progressBar(v.score / 100)),
         h('button.tiny', { 'aria-label': 'Escuchar', onclick: () => speak(v.text, { rate: 0.85 }) }, '🔊'),
         h('button.tiny', { 'aria-label': 'Practicar pronunciación', onclick: () => practiceVocab(v.text) }, '🎤'),
-        h('button.tiny', { 'aria-label': v.archived ? 'Desarchivar' : 'Archivar', onclick: () => { setArchived(v.id, !v.archived); toast(v.archived ? 'Vuelve a sus palabras' : 'Archivada: ya no sale en el repaso'); render(); } }, v.archived ? '↩️' : '🗄️'),
+        h('button.tiny', { 'aria-label': v.archived ? 'Desarchivar' : 'Archivar', onclick: () => { const was = !!v.archived; setArchived(v.id, !was); toast(was ? 'Vuelve a sus palabras' : 'Archivada: ya no sale en el repaso'); render(); } }, v.archived ? '↩️' : '🗄️'),
         h('button.tiny', { 'aria-label': 'Borrar', onclick: e => {
           const b = e.currentTarget;
           if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = '¿Borrar?'; return; }
@@ -177,6 +177,10 @@ export function vocabScreen({ home }) {
     h('div.row.wide', {},
       archBtn,
       h('button.link', { onclick: () => listenVocab(filterVocab(store.get().vocab, st)) }, '🔊 Escuchar todo'),
-      h('button.link', { onclick: () => { navigator.clipboard?.writeText(vocabAsText(filterVocab(store.get().vocab, st))); toast('Copiado como texto'); } }, '📋 Copiar todo'))));
+      h('button.link', { onclick: () => {
+        const text = vocabAsText(filterVocab(store.get().vocab, st));
+        if (!navigator.clipboard) { toast('Este navegador no deja copiar.', 'bad'); return; }
+        navigator.clipboard.writeText(text).then(() => toast('Copiado como texto'), () => toast('No se pudo copiar.', 'bad'));
+      } }, '📋 Copiar todo'))));
   render();
 }

@@ -114,7 +114,9 @@ export async function testConnection() {
 }
 
 // Lee una respuesta por partes (Server-Sent Events: líneas «data: {...}») y junta el texto.
-export async function readStream(res, onText) {
+// Si deja de llegar texto por un rato (la red se colgó a medias), se corta en vez de esperar para siempre.
+export const STALL_MS = 20000;
+export async function readStream(res, onText, stallMs = STALL_MS) {
   const reader = res.body.getReader();
   const dec = new TextDecoder();
   let buf = '', text = '', finish = null, usage = null;
@@ -131,9 +133,13 @@ export async function readStream(res, onText) {
     if (d) { text += d; try { onText?.(text); } catch (e) { console.warn(e); } }
     if (ch?.finish_reason) finish = ch.finish_reason;
   };
+  let stallTimer = null;
+  const stalled = () => new Promise((_, reject) => {
+    stallTimer = setTimeout(() => { reader.cancel().catch(() => {}); reject(new Error('stall')); }, stallMs);
+  });
   try {
     for (;;) {
-      const { value, done } = await reader.read();
+      const { value, done } = await Promise.race([reader.read(), stalled()]).finally(() => clearTimeout(stallTimer));
       if (done) break;
       buf += dec.decode(value, { stream: true });
       let i;

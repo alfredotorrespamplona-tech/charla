@@ -67,7 +67,10 @@ export async function review({ home, only = null, extra = false, onDone = null }
   const items = only
     ? s.vocab.filter(v => only.includes(v.id)).map(v => ({ ...v, family: familyFor(v.score) }))
     : pickItems(s.vocab, REVIEW_SIZE, { extra });
-  const screen = h('div.screen.review', {}, h('div.topbar', {}, h('button.icon', { onclick: home }, '✕'), h('h2', {}, '🧠 Repaso')));
+  // Al salir se corta el micrófono y la voz (si no, seguían escuchando con la pantalla ya cerrada).
+  let liveListener = null;
+  const exit = () => { liveListener?.abort(); stopSpeaking(); closeSheet(); home(); };
+  const screen = h('div.screen.review', {}, h('div.topbar', {}, h('button.icon', { 'aria-label': 'Salir', onclick: exit }, '✕'), h('h2', {}, '🧠 Repaso')));
   mount(screen);
   if (!items.length) { screen.append(caughtUp(s, home)); return; }
   const body = h('div');
@@ -202,10 +205,11 @@ export async function review({ home, only = null, extra = false, onDone = null }
     const hint = h('p.muted' + (card.retry ? '' : '.hidden'), {}, '💡 ' + (card.hint || ''));
     let hintUsed = !!card.retry, done = false;
     const listener = new Listener();
+    liveListener = listener;
     const mic = h('button.primary', { onclick: () => listen() }, '🎤 Decirlo');
 
     function check(said) {
-      if (done) return;
+      if (done || !screen.isConnected) return;
       done = true;
       listener.abort();
       const ok = recallOk(card.item, said);

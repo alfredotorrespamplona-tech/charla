@@ -16,6 +16,10 @@ desktop.ini
 *.key
 charla-respaldo-*.json
 
+# Mazos de Anki (tienen derechos de autor y pesan): se importan en el teléfono, nunca se suben
+*.apkg
+*.colpkg
+
 # Android (APK): lo que se genera al compilar y la llave de firma
 android/.gradle/
 android/build/

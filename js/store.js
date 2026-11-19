@@ -1,4 +1,5 @@
 // Estado del usuario guardado en el teléfono (localStorage). Una sola persona, sin servidor.
+import { normalize as normalizeMil, emptyMil } from './mil.js';
 const KEY = 'charla.v1';
 
 const DEFAULT = {
@@ -53,6 +54,7 @@ const DEFAULT = {
   history: [],             // resúmenes de sesiones
   rankProposal: null,      // { from, to, kind: 'up' | 'down' }
   bestScore: 0,
+  mil: emptyMil(),         // mazo de mil palabras: avance de cada tarjeta (el mazo vive en IndexedDB)
 };
 
 let state = load();
@@ -90,6 +92,7 @@ function merge(s) {
   if (!out.grammar || typeof out.grammar !== 'object' || !out.grammar.best) out.grammar = { best: {} };
   if (!out.errorStatus || typeof out.errorStatus !== 'object') out.errorStatus = {};
   if (!out.backup || typeof out.backup !== 'object') out.backup = { last: 0, snoozeUntil: 0 };
+  out.mil = normalizeMil(out.mil);
   return out;
 }
 

@@ -10,6 +10,8 @@ import * as scoring from './scoring.js';
 import { addVocab, tierBadge, practiceVocab } from './words.js';
 import { speak, rankedVoices, voiceLabel, canListen, onVoicesChanged, checkVoice, IS_ANDROID, SEND_PAUSES, sendPauseMs } from './speech.js';
 import { dashboard } from './dashboard.js';
+import { milScreen, milOf } from './milscreen.js';
+import { quickCounts } from './mil.js';
 import { practicePronunciation } from './pronounce.js';
 import { review as startReview } from './review.js';
 import { essentials } from './essentials.js';
@@ -79,13 +81,14 @@ export function cover() {
   dashboard({
     map: home,
     resume: resumeDraft,
-    review: () => review(),
+    review: () => startReview({ home: cover }),
     grammar: () => grammarScreen({ home: cover }),
     essentials: () => essentials({ home: cover }),
     vocab: () => openVocab({ home: cover }),
     errors: () => bitacora.bitacoraScreen({ back: cover }),
     stats: () => statsScreen({ home: cover }),
-    settings: () => settings(),
+    settings: () => settings({ back: cover }),
+    mil: () => milScreen({ home: cover }),
   });
 }
 
@@ -146,6 +149,7 @@ export function home() {
     h('div.section-head', {}, h('h2', {}, '¿A dónde vamos hoy?'), viewSwitch),
     places,
     h('div.home-actions', {},
+      h('button.action', { onclick: () => milScreen({ home }) }, '📇 Mil palabras', h('small', {}, milLabel(s))),
       h('button.action', { onclick: () => essentials({ home }) }, '📚 Frases', h('small', {}, `${learnedIds(s.vocab).size}/${PHRASES.length}`)),
       h('button.action', { onclick: () => vocabScreen() }, '📒 Vocabulario', h('small', {}, `${s.vocab.filter(v => !v.archived).length}${pendingSuggestions(s).length ? ' · 💡' + pendingSuggestions(s).length : ''}`)),
       h('button.action', { onclick: () => grammarScreen({ home }) }, '🧱 Gramática', h('small', {}, grammarLabel(s))),
@@ -157,6 +161,14 @@ export function home() {
       s.history.length > 3 ? h('button.link', { onclick: () => historyScreen() }, `Ver todas (${s.history.length})`) : null) : null,
     h('div.history', {}, last.map(historyRow)),
     !s.settings.apiKey ? h('p.warn', {}, '⚠️ Falta la clave de DeepSeek: vaya a Ajustes.') : null));
+}
+
+// Etiqueta corta del mazo de mil palabras para el inicio.
+function milLabel(s) {
+  const m = milOf(s);
+  if (!m.imported) return 'importar';
+  const c = quickCounts(m, Date.now(), store.todayIso());
+  return c.toStudy ? `${c.toStudy} para hoy` : `${c.learned}/${c.total}`;
 }
 
 // Evento de temporada (SeasonalEventGame): un tema especial en todos los lugares mientras dure.
@@ -694,7 +706,8 @@ function vocabScreen() { openVocab({ home }); }
 const review = () => startReview({ home });
 
 // ---------------- Ajustes ----------------
-function settings() {
+function settings({ back = home } = {}) {
+  const again = () => settings({ back });
   const s = store.get();
   const key = h('input', { value: s.settings.apiKey, type: 'password', autocomplete: 'off' });
   const modelList = h('datalist', { id: 'model-list' });
@@ -781,14 +794,14 @@ function settings() {
   const locks = h('input', { type: 'checkbox', checked: store.locksOn(s), onchange: e => {
     store.update(st => { st.settings.levelLocks = e.target.checked; if (!e.target.checked) st.rankProposal = null; });
     toast(e.target.checked ? '🔒 Candados puestos: los lugares, temas y lecciones se abren al subir de nivel' : '🔓 Todo abierto: elija el nivel que quiera', 'good');
-    settings();
+    again();
   } });
   const haptics = h('input', { type: 'checkbox', checked: s.settings.haptics !== false });
   const comedy = h('input', { type: 'checkbox', checked: !!s.settings.comedy });
   const u = s.usage || { input: 0, output: 0, calls: 0 };
 
   mount(h('div.screen.settings', {},
-    h('div.topbar', {}, h('button.icon', { onclick: home }, '←'), h('h2', {}, '⚙️ Ajustes')),
+    h('div.topbar', {}, h('button.icon', { 'aria-label': 'Volver', onclick: () => back() }, '←'), h('h2', {}, '⚙️ Ajustes')),
     h('label', {}, 'Clave de API de DeepSeek'), key,
     h('div.row', {}, testBtn), connOut,
     h('label', {}, 'Modelo'), model, modelList,
@@ -827,27 +840,27 @@ function settings() {
         });
         levelEd.apply();
         toast('Guardado', 'good');
-        home();
+        back();
       },
     }, 'Guardar'),
-    spendSettings(s, u),
+    spendSettings(s, u, again),
     h('div.card', {}, h('b', {}, '📒 Mi bitácora de errores'),
       h('p.muted', {}, 'Los errores de sus charlas que el coach vigila, y los de su cerebro de inglés. Desde aquí se marcan como resueltos y se copian para el cerebro.'),
-      h('button.small', { onclick: () => bitacora.bitacoraScreen({ back: settings }) }, `Abrir (${bitacora.activeErrors().length} activos)`)),
+      h('button.small', { onclick: () => bitacora.bitacoraScreen({ back: again }) }, `Abrir (${bitacora.activeErrors().length} activos)`)),
     h('div.card', {}, h('b', {}, '💾 Copia de seguridad'),
       h('p.muted', {}, safety.lastBackupText(s) + ' La copia no lleva su clave de DeepSeek: al importarla se conserva la de este teléfono.'),
       h('p.muted', {}, safety.storageText(s)),
       h('div.row', {},
-        h('button.small', { onclick: async () => { if (await safety.saveBackup()) settings(); } }, 'Exportar'),
+        h('button.small', { onclick: async () => { if (await safety.saveBackup()) again(); } }, 'Exportar'),
         h('button.small', { onclick: () => { const f = h('input', { type: 'file', accept: 'application/json' }); f.onchange = async () => { try { store.importJson(await f.files[0].text()); toast('Importado', 'good'); home(); } catch { toast('Archivo no válido', 'bad'); } }; f.click(); } }, 'Importar'),
         h('button.small.danger', { onclick: () => { if (confirm('¿Borrar todo su progreso? No se puede deshacer.')) { store.reset(); home(); } } }, 'Borrar todo')))));
 }
 
 // Gasto: lo de este mes, el tope y la pausa (se guardan al cambiarlos).
-function spendSettings(s, u) {
+function spendSettings(s, u, again) {
   const st = spendStatus(s);
   const cap = h('input.text-input', { type: 'number', min: 0, step: 0.5, value: String(s.settings.monthlyCap ?? 3), 'aria-label': 'Tope mensual en dólares',
-    onchange: e => { store.update(x => { x.settings.monthlyCap = Math.max(0, Number(e.target.value) || 0); }); settings(); } });
+    onchange: e => { store.update(x => { x.settings.monthlyCap = Math.max(0, Number(e.target.value) || 0); }); again(); } });
   const block = h('input', { type: 'checkbox', checked: !!s.settings.capBlock, onchange: e => store.update(x => { x.settings.capBlock = e.target.checked; }) });
   const p = PRICES[s.settings.model] || PRICES['deepseek-flash'];
   return h('div.card', {}, h('b', {}, '💰 Gasto en DeepSeek'),
@@ -874,7 +887,8 @@ const RETURN_WINDOW_MS = 30 * 60 * 1000;
 let awayAt = 0;
 function noteAway() {
   awayAt = Date.now();
-  const screen = document.querySelector('#app > .convo') ? 'convo' : document.querySelector('#app > .dashboard') ? 'cover' : 'home';
+  const screen = document.querySelector('#app > .convo') ? 'convo' : document.querySelector('#app > .dashboard') ? 'cover'
+    : document.querySelector('#app > .mil') ? 'mil' : 'home';
   try { localStorage.setItem(AWAY_KEY, JSON.stringify({ at: awayAt, screen })); } catch {}
 }
 document.addEventListener('visibilitychange', () => {
@@ -899,6 +913,7 @@ export function boot() {
   const s = store.get();
   if (recent && away.screen === 'convo' && s.onboarded && s.draft) return resumeDraft(s.draft);
   if (recent && away.screen === 'home' && s.onboarded) return home();
+  if (recent && away.screen === 'mil' && s.onboarded) return milScreen({ home: cover });
   cover();
 }
 boot();

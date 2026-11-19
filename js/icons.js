@@ -111,6 +111,7 @@ export const ICONS = {
   scissors: '<circle cx="6.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="17.5" r="2.5"/><path d="M8.6 8 20 18M8.6 16 20 6"/>',
   send: '<path d="M21 3 3.5 10.5l7 3 3 7z"/><path d="m10.5 13.5 4-4"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  image: '<rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-9 8.5"/>',
   copy: '<rect x="8" y="8" width="12.5" height="12.5" rx="2.5"/><path d="M16 8V5.5A2 2 0 0 0 14 3.5H5.5a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2H8"/>',
 };
 
@@ -143,6 +144,7 @@ const MAP = {
   '📏': 'ruler', '⚖': 'scale', '🛒': 'cart', '🛍': 'bag', '🏬': 'bag', '🔍': 'search', '🔎': 'search', '🎫': 'ticket',
   '📍': 'pin', '🌧': 'cloud', '🌦': 'cloud', '📤': 'share', '🐢': 'gauge', '🎮': 'gamepad', '🏙': 'building',
   '💈': 'scissors', '✂': 'scissors',
+  '➕': 'plus', '📇': 'cards', '📂': 'archive', '🖼': 'image', '🆕': 'sparkles',
 };
 
 const EMOJI_RE = /(?:\p{Extended_Pictographic}️?(?:‍\p{Extended_Pictographic}️?)*|[←✓✕★☆⬜ⓘ☰↩⏹⏸⏯]️?)/gu;

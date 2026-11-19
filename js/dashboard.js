@@ -9,6 +9,8 @@ import * as G from './grammar.js';
 import { PHRASES, learnedIds } from './phrases.js';
 import { activeErrors } from './bitacora.js';
 import { practiceDays } from './stats.js';
+import * as M from './mil.js';
+import * as D from './deckdb.js';
 
 const DAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -59,7 +61,53 @@ function tile({ icon, title, value, sub, onclick, accent }) {
     sub ? h('small', {}, sub) : null);
 }
 
-// go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings }
+// Plan de hoy: lo que conviene hacer cada día, con su estado (hecho o cuánto falta).
+export function todayPlan(s = store.get(), now = new Date()) {
+  const today = todayProgress(s);
+  const iso = store.todayIso(now);
+  const mil = M.normalize(s.mil);
+  const deck = M.quickCounts(mil, now.getTime(), iso);
+  const due = srs.dueCount(s.vocab, now.getTime());
+  const items = [
+    { key: 'talk', icon: '🎤', title: 'Charlar', done: today.pct >= 1,
+      detail: today.pct >= 1 ? `${today.min} min · meta cumplida` : `${today.min} de ${today.goal} min` },
+    mil.imported
+      ? { key: 'mil', icon: '📇', title: 'Mil palabras', done: deck.toStudy === 0,
+        detail: deck.toStudy === 0 ? `al día · sabe ${deck.learned}` : [deck.due && `${deck.due} ${deck.due === 1 ? 'repaso' : 'repasos'}`, deck.fresh && `${deck.fresh} ${deck.fresh === 1 ? 'nueva' : 'nuevas'}`].filter(Boolean).join(' + ') }
+      : { key: 'mil', icon: '📇', title: 'Mil palabras', done: false, detail: 'importe su mazo de Refold' },
+    // El repaso de su vocabulario solo aparece cuando ya tiene palabras guardadas.
+    s.vocab.some(srs.isActive) ? { key: 'review', icon: '🧠', title: 'Repaso', done: due === 0,
+      detail: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'nada pendiente' } : null,
+  ].filter(Boolean);
+  return { items, done: items.filter(i => i.done).length };
+}
+
+// Palabra del día: la próxima nueva del mazo (o la última que vio), con su audio y su frase.
+async function wordOfDay(box, go) {
+  const cards = await D.loadCards().catch(() => null);
+  if (!cards?.length || !box.isConnected) { box.remove(); return; }
+  const mil = M.normalize(store.get().mil);
+  const fresh = cards.find(c => !mil.cards[c.id]);
+  const c = fresh || cards[(new Date().getDate() * 37) % cards.length];
+  const audio = name => async () => {
+    const b = await D.getMedia(name).catch(() => null);
+    if (!b) return;
+    const url = URL.createObjectURL(b);
+    const a = new Audio(url);
+    a.onended = a.onerror = () => URL.revokeObjectURL(url);
+    a.play().catch(() => URL.revokeObjectURL(url));
+  };
+  box.replaceChildren(
+    h('div.dash-wod-head', {}, h('small', {}, fresh ? `Palabra nueva #${c.id}` : `Para recordar #${c.id}`),
+      h('button.tiny', { onclick: go.mil }, 'Estudiar →')),
+    h('div.dash-wod-word', {}, h('b', {}, c.front), h('button.icon', { 'aria-label': 'Escuchar la palabra', onclick: audio(c.wordAudio) }, '🔊')),
+    h('div.muted', {}, c.defs.join(' · ')),
+    c.sentence ? h('div.dash-wod-ex', {}, h('span', {}, c.sentence), h('button.icon', { 'aria-label': 'Escuchar la frase', onclick: audio(c.sentenceAudio) }, '🔊')) : null,
+    c.translation ? h('small.muted', {}, c.translation) : null);
+  box.classList.remove('hidden');
+}
+
+// go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings, mil }
 export function dashboard(go) {
   const s = store.get();
   const now = new Date();
@@ -73,6 +121,12 @@ export function dashboard(go) {
   const draft = s.draft && CHARACTERS[s.draft.characterId] ? s.draft : null;
   const week = weekStrip(s, now);
   const doneGoal = today.pct >= 1;
+  const plan = todayPlan(s, now);
+  const mil = M.normalize(s.mil);
+  const deck = M.quickCounts(mil, now.getTime(), store.todayIso(now));
+  const planGo = { talk: draft ? () => go.resume(draft) : go.map, mil: go.mil, review: go.review };
+  const wod = h('section.card.dash-wod.hidden');
+  if (mil.imported) wordOfDay(wod, go);
 
   const cta = draft
     ? h('button.primary.dash-cta', { onclick: () => go.resume(draft) },
@@ -95,12 +149,20 @@ export function dashboard(go) {
           h('div.dash-stat', {}, h('b', {}, String(s.history.length)), h('small', {}, s.history.length === 1 ? 'charla' : 'charlas'))))),
     cta,
     draft ? h('button.secondary.wide.dash-map', { onclick: go.map }, '🗺️ Ir al mapa de la ciudad') : null,
+    h('section.card.dash-plan', {},
+      h('div.dash-week-head', {}, h('b', {}, 'Plan de hoy'), h('small.muted', {}, plan.done === plan.items.length ? '¡Todo listo! 🎉' : `${plan.done} de ${plan.items.length} listo`)),
+      plan.items.map(it => h('button.dash-plan-row', { class: it.done ? 'done' : '', onclick: planGo[it.key] },
+        h('span.dash-check', {}, it.done ? '✓' : ''),
+        h('span.dash-plan-text', {}, h('b', {}, `${it.icon} ${it.title}`), h('small', {}, it.detail)),
+        h('span.dash-go', {}, it.done ? '' : '›')))),
+    wod,
     h('section.card.dash-week', {},
       h('div.dash-week-head', {}, h('b', {}, 'Esta semana'), h('small.muted', {}, `${week.filter(d => d.done).length} de 7 días`)),
       h('div.dash-days', {}, week.map(d => h('div.dash-day', { class: [d.done ? 'done' : '', d.frozen ? 'frozen' : '', d.today ? 'today' : ''].join(' ') },
         h('span', {}, d.label), h('i', {}, d.done ? '✓' : d.frozen ? '🧊' : ''))))),
-    h('h2.dash-title', {}, 'Para hoy'),
+    h('h2.dash-title', {}, 'Practicar'),
     h('div.dash-grid', {},
+      tile({ icon: '📇', title: 'Mil palabras', value: mil.imported ? `${deck.learned}/${deck.total}` : 'Importar', sub: mil.imported ? (deck.toStudy ? `${deck.toStudy} para hoy` : 'al día') : 'su mazo de Refold', onclick: go.mil, accent: mil.imported && deck.toStudy > 0 }),
       tile({ icon: '🧠', title: 'Repaso', value: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'Al día', sub: due ? 'Le toca hoy' : 'Nada pendiente', onclick: go.review, accent: due > 0 }),
       tile({ icon: '🧱', title: 'Gramática', value: lesson ? lesson.title : '¡Todo aprobado!', sub: `${passed}/${G.LESSONS.length} lecciones`, onclick: go.grammar }),
       tile({ icon: '📚', title: 'Frases', value: `${learnedIds(s.vocab).size}/${PHRASES.length}`, sub: 'frases esenciales', onclick: go.essentials }),

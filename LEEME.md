@@ -9,7 +9,8 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
 ## Qué hace
 - **Portada** al abrir la app: saludo, meta de hoy (anillo de minutos), racha, puntos, los 7 días de la
   semana, y accesos a lo que toca (seguir la charla a medias, repaso, la lección de gramática, frases,
-  mis errores, vocabulario, estadísticas). El botón 🏠 del inicio vuelve a ella.
+  mis errores, vocabulario, estadísticas), con un **plan de hoy** (charlar, Mil palabras y repaso, que se
+  marcan al hacerlos) y la **palabra del día** del mazo con su audio. El botón 🏠 del inicio vuelve a ella.
 - **Salir y volver**: si sale a la pantalla del teléfono, al volver todo sigue igual (el micrófono y la voz
   se pausan al salir). Si Android cerró la app para liberar memoria y vuelve antes de 30 min, se abre
   donde estaba: en la charla (con todos los mensajes), en el inicio o en la portada.
@@ -216,6 +217,27 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   lugar tiene su escena de fondo y el personaje aparece parado delante. Mapa, escenas y personajes son
   imágenes propias hechas con ChatGPT.
 
+## Mil palabras (su mazo de Refold)
+**📇 Mil palabras** (en la portada y en el inicio) estudia las 1000 palabras más usadas con las tarjetas de
+su mazo de Refold: la palabra con su audio, la definición, una frase de ejemplo con su audio y su
+traducción, y la imagen. Se repasa como en Anki: **Otra vez · Difícil · Bien · Fácil** (cada botón dice
+cuándo vuelve la tarjeta). Las nuevas salen en orden de frecuencia, 10 por día (se cambia en la pantalla
+del mazo: 5, 10, 15, 20 o 30), y «➕ 5 palabras nuevas más hoy» sube el límite solo por hoy. Lo que falla
+vuelve en la misma sesión. Con 10 respuestas en el día cuenta para la racha.
+
+**El mazo no está en GitHub ni en la app publicada**, porque el repositorio es público y los audios,
+frases e imágenes son de Refold. Cada teléfono lo importa una vez desde el archivo `.apkg`:
+1. Pase `Refold-Ingles-mil-v2.apkg` al celular (súbalo a Google Drive o mándeselo por WhatsApp/correo y
+   descárguelo).
+2. En Charla: **📇 Mil palabras → 📂 Elegir el archivo .apkg**. Tarda 1–2 minutos (deje la pantalla
+   encendida). Las imágenes se achican al importar; si le falta espacio, desmarque «Guardar también las imágenes».
+3. Listo: se guarda en el teléfono (unos 60 MB) y funciona sin internet.
+
+El mazo se queda solo en el teléfono; lo que va en la copia de seguridad es el avance de cada tarjeta.
+Si cambia de teléfono, importe la copia **y** vuelva a importar el `.apkg`: el avance se conserva.
+Si Anki dice que el archivo es de formato nuevo, expórtelo marcando «Compatibilidad con versiones
+antiguas». Los archivos `*.apkg` están en `.gitignore` para que nunca se suban por error.
+
 ## Diseño
 - **Rojo y blanco.** El rojo (#d11f35) da energía y ganas de actuar, así que solo marca lo que invita a
   hablar: el micrófono, el botón principal de cada pantalla y su propia voz en el chat. El fondo blanco y
@@ -329,7 +351,11 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 | `js/data.js` | Lugares, personajes, misiones y los 6 niveles con sus ajustes: **aquí agrega contenido** |
 | `js/lessons.js` | Lugares nuevos, versión por nivel de cada misión, plan de aprendizaje y nivel de misión |
 | `js/coins.js` | Monedas (sin tienda: `SHOP_ENABLED = false`) y si un lugar está abierto |
-| `js/dashboard.js` | Portada: meta de hoy, racha, semana y accesos |
+| `js/dashboard.js` | Portada: plan de hoy, palabra del día, meta de hoy, racha, semana y accesos |
+| `js/apkg.js` | Lee un `.apkg` de Anki en el teléfono (zip + base de datos SQLite) y saca las tarjetas |
+| `js/deckdb.js` | Guarda el mazo, sus audios e imágenes en el teléfono (IndexedDB) |
+| `js/mil.js` | Mil palabras: repaso como en Anki, qué toca hoy y nuevas por día (sin pantalla, se prueba con node) |
+| `js/milscreen.js` | Pantallas de Mil palabras: importar, estudiar, lista y ajustes del mazo |
 | `js/people.js` | Relación que sube y baja, ficha del personaje, cosas por descubrir, contactos y gente nueva |
 | `js/vocab.js` | Pantalla de vocabulario (ordenar, filtrar, archivar, copiar, sugeridas) |
 | `js/stats.js` | Estadísticas por semana, mes y año, y calendario de la racha |

@@ -33,6 +33,7 @@
   --bad-50: #fdecea;
   --gold: #e9a417;
   --ice: #2f6fb5;
+  --ice-50: #e8f0fa;
 
   --shadow-sm: 0 1px 2px rgba(64, 20, 26, .06), 0 1px 3px rgba(64, 20, 26, .05);
   --shadow: 0 2px 6px rgba(64, 20, 26, .05), 0 10px 24px rgba(64, 20, 26, .07);
@@ -50,7 +51,7 @@
     --brand: #e8334a; --brand-600: #d11f35; --brand-700: #ff8a98; --brand-50: rgba(232, 51, 74, .14);
     --brand-100: rgba(232, 51, 74, .26); --brand-ink: #ff8594;
     --good: #43c58c; --good-50: rgba(67, 197, 140, .14); --warn: #f0b545; --warn-50: rgba(240, 181, 69, .14);
-    --bad: #ff7b6e; --bad-50: rgba(255, 123, 110, .14); --ice: #7fb2ec;
+    --bad: #ff7b6e; --bad-50: rgba(255, 123, 110, .14); --ice: #7fb2ec; --ice-50: rgba(127, 178, 236, .14);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4); --shadow: 0 6px 20px rgba(0, 0, 0, .45);
     --shadow-brand: 0 8px 22px rgba(232, 51, 74, .35); color-scheme: dark;
   }
@@ -61,7 +62,7 @@
   --brand: #e8334a; --brand-600: #d11f35; --brand-700: #ff8a98; --brand-50: rgba(232, 51, 74, .14);
   --brand-100: rgba(232, 51, 74, .26); --brand-ink: #ff8594;
   --good: #43c58c; --good-50: rgba(67, 197, 140, .14); --warn: #f0b545; --warn-50: rgba(240, 181, 69, .14);
-  --bad: #ff7b6e; --bad-50: rgba(255, 123, 110, .14); --ice: #7fb2ec;
+  --bad: #ff7b6e; --bad-50: rgba(255, 123, 110, .14); --ice: #7fb2ec; --ice-50: rgba(127, 178, 236, .14);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4); --shadow: 0 6px 20px rgba(0, 0, 0, .45);
   --shadow-brand: 0 8px 22px rgba(232, 51, 74, .35); color-scheme: dark;
 }
@@ -672,3 +673,83 @@ mark.piece.en { background: var(--good-50); }
 table.verb-forms { width: 100%; border-collapse: collapse; margin: 8px 0; }
 table.verb-forms th, table.verb-forms td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
 .puzzle button.wide { margin-top: 8px; }
+
+/* ---------- Portada: plan de hoy y palabra del día ---------- */
+.dash-plan { padding: 14px 14px 6px; }
+.dash-plan-row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 4px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; text-align: left; }
+.dash-plan-row:first-of-type { border-top: 0; }
+.dash-check { width: 26px; height: 26px; flex: none; border-radius: 50%; border: 2px solid var(--line-strong); display: grid; place-items: center; color: #fff; font-weight: 800; font-size: .85rem; }
+.dash-plan-row.done .dash-check { background: var(--good); border-color: var(--good); }
+.dash-plan-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dash-plan-text b { display: inline-flex; align-items: center; gap: 6px; font-size: .98rem; }
+.dash-plan-text b .ic { color: var(--brand); }
+.dash-plan-text small { color: var(--muted); font-size: .82rem; }
+.dash-plan-row.done b { color: var(--muted); }
+.dash-go { color: var(--brand-ink); font-size: 1.4rem; font-weight: 700; flex: none; }
+.dash-wod { background: linear-gradient(180deg, var(--surface), var(--surface-2)); }
+.dash-wod-head { display: flex; justify-content: space-between; align-items: center; color: var(--brand-ink); font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+.dash-wod-word { display: flex; align-items: center; gap: 6px; margin: 6px 0 2px; }
+.dash-wod-word b { font-size: 1.7rem; letter-spacing: -.01em; }
+.dash-wod-ex { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-style: italic; }
+.dash-wod-ex span { flex: 1; min-width: 0; }
+.dash-grid .dash-tile:last-child:nth-child(odd) { grid-column: span 2; min-height: 0; }
+
+/* ---------- Mil palabras ---------- */
+.mil-hero-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.mil-hero-top > div:first-child { display: flex; flex-direction: column; min-width: 0; }
+.mil-big { text-align: right; flex: none; display: flex; flex-direction: column; }
+.mil-big b { font-size: 1.8rem; line-height: 1; color: var(--good); }
+.mil-big small { color: var(--muted); font-size: .78rem; }
+.mil-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.mil-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: var(--pill); background: var(--surface-2); border: 1px solid var(--line); font-size: .84rem; font-weight: 600; }
+.mil-chip.due { color: var(--good); }
+.mil-chip.new { color: var(--ice); }
+.mil-how summary { cursor: pointer; font-weight: 700; }
+.mil-study .topbar { justify-content: space-between; }
+.mil-counts { display: flex; gap: 14px; font-weight: 800; font-size: 1.05rem; }
+.mil-counts .c-new { color: var(--ice); }
+.mil-counts .c-learn { color: var(--bad); }
+.mil-counts .c-rev { color: var(--good); }
+.mil-card { text-align: center; padding: 22px 16px; }
+.mil-meta { display: flex; justify-content: space-between; align-items: center; }
+.mil-stage { font-size: .72rem; font-weight: 700; padding: 3px 9px; border-radius: var(--pill); background: var(--surface-2); color: var(--muted); }
+.mil-stage.new { background: var(--ice-50); color: var(--ice); }
+.mil-stage.learning { background: var(--bad-50); color: var(--bad); }
+.mil-stage.young { background: var(--good-50); color: var(--good); }
+.mil-stage.mature { background: var(--good); color: #fff; }
+.mil-word { font-size: 2.3rem; font-weight: 800; letter-spacing: -.01em; margin: 18px 0 8px; overflow-wrap: anywhere; }
+.mil-play { width: 52px; height: 52px; border-radius: 50%; padding: 0; display: inline-grid; place-items: center; }
+.mil-play .ic { width: 24px; height: 24px; }
+.mil-back-wrap { text-align: left; border-top: 1px dashed var(--line-strong); margin-top: 18px; padding-top: 14px; }
+.mil-img { display: block; max-width: 100%; max-height: 190px; margin: 0 auto 12px; border-radius: 12px; object-fit: contain; }
+.mil-defs { margin: 0 0 8px; padding-left: 20px; font-size: 1.05rem; }
+.mil-defs li { margin: 2px 0; }
+.mil-forms { margin: 4px 0 10px; }
+.mil-example { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.mil-sentence { font-size: 1.12rem; margin: 0 0 4px; }
+.mil-sentence b { color: var(--brand-ink); }
+.mil-tr { margin: 0 0 8px; }
+.mil-example .row { flex-wrap: wrap; gap: 6px; }
+.mil-show { margin-top: 4px; padding: 16px; font-size: 1.05rem; }
+.mil-answers { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 10px 0 calc(8px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--bg) 70%, transparent); }
+.mil-ans { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 2px; border-radius: 14px; font-size: .9rem; min-width: 0; }
+.mil-ans small { font-size: .74rem; font-weight: 600; opacity: .85; }
+.mil-ans.again { background: var(--bad-50); color: var(--bad); border-color: transparent; }
+.mil-ans.hard { background: var(--warn-50); color: var(--warn); border-color: transparent; }
+.mil-ans.good { background: var(--good-50); color: var(--good); border-color: transparent; }
+.mil-ans.easy { background: var(--ice-50); color: var(--ice); border-color: transparent; }
+.mil-done { text-align: center; }
+.mil-done .stats { margin: 12px 0; }
+.mil-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.mil-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; border-radius: 12px; }
+.mil-n { width: 34px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+.mil-row-word { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mil-row-word small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mil-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--line-strong); }
+.mil-dot.learning { background: var(--bad); }
+.mil-dot.young { background: #7cc3a0; }
+.mil-dot.mature { background: var(--good); }
+.mil .chips { margin: 10px 0 4px; }
+.mil-detail .mil-meta { padding-right: 44px; }
+.mil-detail .mil-word { font-size: 1.8rem; margin: 8px 0; display: flex; align-items: center; gap: 8px; }
+.mil-import-out { margin-top: 12px; }

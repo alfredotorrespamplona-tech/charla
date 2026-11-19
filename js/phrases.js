@@ -203,9 +203,9 @@ export function packProgress(pack, vocab, done = learnedIds(vocab)) {
 }
 
 // Paquete recomendado: el primero sin terminar, empezando por el nivel del usuario o el más bajo pendiente.
-export function recommendedPack(vocab, rankCode = 'A1') {
+export function recommendedPack(vocab, rankCode = 'A1', { exclude = [] } = {}) {
   const done = learnedIds(vocab);
-  const open = PACKS.filter(p => packPhrases(p.id).some(x => !done.has(x.id)));
+  const open = PACKS.filter(p => !exclude.includes(p.group) && packPhrases(p.id).some(x => !done.has(x.id)));
   if (!open.length) return null;
   const lvl = ORDER.indexOf(rankCode);
   return open.find(p => ORDER.indexOf(p.level) <= lvl) || open[0];
