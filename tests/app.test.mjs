@@ -188,6 +188,9 @@ test('datos guardados de versiones anteriores reciben los campos nuevos', () => 
   assert.equal(store.get().difficulty, undefined);
   assert.deepEqual(store.get().levelCustom, {});
   assert.equal(store.get().settings.model, 'deepseek-flash');
+  assert.deepEqual(store.get().temario, { best: {}, exam: {} });
+  store.importJson(JSON.stringify({ settings: { apiKey: 'x' }, rank: 3, temario: { best: { 'b1-if2': 0.9 } } }));
+  assert.deepEqual(store.get().temario, { best: { 'b1-if2': 0.9 }, exam: {} });
   assert.throws(() => store.importJson('{"foo":1}'));
 });
 
@@ -1563,19 +1566,58 @@ test('contenido por nivel: cada nivel, de A1 a C2, trae gramática, frases, voca
   const P = await import('../js/phrases.js');
   for (let r = 1; r <= 6; r++) {
     const c = L.levelContent(r);
-    assert.ok(c.lessons.length >= 3, `${c.rank.code}: gramática`);
+    assert.ok(c.temario.length >= 10, `${c.rank.code}: temario de gramática`);
+    assert.ok(c.lessons.length >= 3, `${c.rank.code}: rompecabezas`);
     assert.ok(c.phrases.length >= 3, `${c.rank.code}: frases`);
-    assert.ok(c.mil || c.words.length >= 2, `${c.rank.code}: vocabulario`);
+    assert.ok(c.mil || c.words.length >= 5, `${c.rank.code}: vocabulario`);
     assert.ok(c.topics.length >= 3, `${c.rank.code}: temas`);
     assert.equal(c.rank.canDo.length, 3, `${c.rank.code}: qué puede hacer`);
   }
   // En los paquetes nuevos la respuesta del hueco no se ve en el resto de la frase.
-  for (const pk of P.PACKS.filter(p => ['B2', 'C1', 'C2'].includes(p.level))) {
+  for (const pk of P.PACKS.filter(p => ['B2', 'C1', 'C2'].includes(p.level) || p.group === 'nivel')) {
     assert.equal(P.packPhrases(pk.id).length, 10, pk.id);
     for (const x of P.packPhrases(pk.id)) assert.ok(!x.en.replace(x.gap, '').toLowerCase().includes(x.gap.toLowerCase()), x.id);
   }
   assert.equal(P.recommendedPack([], 'C1').level, 'C1');
   assert.deepEqual(L.milRangeProgress({ cards: { 1: { ivl: 2 }, 2: { ivl: 0 }, 400: { ivl: 5 } } }, [1, 300]), { seen: 2, learned: 1, total: 300 });
+});
+
+test('temario: todos los temas de A1 a C2, en español primero, sin jerga y con práctica válida', async () => {
+  const T = await import('../js/temario.js');
+  const G = await import('../js/grammar.js');
+  for (const c of T.CODES) assert.ok(T.levelTopics(c).length >= 10, c);
+  const ids = new Set();
+  const jerga = /participio|condicional|subjuntivo|pasiva|cláusula|gerundio|infinitivo|auxiliar/i;
+  for (const t of T.TOPICS) {
+    assert.ok(!ids.has(t.id), `repetido: ${t.id}`); ids.add(t.id);
+    assert.ok(t.es && t.en && t.ai && t.form.length >= 2 && t.ex.length >= 3 && t.traps.length >= 1, t.id);
+    for (const k of ['title', 'es', 'en']) assert.ok(!jerga.test(t[k]), `${t.id}: jerga en ${k}`);
+    for (const f of t.form) assert.equal(f.length, 3, `${t.id}: forma`);
+    for (const e of t.ex) assert.equal(e.length, 2, `${t.id}: ejemplo`);
+    for (const r of t.traps) assert.equal(r.length, 3, `${t.id}: error típico`);
+    if (t.lesson) assert.ok(G.lessonById(t.lesson), `${t.id}: ${t.lesson}`);
+    assert.ok(t.quiz.length >= 6, t.id);
+    for (const q of t.quiz) assert.ok(T.validQuestion(T.asQuestion(q, t)), `${t.id}: ${q[1]}`);
+  }
+  // La lista «B1 sólido» del cerebro de inglés está en B1.
+  for (const id of ['b1-ppvsps', 'b1-pastperf', 'b1-passive', 'b1-deduce', 'b1-reported', 'b1-relative', 'b1-ingto', 'b1-phrasal', 'b1-prep']) assert.equal(T.topicById(id)?.level, 'B1', id);
+  // Examen: 20 preguntas que tocan todos los temas del nivel.
+  const exam = T.examSet('B1', 20, () => 0.3);
+  assert.equal(exam.length, 20);
+  assert.equal(new Set(exam.map(q => q.topic)).size, T.levelTopics('B1').length);
+  const r = T.examResult([{ topic: 'a', ok: true }, { topic: 'b', ok: false }, { topic: 'b', ok: true }, { topic: 'c', ok: false }]);
+  assert.equal(r.got, 2);
+  assert.deepEqual(r.weak, ['c', 'b']);
+  assert.deepEqual(T.levelProgress('A1', { best: { 'a1-be': 0.9, 'a1-pron': 0.5 }, exam: { A1: 0.85 } }), { passed: 1, total: T.levelTopics('A1').length, exam: 0.85 });
+  // Charla para usar el tema: una misión completa para el personaje.
+  const m = T.practiceMission(T.topicById('b1-if2'));
+  assert.equal(m.objectives.length, 3);
+  assert.match(m.instruction, /second conditional/);
+  assert.equal(m.rankRequired, 3);
+  // Lo que crea la IA se revisa antes de usarlo.
+  assert.ok(T.validQuestion({ es: 'x', en: 'a ___ b', answer: 'c', wrong: ['d', 'e'] }));
+  assert.ok(!T.validQuestion({ es: 'x', en: 'a b', answer: 'c', wrong: ['d', 'e'] }));
+  assert.ok(!T.validQuestion({ es: 'x', en: 'a ___ b', answer: 'c', wrong: ['C', 'e'] }));
 });
 
 test('sugerencias: pide una sola respuesta y, con «Otra idea», una distinta', async () => {

@@ -287,6 +287,17 @@ label.check input { width: 20px; height: 20px; accent-color: var(--brand); }
 .can-do li { margin: 3px 0; }
 .level-content-link { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 4px 0 12px; }
 .level-open { margin-top: 8px; }
+.level-progress { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 10px; }
+.temario .form-table { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.temario .form-row { display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: start; }
+.temario .form-label { padding-top: 2px; }
+.temario .form-row .link { text-align: left; padding: 0; min-height: 0; }
+.temario .examples { margin: 6px 0 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.temario .trap { margin-top: 8px; }
+.temario .trap s { opacity: .8; }
+.temario .topic-nav { justify-content: space-between; gap: 8px; margin-top: 8px; }
+.temario .topic-nav button { max-width: 48%; }
+.temario-quiz .gap { display: inline-block; min-width: 3.2em; border-bottom: 2px solid var(--brand); padding: 0 4px; font-weight: 650; }
 .update-bar .icon { color: #fff; }
 
 .loading { display: flex; gap: 10px; align-items: center; color: var(--muted); padding: 10px 0; }

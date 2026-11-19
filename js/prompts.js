@@ -302,6 +302,23 @@ ${coachRules()}Return ONLY JSON: {"items": [${shape}]}` },
   ];
 }
 
+// ---- Temario: más preguntas de práctica para un tema ----
+export function temarioMessages({ topic, count = 6, rankId, done = [] }) {
+  const rank = rankById(rankId);
+  return [
+    { role: 'system', content: `You write gap-fill practice for an English learner (native ${LEARNER_LANG}, level ${rank.code}).
+Topic: «${topic.title}». It practises: ${topic.ai}.
+Create ${count} NEW everyday sentences (work, family, travel, plans, feelings) that practise exactly this. For each item:
+- "es": a natural ${LEARNER_LANG} sentence with the same meaning (so the learner knows what to say);
+- "en": the natural English sentence with exactly ONE gap written as ___ where the target words go;
+- "answer": the words that fill the gap;
+- "wrong": 2 tempting wrong options a ${LEARNER_LANG} speaker would really choose (other forms of the same structure), each clearly wrong in that sentence.
+Never use grammar labels. Do not repeat these sentences: ${done.join(' | ') || '(none)'}.
+${coachRules()}Return ONLY JSON: {"items": [{"es": "...", "en": "... ___ ...", "answer": "...", "wrong": ["...", "..."]}]}` },
+    { role: 'user', content: topic.title },
+  ];
+}
+
 // ---- Repaso personalizado (tarjetas con {{gap}}) ----
 export function reviewMessages(items, rankId) {
   const rank = rankById(rankId);

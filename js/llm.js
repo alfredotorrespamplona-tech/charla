@@ -295,6 +295,10 @@ async function demo(task, messages) {
       const fills = [['cooking', 'tonight'], ['playing chess', 'on Sunday'], ['dancing', 'tomorrow']];
       return { swaps: fills.map(f => { let k = 0; const en = frame.replace(/\{[a-z0-9_]+\}/gi, () => f[k++ % 2]); return { es: `(demo) Diga: ${en}`, en }; }) };
     }
+    case 'temario': return { items: [
+      { es: '(demo) Ella vive aquí desde 2019.', en: 'She ___ here since 2019.', answer: 'has lived', wrong: ['lives', 'is living'] },
+      { es: '(demo) ¿Cuándo llegaste?', en: 'When ___ you arrive?', answer: 'did', wrong: ['have', 'do'] },
+    ] };
     case 'grammar': {
       // Demo: siempre el mismo ejercicio de «si hubiera…, habría…» (sin IA no se analiza la frase del alumno).
       return { items: [{ es: 'Si hubiera sabido, te habría llamado.',

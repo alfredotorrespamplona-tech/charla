@@ -30,12 +30,32 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
 - **🎓 Contenido por nivel** (v34; botón «Por nivel» del inicio, cuadro de la portada, «Ver y estudiar el
   contenido» en la hoja de niveles y en Ajustes): una pantalla con los 6 niveles (A1…C2) arriba y, para el
   nivel elegido, qué puede hacer con él y todo lo que se estudia ahí:
-  - **🧱 Gramática**: las 3 lecciones del nivel.
+  - **📖 Temario de gramática** (v35): 78 temas en total (A1 15, A2 14, B1 14, B2 13, C1 12, C2 10) y
+    470 preguntas. Cada tema tiene una ficha escrita como pide su cerebro, en español primero y sin palabras
+    de gramática: «Qué es y para qué sirve», «Cómo se dice en inglés», «La forma» (frases que se tocan para
+    oírlas), ejemplos con audio y traducción, y «Errores típicos de quien habla español» (lo que se dice mal →
+    cómo se dice, y por qué). Debajo:
+    - **✍ Practicar**: preguntas de completar la frase con 3 opciones. Con 80 % el tema queda aprobado (✓).
+    - **🗣 Charlar usando esto**: una charla con Amy que le hace preguntas en las que ese tema sale solo,
+      con 3 objetivos (usarlo, usarlo otra vez, preguntar con él).
+    - **🧩 Rompecabezas** del tema, cuando lo hay.
+    - **✨ 6 preguntas nuevas con IA** (con su clave de DeepSeek), distintas de las del tema.
+    - Flechas para pasar al tema anterior o siguiente.
+  - **📝 Examen de cada nivel**: 20 preguntas de todos los temas del nivel, cada vez otras. Con 80 % el
+    nivel queda aprobado en gramática. Al final salen los temas para repasar (los peores primero, con un
+    toque abren su ficha), las frases que falló con «📒 Llevarlas al repaso» y «Otro examen».
+  - Arriba se ve el avance: «Gramática: X de N temas aprobados · examen: Y %».
+  - El temario de B1 cubre la lista de «B1 sólido» de su cerebro: he ido / fui, for y since, había hecho,
+    solía, si llueve / si tuviera, se hace / fue hecho, dijo que, que / quien / donde, -ing o to, debe de,
+    phrasal verbs, preposiciones y pedir con cortesía.
+  - **🧩 Rompecabezas de verbos**: las 3 lecciones de piezas del nivel (antes se llamaba «Gramática»).
   - **💬 Frases**: los paquetes de frases del nivel (de B2 a C2 son nuevos: debatir, hipótesis, reuniones,
     matices, inglés formal, contar historias, registro, persuadir y humor).
-  - **📇 Vocabulario**: de A1 a B1, su tramo de Mil palabras (1–300, 301–600, 601–1000); de B2 a C2,
-    paquetes nuevos de vocabulario (phrasal verbs, palabras B2, colocaciones, palabras C1, expresiones
-    idiomáticas y palabras C2).
+  - **📇 Vocabulario**: de A1 a B1, su tramo de Mil palabras (1–300, 301–600, 601–1000); en B1 además
+    «Entrevista de trabajo»; de B2 a C2, 5 paquetes por nivel: B2 phrasal verbs, palabras B2, trabajo y
+    oficina, dinero y compras, carácter y emociones; C1 colocaciones, palabras C1, trabajo avanzado,
+    argumentar y phrasal verbs; C2 expresiones idiomáticas, palabras C2, palabras formales, phrasal verbs
+    y matices y tono.
   - **🗣 Temas para charlar** del nivel (en A1 se ven 8 y «Ver los N temas» muestra el resto); al tocar uno
     empieza la charla en la cafetería y al salir vuelve al mismo nivel.
   - «Charlar en nivel X» cambia el nivel de sus charlas sin pasar por Ajustes.
@@ -380,7 +400,10 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 | `js/cast.js` | «Una sola compañera»: Amy en todas las charlas, con el papel de cada lugar; los papeles de hombre siempre los hace Amy |
 | `js/version.js` | Versión de la app (la sube `publicar.ps1`: no editar a mano) |
 | `js/update.js` | Al volver a la app revisa si hay una versión nueva y se actualiza |
-| `js/levelscreen.js` | Contenido por nivel: gramática, frases, vocabulario y temas de cada nivel (A1…C2) |
+| `js/levelscreen.js` | Contenido por nivel: temario, rompecabezas, frases, vocabulario y temas de cada nivel (A1…C2) |
+| `js/temario.js` | Temario de gramática: junta los temas, práctica, examen del nivel, notas y la charla enfocada en un tema |
+| `js/temario-a.js`, `temario-b.js`, `temario-c.js` | Los 78 temas (A1–A2, B1–B2, C1–C2): ficha, forma, ejemplos, errores típicos y preguntas |
+| `js/temarioscreen.js` | Pantallas del temario: ficha del tema, práctica, examen y resultados |
 | `js/lipsync.js` | Labios al ritmo de la voz: sílabas, formas de la boca y reloj que sigue a la voz |
 | `js/people.js` | Relación que sube y baja, ficha del personaje, cosas por descubrir, contactos y gente nueva |
 | `js/vocab.js` | Pantalla de vocabulario (ordenar, filtrar, archivar, copiar, sugeridas) |

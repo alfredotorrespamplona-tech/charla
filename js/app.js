@@ -485,7 +485,7 @@ function levelEditor(s) {
     about.textContent = r.about;
     const c = levelContent(rankId);
     contentBox.replaceChildren(
-      h('small.muted', {}, `Contenido de ${r.code}: ${c.lessons.length} lecciones de gramática, ${c.phrases.length + c.words.length} paquetes de frases y palabras${c.mil ? `, las palabras ${c.mil[0]} a ${c.mil[1]} de Mil palabras` : ''} y ${c.topics.length} temas para charlar.`),
+      h('small.muted', {}, `Contenido de ${r.code}: ${c.temario.length} temas de gramática con su examen, ${c.lessons.length} rompecabezas de verbos, ${c.phrases.length + c.words.length} paquetes de frases y palabras${c.mil ? `, las palabras ${c.mil[0]} a ${c.mil[1]} de Mil palabras` : ''} y ${c.topics.length} temas para charlar.`),
       h('button.small', { onclick: () => levelScreen(rankId, () => settings()) }, `🎓 Ver y estudiar el contenido de ${r.code}`));
     modOut.textContent = `×${lv.scoreModifier.toFixed(2)}`;
     grid.replaceChildren(...Object.entries(SETTING_OPTIONS).map(([k, def]) => {
