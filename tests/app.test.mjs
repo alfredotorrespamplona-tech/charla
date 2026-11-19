@@ -116,10 +116,12 @@ test('las charlas de menos de 2 estrellas no suman para subir', () => {
   assert.equal(store.get().starsTowardUnlock, 0);
 });
 
-test('con candados no se puede elegir un nivel que no está desbloqueado', () => {
-  store.update(s => { s.settings.levelLocks = true; });
+test('sin candados: se puede elegir cualquier nivel, aunque datos viejos los traigan puestos', () => {
+  store.update(s => { s.settings.levelLocks = true; s.rank = 1; s.highestRank = 1; });
   scoring.setLevel(5);
-  assert.equal(store.get().rank, 1);
+  assert.equal(store.get().rank, 5);
+  store.importJson(JSON.stringify({ ...store.get(), settings: { ...store.get().settings, levelLocks: true } }));
+  assert.equal(store.get().settings.levelLocks, undefined);
 });
 
 test('la primera charla ajusta el nivel de la autoevaluación', () => {
@@ -539,7 +541,7 @@ test('lugares de la hoja de ruta: banco, escuela, centro comercial y peluquería
 });
 
 // ---------------- Economía de monedas ----------------
-test('candados de niveles: apagados por defecto (todo abierto) y se pueden poner', async () => {
+test('sin candados de niveles: todos los niveles, lugares y lecciones abiertos siempre', async () => {
   const C = await import('../js/coins.js');
   const G = await import('../js/grammar.js');
   store.update(s => { s.highestRank = 1; s.rank = 1; s.unlockedPlaces = []; });
@@ -550,13 +552,12 @@ test('candados de niveles: apagados por defecto (todo abierto) y se pueden poner
   scoring.setLevel(5);
   assert.equal(store.get().rank, 5);                         // cualquier nivel
   assert.ok(G.LESSONS.every(l => G.unlocked(l, store.reachRank(), {})));
-  store.update(s => { s.settings.levelLocks = true; s.rank = 1; });
-  assert.equal(store.reachRank(), 1);
-  assert.equal(C.isPlaceOpen(store.get(), office), false);  // con candados: espera su nivel
-  scoring.setLevel(5);
-  assert.equal(store.get().rank, 1);                         // no pasa del nivel desbloqueado
-  store.update(s => { s.highestRank = 3; });
-  assert.equal(C.isPlaceOpen(store.get(), data.placeById('cityhall')), true);
+  store.update(s => { s.settings.levelLocks = true; s.rank = 1; });   // un respaldo viejo con candados
+  assert.equal(store.locksOn(), false);
+  assert.equal(store.reachRank(), 6);
+  assert.ok(data.PLACES.every(p => C.isPlaceOpen(store.get(), p)));
+  scoring.setLevel(6);
+  assert.equal(store.get().rank, 6);
 });
 
 test('uso personal: no hay tienda y sortear misiones siempre es gratis', async () => {

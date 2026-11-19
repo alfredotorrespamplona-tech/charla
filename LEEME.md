@@ -24,12 +24,12 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   se pausan al salir). Si Android cerró la app para liberar memoria y vuelve antes de 30 min, se abre
   donde estaba: en la charla (con todos los mensajes), en el inicio o en la portada.
 - **Uso personal**: no hay tienda ni compras con monedas; sortear misiones es gratis y el protector de
-  racha 🧊 también (máximo 2). **Candados de niveles** (Ajustes → Nivel de inglés): quitados por defecto,
-  todo está abierto y el nivel solo cambia cómo le hablan; si los pone, los lugares, temas y lecciones se
-  abren al subir de nivel juntando estrellas.
+  racha 🧊 también (máximo 2). **Sin candados**: los 6 niveles, los lugares, temas y lecciones
+  están abiertos siempre (se quitaron en la v33, también si un respaldo viejo los traía puestos); el nivel
+  que elige en Ajustes solo cambia cómo le hablan (velocidad, ayudas, vocabulario).
 - 19 lugares (cafetería, aeropuerto, hotel, oficina, parque, restaurante, consultorio, calle, tienda,
   gimnasio, fiesta, entrevista de trabajo, **tu barrio, supermercado, ayuntamiento, banco, escuela de
-  idiomas, centro comercial y peluquería**) con 72 misiones (con candados puestos se abren por nivel, A1…C2).
+  idiomas, centro comercial y peluquería**) con 72 misiones, todas abiertas.
   Los 7 últimos salen debajo del mapa («Más lugares»).
 - **48 temas de conversación** en 8 grupos (día a día, amigos y ocio, familia y hogar, trabajo, estudio,
   viajes, salud, actualidad y cultura), que sirven con cualquier personaje. Al elegir misión, una de las

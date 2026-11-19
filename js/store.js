@@ -77,6 +77,7 @@ function merge(s) {
   // Versiones anteriores tenían "nivel" y "dificultad" por separado: ahora es una sola escalera de 6 niveles.
   out.rank = Math.min(6, Math.max(1, out.rank | 0 || 1));
   out.highestRank = Math.min(6, Math.max(out.rank, out.highestRank | 0));
+  delete out.settings.levelLocks;   // los candados ya no existen (un respaldo viejo podía traerlos puestos)
   if (!out.levelCustom || typeof out.levelCustom !== 'object') out.levelCustom = {};
   delete out.difficulty; delete out.highestDifficulty;
   // Antes solo se contaban las veces completada: cada una vale 2 estrellas de experiencia de la misión.
@@ -103,10 +104,10 @@ export function save() {
 
 export function get() { return state; }
 
-// Candados de niveles (Ajustes → Nivel de inglés). Apagados por defecto: es para uso personal, todo abierto.
-export const locksOn = (s = state) => s.settings?.levelLocks === true;
-// Nivel hasta el que puede entrar: con candados, el más alto que desbloqueó; sin candados, todos (6).
-export const reachRank = (s = state) => locksOn(s) ? s.highestRank : 6;
+// Sin candados de niveles: los 6 niveles, todos los lugares, temas y lecciones están abiertos siempre
+// (el usuario los quitó). El nivel solo cambia cómo le hablan: velocidad, ayudas y vocabulario.
+export const locksOn = () => false;
+export const reachRank = () => 6;
 
 export function update(fn) { fn(state); save(); }
 

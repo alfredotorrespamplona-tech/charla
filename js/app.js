@@ -792,12 +792,6 @@ function settings({ back = home } = {}) {
   const auto = h('input', { type: 'checkbox', checked: s.settings.autoListen });
   const pauseSel = h('select', { 'aria-label': 'Pausa para enviar' }, SEND_PAUSES.map(ms => h('option', { value: ms, selected: ms === sendPauseMs() },
     `${(ms / 1000).toLocaleString('es')} s${ms === 2000 ? ' (rápido)' : ms === 3000 ? ' (normal)' : ms === 6000 ? ' (para pensar con calma)' : ''}`)));
-  // Candados: se guardan al tocarlos y se vuelve a dibujar el selector de nivel.
-  const locks = h('input', { type: 'checkbox', checked: store.locksOn(s), onchange: e => {
-    store.update(st => { st.settings.levelLocks = e.target.checked; if (!e.target.checked) st.rankProposal = null; });
-    toast(e.target.checked ? '🔒 Candados puestos: los lugares, temas y lecciones se abren al subir de nivel' : '🔓 Todo abierto: elija el nivel que quiera', 'good');
-    again();
-  } });
   const haptics = h('input', { type: 'checkbox', checked: s.settings.haptics !== false });
   const solo = h('input', { type: 'checkbox', checked: s.settings.oneCharacter !== false });
   const comedy = h('input', { type: 'checkbox', checked: !!s.settings.comedy });
@@ -811,8 +805,7 @@ function settings({ back = home } = {}) {
     h('p.muted', {}, 'Por defecto deepseek-flash. Puede poner otro modelo compatible.'),
     h('label', {}, 'Dirección de la API'), baseUrl,
     h('h3', {}, 'Nivel de inglés'),
-    h('label.check', {}, locks, ' 🔒 Candados de niveles: abrir lugares, temas y lecciones solo al subir de nivel'),
-    h('p.muted', {}, store.locksOn(s) ? 'Puestos: sube de nivel juntando estrellas.' : 'Quitados: todo está abierto y el nivel solo cambia cómo le hablan (velocidad, ayudas, vocabulario).'),
+    h('p.muted', {}, '🔓 Los 6 niveles están abiertos, igual que todos los lugares, temas y lecciones: elija el que quiera. El nivel solo cambia cómo le hablan (velocidad, ayudas, vocabulario).'),
     levelEd.el,
     h('h3', {}, 'Mi plan'), plan.el,
     h('h3', {}, 'Micrófono y voz'), voiceCheck,
