@@ -1,7 +1,7 @@
 // Voz: reconocimiento (voz → texto) y lectura (texto → voz) usando lo que ya trae el teléfono. Gratis.
 import * as store from './store.js';
 import { naturalReady, speakNatural, stopNatural, naturalVoiceFor } from './natural-voice.js';
-import { lipTrack, lipClock, sampleAt, REST } from './lipsync.js';
+import { lipTrack, lipClock, sampleAt, babble, measuredUnitMs, REST } from './lipsync.js';
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 export const canListen = !!SR;
@@ -129,6 +129,24 @@ export function learnPace(words, ms, rate = 1) {
   });
 }
 
+// Ritmo de los labios: ms por unidad (≈ una sílaba) a velocidad 1, medido frase a frase en este teléfono.
+// Mientras no hay medida, se calcula con el ritmo por palabra.
+export function lipUnitMs(rate, track, text) {
+  const m = store.get().settings.lipUnitMs;
+  if (m >= 60 && m <= 420) return m / (rate || 1);
+  const words = String(text).trim().split(/\s+/).length;
+  return Math.max(60, (msPerWord(rate) * words) / Math.max(1, track.end || track.units));
+}
+function learnLips(track, ms, rate, heardWords) {
+  const sample = measuredUnitMs(track, ms, rate);
+  store.update(st => {
+    if (track.words.length >= 3) st.settings.voiceWords = !!heardWords;   // la voz avisa cada palabra (Ajustes lo muestra)
+    if (!sample) return;
+    const old = st.settings.lipUnitMs;
+    st.settings.lipUnitMs = Math.round(old >= 60 && old <= 420 ? old * 0.6 + sample * 0.4 : sample);
+  });
+}
+
 // ---------- Hablar ----------
 let voices = [];
 const voiceListeners = new Set();
@@ -230,11 +248,16 @@ function speakPhone(text, { character, rate = 1, onStart, onLevel, onMouth, onEn
     u.pitch = 1; // cambiar el tono deforma la voz y la hace sonar robótica
     let mouthTimer = null, keepAlive = null, safety = null, done = false, startedAt = 0, cut = false;
     let boost = 0;
-    // Labios: con onMouth la boca sigue las sílabas del texto (lipsync.js), al ritmo de esta voz.
-    const track = onMouth ? lipTrack(text) : null;
-    const clock = track ? lipClock(track, Math.max(40, (msPerWord(rate) * text.trim().split(/\s+/).length) / Math.max(1, track.units))) : null;
+    // Labios: con onMouth la boca sigue las sílabas del texto (lipsync.js), al ritmo aprendido de esta voz.
+    const track = onMouth && !lang ? lipTrack(text) : null;
+    const clock = track ? lipClock(track, lipUnitMs(rate, track, text)) : null;
     const tick = () => {
-      if (clock) { onMouth(sampleAt(track, clock.pos(performance.now()))); return; }
+      if (clock) {
+        const now = performance.now(), p = clock.pos(now);
+        // Si la voz sigue sonando después de lo calculado, la boca sigue hablando suave (no se queda cerrada).
+        onMouth(p >= track.end ? babble(now) : sampleAt(track, p));
+        return;
+      }
       // Movimiento de boca: oscilación + golpe en cada palabra (evento boundary).
       boost *= 0.75;
       const base = 0.25 + 0.35 * Math.abs(Math.sin(performance.now() / 85));
@@ -249,7 +272,10 @@ function speakPhone(text, { character, rate = 1, onStart, onLevel, onMouth, onEn
       if (current !== u) cut = true;               // la cortó otra frase
       if (current === u) current = null;
       // Mide el ritmo real de esta voz para sincronizar el texto la próxima vez.
-      if (startedAt && !cut && !lang) learnPace(text.trim().split(/\s+/).length, performance.now() - startedAt, rate);
+      if (startedAt && !cut && !lang) {
+        learnPace(text.trim().split(/\s+/).length, performance.now() - startedAt, rate);
+        if (track) learnLips(track, performance.now() - startedAt, rate, clock.heard);
+      }
       onLevel?.(0);
       onMouth?.(REST);
       onEnd?.();
@@ -299,5 +325,8 @@ export async function checkVoice() {
   if (!canSpeak) out.push({ ok: false, text: 'Este navegador no puede leer en voz alta.' });
   else if (n) out.push({ ok: true, text: `${n} voz${n === 1 ? '' : 'es'} en inglés instalada${n === 1 ? '' : 's'}` });
   else out.push({ ok: false, text: 'No hay voces en inglés (pueden tardar unos segundos en cargar). En Android: Ajustes → Sistema → Idiomas → Salida de texto a voz → instale el inglés.' });
+  const vw = store.get().settings.voiceWords;
+  if (vw === true) out.push({ ok: true, text: 'La voz avisa cada palabra: los labios de Amy van con ella' });
+  else if (vw === false) out.push({ ok: true, text: 'La voz no avisa cada palabra: los labios de Amy siguen el ritmo medido de esta voz (se ajusta solo con cada frase)' });
   return out;
 }

@@ -1364,29 +1364,80 @@ test('mil palabras: las 1000 vienen en la app, en orden, con significado, frase 
   assert.deepEqual(M.rowToCard([5, 'get', '(v.) Obtener.', '', 'I get it.', 'Lo entiendo.']).forms, []);
 });
 
-test('labios: cada sílaba con su forma, pausas en la puntuación y la voz manda el ritmo', async () => {
+test('labios: una apertura por sílaba, misma forma dentro de la sílaba y pausas en la puntuación', async () => {
   const L = await import('../js/lipsync.js');
   const mom = L.wordShapes('mom');
   assert.equal(mom[0].shape.open, 0);                                   // m: labios cerrados
-  assert.ok(mom[1].shape.round > 0.5);                                  // o: redonda
-  assert.ok(L.wordShapes('see')[1].shape.wide > 0.9);                   // ee: estirada
-  assert.equal(L.wordShapes('make').length, 3);                         // la e final no suena: m-a-k
+  assert.ok(mom[1].shape.round >= 0.5);                                 // o: redonda
+  assert.equal(mom[2].shape.open, 0);                                   // m final: cierra
+  const see = L.wordShapes('see');
+  assert.ok(see[1].shape.wide >= 0.8);                                  // ee: estirada
+  assert.equal(see[0].shape.wide, see[1].shape.wide);                   // la «s» no cambia la forma, solo entrecierra
+  assert.equal(L.wordShapes('make').length, 3);                         // m-a-k: la e final no suena
   const t = L.lipTrack('Hi, how are you?');
   assert.deepEqual(t.words.map(w => w.char), [0, 4, 8, 12]);
+  assert.ok(t.words[0].pauseAfter && !t.words[1].pauseAfter);
   assert.ok(t.frames.some(f => f.d === L.UNIT.comma && f.shape === L.REST));
+  assert.ok(t.end < t.units);                                           // el punto final no es habla
   assert.equal(L.sampleAt(t, -1), L.REST);
   assert.equal(L.sampleAt(t, t.units + 1), L.REST);
-  assert.ok(L.sampleAt(t, 0.5).open > 0);                               // «h» casi cerrada, luego «i»
   assert.equal(L.wordAt(t, 9), 2);
-  // Reloj: sin avisos va con el ritmo estimado; con avisos espera a la voz en la palabra siguiente.
-  const clock = L.lipClock(t, 100);
-  clock.start(0);
-  assert.equal(clock.pos(250), 2.5);
-  clock.word(4, 300);                                                    // la voz dice «how»
-  assert.equal(clock.pos(300), t.words[1].u);
-  assert.ok(clock.pos(5000) < t.words[2].u);                             // no se adelanta a «are»
-  clock.word(12, 900);                                                   // la voz va más lenta: se ajusta
-  assert.ok(clock.msPerUnit > 100);
+  // En una respuesta normal la boca casi no se cierra dentro de las palabras (solo con m, b, p)
+  // y cambia unas 4–6 veces por segundo, no a cada letra.
+  const reply = L.lipTrack('Sure, the wifi password is on the receipt. There is an outlet near the window, and you can stay as long as you like.');
+  let inWords = 0, closed = 0;
+  for (const w of reply.words) for (const f of reply.frames) if (f.u >= w.u && f.u < w.end) { inWords += f.d; if (f.shape.open < 0.15) closed += f.d; }
+  assert.ok(closed / inWords < 0.15, `cerrada ${Math.round((100 * closed) / inWords)} % del tiempo`);
+  const opens = reply.frames.filter(f => f.shape.open >= 0.4).length;
+  const seconds = (reply.end * 170) / 1000;
+  assert.ok(opens / seconds > 3 && opens / seconds < 7, `${(opens / seconds).toFixed(1)} aperturas por segundo`);
+});
+
+// Voz simulada: cada unidad dura trueMs (el teléfono real), con ±15 % de variación por palabra.
+function simulateVoice(L, text, trueMs, seed = 7) {
+  const track = L.lipTrack(text);
+  let x = seed;
+  const rnd = () => { x = (x * 16807) % 2147483647; return x / 2147483647; };
+  const at = [];                                                        // [tiempo real, posición real] al empezar cada palabra
+  let t = 0, prevU = 0;
+  for (const w of track.words) { t += (w.u - prevU) * trueMs * (0.85 + 0.3 * rnd()); at.push([t, w.u, w.char]); prevU = w.u; }
+  const endT = t + (track.end - prevU) * trueMs;
+  const truePos = time => {
+    let k = 0;
+    while (k + 1 < at.length && at[k + 1][0] <= time) k++;
+    const [t0, u0] = at[k], [t1, u1] = at[k + 1] || [endT, track.end];
+    return u0 + ((time - t0) / (t1 - t0)) * (u1 - u0);
+  };
+  return { track, at, endT, truePos };
+}
+
+test('labios: siguen a la voz aunque vaya a otro ritmo, con o sin aviso de palabras', async () => {
+  const L = await import('../js/lipsync.js');
+  const text = "Sure! The wifi password is on the receipt, and there's an outlet right next to the window table.";
+  const v = simulateVoice(L, text, 175);
+  // 1) La voz avisa cada palabra: la app arranca creyendo 110 ms y se corrige sola.
+  const c = L.lipClock(v.track, 110);
+  c.start(0);
+  let k = 0, err = 0, n = 0, ahead = 0;
+  for (let time = 0; time < v.endT; time += 20) {
+    while (k < v.at.length && v.at[k][0] <= time) { c.word(v.at[k][2], v.at[k][0]); k++; }
+    const p = c.pos(time), real = v.truePos(time);
+    if (k >= 3) { err += Math.abs(p - real); n++; }
+    const next = v.track.words[k];
+    if (next && p > next.u) ahead++;
+  }
+  assert.equal(ahead, 0, 'la boca nunca va por delante de la palabra que dice la voz');
+  assert.ok(err / n < 0.5, `desfase medio ${(err / n).toFixed(2)} sílabas`);
+  // 2) La voz NO avisa las palabras: tras medir una frase, la siguiente termina casi a la vez que la voz.
+  const learned = L.measuredUnitMs(v.track, v.endT, 1);
+  assert.ok(Math.abs(learned - 175) / 175 < 0.15);
+  const v2 = simulateVoice(L, 'I usually come here on Mondays because the coffee is great and the music is quiet.', 175, 99);
+  const c2 = L.lipClock(v2.track, learned);
+  c2.start(0);
+  let tEnd = 0;
+  for (let time = 0; time < 20000 && !tEnd; time += 10) if (c2.pos(time) >= v2.track.end) tEnd = time;
+  assert.ok(Math.abs(tEnd - v2.endT) / v2.endT < 0.12, `la boca termina en ${tEnd} ms y la voz en ${Math.round(v2.endT)} ms`);
+  assert.ok(L.babble(123).open > 0);                                    // si la voz sigue, la boca no se queda cerrada
 });
 
 test('Amy: una sola compañera con voz de mujer, labios que se abren y se puede volver a los personajes', async () => {

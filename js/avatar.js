@@ -149,14 +149,14 @@ export class Avatar {
     if (this.mode !== 'solo') { this.setLevel(shape.open); return; }
     this.target = shape;
     this.level = shape.open;
-    this.lastMouth = performance.now();
+    if (shape.open > 0.02) this.lastMouth = performance.now();   // cerrar la boca al terminar no cuenta como hablar
     if (!this.raf) { this.lastT = performance.now(); this.raf = requestAnimationFrame(t => this.step(t)); }
   }
 
   step(t) {
     const dt = Math.min(64, t - this.lastT);
     this.lastT = t;
-    const k = 1 - Math.exp(-dt / 42);
+    const k = 1 - Math.exp(-dt / 58);                // suave: la boca llega a la forma sin saltos
     let diff = 0;
     for (const key of ['open', 'wide', 'round']) {
       const v = this.cur[key] + (this.target[key] - this.cur[key]) * k;
@@ -164,10 +164,10 @@ export class Avatar {
       this.cur[key] = v;
     }
     // Mientras habla, la cabeza se mueve un poco y asiente con las sílabas abiertas.
-    const speaking = t - this.lastMouth < 250;
+    const speaking = t - this.lastMouth < 300;
     this.talk += ((speaking ? 1 : 0) - this.talk) * Math.min(1, dt / 220);
-    const tilt = Math.sin(t / 650) * 1.6 * this.talk;
-    const nod = this.cur.open * 1.4 * this.talk;
+    const tilt = Math.sin(t / 1100) * 0.9 * this.talk;  // la cabeza se mueve poco y despacio
+    const nod = this.cur.open * 0.5 * this.talk;
     this.headEl.setAttribute('transform', `rotate(${tilt.toFixed(2)} 100 165) translate(0 ${nod.toFixed(2)})`);
     this.paintMouth();
     if (speaking || diff > 0.004 || this.talk > 0.02) this.raf = requestAnimationFrame(n => this.step(n));
