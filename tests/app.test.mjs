@@ -2133,3 +2133,26 @@ test('IA: si Groq pide esperar solo unos segundos (límite por minuto), espera y
   assert.deepEqual(models, [GROQ_MODELS[0], GROQ_MODELS[0]], 'el mismo modelo, después de esperar');
   assert.deepEqual(store.get().groqPause || {}, {}, 'no queda en pausa');
 });
+
+test('ahorro de tokens: reglas resumidas, errores cortos, historial por bloques y sugerencias con lo último', async () => {
+  const P = await import('../js/prompts.js');
+  const { COACH_RULES } = await import('../js/cerebro.js');
+  const sys = P.analysisMessages({ characterLine: 'Hi', learnerLine: 'if i would know i will call', rankId: 3, strictness: 'Balanced', mission: { name: 'Café' } })[0].content;
+  assert.ok(sys.includes(P.COACH_SHORT), 'las reglas del cerebro van resumidas');
+  assert.ok(!COACH_RULES.some(r => sys.includes(r)), 'no van las reglas completas');
+  assert.ok(!/Why:/.test(sys), 'los errores van sin la explicación larga');
+  assert.ok(P.knownErrors().slice(0, P.PROMPT_ERRORS).every(e => sys.includes(e.id)), 'pero van todos los ids para detectarlos');
+  assert.ok(sys.length / 4 < 900, `la corrección de cada turno cuesta menos de 900 tokens (${Math.round(sys.length / 4)})`);
+  // Historial: nada se corta en charlas normales; en las largas se corta de a 10 (el comienzo no cambia en cada turno).
+  assert.equal(P.historyStart(8), 0);
+  assert.equal(P.historyStart(22), 0);
+  assert.equal(P.historyStart(23), 10);
+  assert.equal(P.historyStart(31), 10);
+  assert.equal(P.historyStart(32), 20);
+  for (let n = 0; n < 80; n++) assert.ok(n - P.historyStart(n) >= Math.min(n, 12), 'siempre van al menos los últimos 12');
+  // Sugerencias: solo las últimas líneas.
+  const history = Array.from({ length: 20 }, (_, i) => ({ role: i % 2 ? 'learner' : 'character', text: `line ${i}` }));
+  const user = P.suggestionMessages({ history, rankId: 2, mission: { name: 'x', description: 'y', objectives: [] } })[1].content;
+  assert.ok(user.includes('line 19') && !user.includes('line 5'));
+  assert.ok(P.customSuggestionMessages({ history, rankId: 2, spanish: 'hola' })[1].content.split('\n').length <= P.SUGGEST_LINES + 2);
+});
