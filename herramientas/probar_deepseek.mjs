@@ -1,6 +1,8 @@
-// Prueba en vivo de cada llamada a DeepSeek que hace Charla, con sus mismos prompts y parámetros.
-// La clave llega por la variable de entorno DEEPSEEK_KEY (no se guarda en ningún archivo).
-// Gasta unos 16 000 tokens (centavos). Desde la carpeta charla, en PowerShell:
+// Prueba en vivo de cada llamada a la IA que hace Charla, con sus mismos prompts y parámetros.
+// Las claves llegan por variables de entorno (no se guardan en ningún archivo): GROQ_KEY (Groq, gratis, se usa
+// primero) y/o DEEPSEEK_KEY (DeepSeek, unos 16 000 tokens = centavos). GROQ_MODEL elige el modelo de Groq.
+// Desde la carpeta charla, en PowerShell:
+//   $env:GROQ_KEY = "gsk_..."; node herramientas/probar_deepseek.mjs
 //   $env:DEEPSEEK_KEY = "sk-..."; node herramientas/probar_deepseek.mjs
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
@@ -18,8 +20,13 @@ const D = await mod('drills.js');
 const data = await mod('data.js');
 const { customTopicMessages } = await mod('customtopics.js');
 
-if (!process.env.DEEPSEEK_KEY) { console.error('Falta DEEPSEEK_KEY'); process.exit(2); }
-store.update(s => { s.settings.apiKey = process.env.DEEPSEEK_KEY; s.rank = 2; s.interests = ['Cooking', 'Soccer']; });
+if (!process.env.DEEPSEEK_KEY && !process.env.GROQ_KEY) { console.error('Falta GROQ_KEY o DEEPSEEK_KEY'); process.exit(2); }
+store.update(s => {
+  s.settings.apiKey = process.env.DEEPSEEK_KEY || '';
+  s.settings.groqKey = process.env.GROQ_KEY || '';
+  if (process.env.GROQ_MODEL) s.settings.groqModel = process.env.GROQ_MODEL;
+  s.rank = 2; s.interests = ['Cooking', 'Soccer'];
+});
 
 const results = [];
 const short = v => JSON.stringify(v).slice(0, 420);
@@ -40,8 +47,10 @@ async function run(name, fn, check) {
 const need = (o, keys) => keys.filter(k => o?.[k] == null || o[k] === '').map(k => `falta «${k}»`);
 
 // 0. Conexión y modelo configurado
-const models = await run('conexión y modelos', () => testConnection(), m => (Array.isArray(m) && m.length ? [] : ['sin modelos']));
-const model = store.get().settings.model;
+const groq = !!process.env.GROQ_KEY;
+const models = await run('conexión y modelos', () => (groq ? testConnection('groq', process.env.GROQ_KEY) : testConnection('deepseek', process.env.DEEPSEEK_KEY)),
+  m => (Array.isArray(m) && m.length ? [] : ['sin modelos']));
+const model = groq ? store.get().settings.groqModel : store.get().settings.model;
 if (models && !models.includes(model)) console.log(`\n⚠ El modelo configurado «${model}» no está en la lista: ${models.join(', ')}`);
 
 // 1. Charla: apertura, respuesta, análisis, despedida
@@ -92,7 +101,7 @@ const chk = (name, args, expect) => run(`drill_check: ${name}`, () => chatJson('
 await chk('otra forma correcta', { mode: 'skeleton', frame: how.frame, es: '¿Qué tal si comemos pizza el viernes?', target: 'How about having pizza on Friday?', attempt: 'how about eating pizza on friday' }, ['correct']);
 await chk('error de tiempo', { mode: 'juggle', base: 'I take the bus to work.', es: 'Ayer tomé el bus para ir al trabajo.', target: 'I took the bus to work yesterday.', attempt: 'I take the bus to work yesterday' }, ['almost', 'wrong']);
 await chk('no dice lo pedido', { mode: 'skeleton', frame: how.frame, es: '¿Qué tal si nos vemos mañana?', target: 'How about meeting tomorrow?', attempt: 'I like pizza' }, ['wrong']);
-await chk('juggle libre bien hecho', { mode: 'juggle', base: "I'm really into cooking.", attempt: "I used to be really into soccer" }, ['correct', 'almost']);
+await chk('juggle libre bien hecho', { mode: 'juggle', base: "I'm really into cooking.", attempt: "I'm really into soccer" }, ['correct', 'almost']);
 await chk('esqueleto libre con error', { mode: 'skeleton', frame: wish.frame, attempt: 'I wish I could to travel more' }, ['almost', 'wrong']);
 
 // Gramática por piezas (método de Pablo Bolen): ejercicios nuevos de una lección y «Su frase».
@@ -107,4 +116,6 @@ const ok = results.filter(r => r.ok).length;
 console.log(`\n==== ${ok}/${results.length} bien · ${Math.round(results.reduce((a, r) => a + r.ms, 0) / 1000)} s en total`);
 const u = store.get().usage;
 if (u) console.log(`Tokens: ${u.input} de entrada, ${u.output} de salida, ${u.calls} llamadas`);
+const day = store.get().usageDay;
+if (day) console.log(`Por proveedor: Groq ${day.groq.calls} llamadas · DeepSeek ${day.deepseek.calls} llamadas · pausas de Groq: ${JSON.stringify(store.get().groqPause || {})}`);
 for (const r of results.filter(r => !r.ok)) console.log(`  ✖ ${r.name}: ${r.problems.join('; ')}`);

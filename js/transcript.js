@@ -43,7 +43,7 @@ export function openTranscript(entries, { character, learnerName, title, date } 
       tr.classList.remove('hidden');
       if (!translations.has(e.text)) {
         tr.textContent = '…';
-        try { translations.set(e.text, (await chatJson('translate', P.translateMessages(e.text), { temperature: 0.2, maxTokens: 200 })).translation); }
+        try { translations.set(e.text, (await chatJson('translate', P.translateMessages(e.text), { temperature: 0.2, maxTokens: 200, cache: true })).translation); }
         catch (err) { tr.textContent = err.message; return; }
       }
       tr.textContent = translations.get(e.text);

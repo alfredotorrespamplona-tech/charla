@@ -1,6 +1,6 @@
 // Explorador de palabras (ExploreWord) y vocabulario guardado (Bookmarks).
 import * as store from './store.js';
-import { chatJson } from './llm.js';
+import { chatJson, hasAI } from './llm.js';
 import * as P from './prompts.js';
 import { speak } from './speech.js';
 import { h, sheet, toast, spinner, setText } from './ui.js';
@@ -10,7 +10,6 @@ import { levelSettings } from './data.js';
 
 const CATEGORY_ES = { Noun: 'sustantivo', Verb: 'verbo', Adjective: 'adjetivo', Adverb: 'adverbio', Pronoun: 'pronombre', Preposition: 'preposición', Conjunction: 'conjunción', Determiner: 'determinante', Interjection: 'interjección', Phrase: 'frase', Other: 'otro' };
 
-const cache = new Map();
 const FORMALITY_ES = { informal: 'informal', neutral: 'neutra', formal: 'formal' };
 const USEFUL_ES = { high: 'muy útil', medium: 'útil', low: 'poco común' };
 
@@ -24,14 +23,53 @@ function wordChips(w) {
   return chips.length ? h('div.word-chips', {}, chips) : null;
 }
 
-export async function openWordExplorer(word, context) {
+// Formas de una palabra para buscarla en la lista: works → work, worked → work, making → make…
+export function wordForms(word) {
+  const w = String(word || '').toLowerCase().replace(/[’]/g, "'").replace(/[^a-z'-]/g, '');
+  const out = [w];
+  const add = x => { if (x && x.length > 1 && !out.includes(x)) out.push(x); };
+  if (w.endsWith("'s")) add(w.slice(0, -2));
+  if (w.endsWith('ies')) add(w.slice(0, -3) + 'y');
+  if (w.endsWith('es')) add(w.slice(0, -2));
+  if (w.endsWith('s')) add(w.slice(0, -1));
+  if (w.endsWith('ied')) add(w.slice(0, -3) + 'y');
+  if (w.endsWith('ed')) { add(w.slice(0, -2)); add(w.slice(0, -1)); if (/(.)\1ed$/.test(w)) add(w.slice(0, -3)); }
+  if (w.endsWith('ing')) { add(w.slice(0, -3)); add(w.slice(0, -3) + 'e'); if (/(.)\1ing$/.test(w)) add(w.slice(0, -4)); }
+  return out;
+}
+
+const MIL_CATEGORY = { 'sus.': 'Noun', 'v.': 'Verb', 'adj.': 'Adjective', 'adv.': 'Adverb', 'pron.': 'Pronoun', 'prep.': 'Preposition', 'conj.': 'Conjunction', 'interj.': 'Interjection' };
+
+// La palabra sin IA: primero sus palabras guardadas y luego las Mil palabras (con sus formas irregulares).
+// rows = MIL_WORDS ([rank, palabra, significado, formas, frase, traducción]).
+export function localWord(word, rows = [], vocab = store.get().vocab || []) {
+  const forms = wordForms(word);
+  if (!forms[0]) return null;
+  const saved = vocab.find(v => v.translation && forms.includes(String(v.text || '').toLowerCase()));
+  if (saved) return { word: saved.text, translation: saved.translation, definition: saved.definition || '', phonetic: saved.phonetic || '',
+    category: saved.type || '', example: saved.example || '', level: saved.level || '', formality: saved.formality || '', local: 'saved' };
+  const row = rows.find(r => forms.includes(r[1].toLowerCase()))
+    || rows.find(r => r[3] && r[3].toLowerCase().split(/\s*,\s*/).some(f => forms.includes(f)));
+  if (!row) return null;
+  const tag = (/^\((\w+\.)\)/.exec(row[2]) || [])[1];
+  const meaning = row[2].replace(/\(\w+\.\)\s*/g, '').replace(/\.;\s*/g, '; ').replace(/\.$/, '');
+  return { word: row[1], translation: meaning, definition: '', phonetic: '', category: MIL_CATEGORY[tag] || '',
+    example: row[4], exampleEs: row[5], conjugation: row[3] ? `${row[1]} → ${row[3]}` : '', level: row[0] <= 300 ? 'A1' : row[0] <= 600 ? 'A2' : 'B1',
+    rank: row[0], local: 'mil' };
+}
+
+export async function openWordExplorer(word, context, { ai = false } = {}) {
   if (!word) return;
   const panel = sheet(h('div', {}, spinner('Buscando «' + word + '»…')));
   const body = panel.lastChild;
   try {
-    const key = word.toLowerCase() + '|' + context;
-    const w = cache.get(key) || await chatJson('word', P.wordMessages(word, context), { temperature: 0.2, maxTokens: 300 });
-    cache.set(key, w);
+    // Sin gastar: si la palabra ya está guardada o es de las Mil palabras, se muestra eso. La IA solo si la pide.
+    let w = null;
+    if (!ai) {
+      const { MIL_WORDS } = await import('./milwords.js');
+      w = localWord(word, MIL_WORDS);
+    }
+    if (!w) w = await chatJson('word', P.wordMessages(word, context), { temperature: 0.2, maxTokens: 300, cache: true });
     body.innerHTML = '';
     const existing = findVocab(w.word || word);
     const saveBtn = h('button.primary', {
@@ -50,8 +88,11 @@ export async function openWordExplorer(word, context) {
       h('p', {}, w.definition || ''),
       w.example ? h('p.example', {}, '“' + w.example + '” ', h('button.tiny', { onclick: () => speak(w.example, { rate: 0.9 }) }, '🔊'),
         ' ', h('button.tiny', { onclick: () => practicePronunciation(w.example) }, '🎤')) : null,
+      w.exampleEs ? h('p.muted', {}, w.exampleEs) : null,
       w.conjugation ? h('p.muted', {}, 'Conjugación: ' + w.conjugation) : null,
-      saveBtn].filter(Boolean));
+      saveBtn,
+      w.local ? h('p.muted', {}, w.local === 'saved' ? 'De sus palabras guardadas (sin gastar IA).' : `De las 1000 palabras más usadas, n.º ${w.rank} (sin gastar IA).`) : null,
+      w.local && hasAI() ? h('button.small', { onclick: () => openWordExplorer(word, context, { ai: true }) }, '🤖 Ver qué significa en esta frase (con IA)') : null].filter(Boolean));
   } catch (e) {
     body.innerHTML = '';
     body.appendChild(h('p', {}, e.message));

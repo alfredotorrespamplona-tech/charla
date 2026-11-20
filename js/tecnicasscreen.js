@@ -3,7 +3,7 @@
 // cuéntelo de otra persona, ida y vuelta, mis frases (islas de lenguaje con STAR) y el simulacro con imprevisto.
 // Casi todo funciona sin IA (voz del teléfono + revisión local); la IA solo pasa sus frases a inglés y revisa el minuto.
 import * as store from './store.js';
-import { chatJson } from './llm.js';
+import { chatJson, hasAI as aiReady } from './llm.js';
 import * as P from './prompts.js';
 import { h, mount, toast, progressBar, setText, buzz, spinner } from './ui.js';
 import { speak, stopSpeaking, Listener, canListen } from './speech.js';
@@ -12,7 +12,7 @@ import { addVocab } from './words.js';
 import * as X from './tecnicas.js';
 
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false));
-const hasAI = () => !!store.get().settings.apiKey?.trim();
+const hasAI = () => aiReady();
 const say = (t, rate = 0.9) => speak(t, { rate });
 const pct = x => `${Math.round(x * 100)} %`;
 const tec = () => store.get().tecnicas;
@@ -627,7 +627,7 @@ function runJam(topic, back) {
         h('p.muted', {}, 'Para seguir: grábese diciendo el minuto una cuarta vez y escúchese en unas semanas. Notará el avance.')),
       measured.length ? h('div.card', {}, statsTable(measured)) : null,
       hasAI() && lastText ? h('button.primary.wide', { onclick: e => aiFeedback(e.currentTarget) }, '🧑‍🏫 Que la IA revise lo que dije') : null,
-      !hasAI() ? h('p.muted', {}, 'Con su clave de DeepSeek, la IA le dice qué decir mejor y le da una versión natural para practicar.') : null,
+      !hasAI() ? h('p.muted', {}, 'Con su clave de IA, la IA le dice qué decir mejor y le da una versión natural para practicar.') : null,
       ai,
       h('button.wide', { onclick: () => runJam(topic, back) }, 'Otra vez con este tema'),
       h('button.wide', { onclick: back }, 'Otro tema'));
@@ -1096,7 +1096,7 @@ function islandScreen(island, go, back) {
     const es = h('input', { placeholder: 'En español', autocomplete: 'off' });
     const en = h('input', { placeholder: 'En inglés', autocomplete: 'off', autocapitalize: 'sentences' });
     return h('div.card', {}, h('b', {}, 'Agregar una frase a mano'),
-      h('p.muted', {}, 'Sin clave de DeepSeek, escriba usted las dos versiones (o pídasela a alguien que sepa).'),
+      h('p.muted', {}, 'Sin clave de IA, escriba usted las dos versiones (o pídasela a alguien que sepa).'),
       es, en, h('button.wide', { onclick: () => {
         if (!es.value.trim() || !en.value.trim()) return toast('Escriba las dos versiones', 'bad');
         store.update(s => { s.tecnicas.islas = X.addIslandItems(s.tecnicas.islas, island.id, [{ es: es.value.trim(), en: en.value.trim() }]); });
@@ -1110,7 +1110,7 @@ function islandScreen(island, go, back) {
     return h('div.card.tec-star', {}, h('b', {}, '⭐ Una historia con STAR'),
       h('p.muted', {}, 'Para no quedarse en blanco con «Cuénteme de una vez que…». Escriba una historia real suya en español, en 4 partes; le sirve para varias preguntas.'),
       X.STAR.map((p, k) => h('div.tec-star-part', {}, h('b', {}, `${p.key} · ${p.name}`), parts[k])),
-      hasAI() ? btn : h('p.muted', {}, 'Con su clave de DeepSeek, la IA arma la respuesta en inglés.'));
+      hasAI() ? btn : h('p.muted', {}, 'Con su clave de IA, la IA arma la respuesta en inglés.'));
   })() : null;
 
   const write = hasAI() ? (() => {
@@ -1146,7 +1146,7 @@ function simScreen(go, back, place = null) {
     topbar('🎲 Simulacro con imprevisto', back),
     h('p', {}, 'Charle normal con la IA. En algún momento pasará algo que no espera: no le decimos qué. Resuélvalo en inglés, con calma.'),
     h('p.muted', {}, 'Si se bloquea: «Sorry, could you say that again?» o «Let me think for a moment» le dan tiempo.'),
-    hasAI() ? null : h('p.warn', {}, '⚠ Necesita su clave de DeepSeek (Ajustes).'),
+    hasAI() ? null : h('p.warn', {}, '⚠ Necesita su clave de IA (Ajustes).'),
     h('div.packs', {}, list.map(sim => h('button.pack', { disabled: hasAI() ? null : true, onclick: () => {
       record('imprevisto');
       go.startSim(sim.place, X.simMission(sim), back);

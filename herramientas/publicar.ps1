@@ -7,7 +7,7 @@
 #   1. Trae los cambios del cerebro de inglés (bitácora, frases, verbos) a js/cerebro.js.
 #   2. Corre las pruebas; si alguna falla, se detiene y no guarda nada.
 #   3. Sube el número de CACHE en sw.js para que los teléfonos descarguen la versión nueva.
-#   4. Revisa que ningún archivo tenga una clave de DeepSeek (sk-...).
+#   4. Revisa que ningún archivo tenga una clave de IA (sk-... de DeepSeek o gsk_... de Groq).
 #   5. Guarda la versión en git (commit).
 #   6. La sube a GitHub solo si el repositorio ya está conectado (git remote); si no, lo avisa.
 param(
@@ -65,10 +65,10 @@ if ($LASTEXITCODE -eq 0) {
 # 4. Ninguna clave en los archivos que se van a guardar
 Write-Paso 'Revisando que no haya claves'
 $archivos = git ls-files --cached --others --exclude-standard | Where-Object { $_ -match '\.(js|mjs|json|html|md|py|ps1|txt|css)$' }
-$fugas = $archivos | Where-Object { Test-Path $_ } | Select-String -Pattern 'sk-[A-Za-z0-9]{20,}' -List
+$fugas = $archivos | Where-Object { Test-Path $_ } | Select-String -Pattern 'sk-[A-Za-z0-9]{20,}', 'gsk_[A-Za-z0-9]{20,}' -List
 if ($fugas) {
   $fugas | ForEach-Object { Write-Host "  $($_.Path):$($_.LineNumber)" }
-  Stop-Publicar 'Hay una clave de DeepSeek en esos archivos. Borrela antes de publicar.'
+  Stop-Publicar 'Hay una clave de IA (DeepSeek o Groq) en esos archivos. Borrela antes de publicar.'
 }
 
 # 5. Commit

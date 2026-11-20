@@ -2,7 +2,7 @@
 // la práctica de opción múltiple, el examen del nivel y el paso a una charla enfocada en el tema.
 // El contenido y la lógica están en temario.js.
 import * as store from './store.js';
-import { chatJson } from './llm.js';
+import { chatJson, hasAI as aiReady } from './llm.js';
 import * as P from './prompts.js';
 import { h, mount, toast, progressBar, setText, buzz, sheet, spinner } from './ui.js';
 import { speak, stopSpeaking, Listener, canListen } from './speech.js';
@@ -14,7 +14,7 @@ import { openLesson } from './grammarscreen.js';
 
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false));
 const say = (t, rate = 0.9) => speak(t, { rate });
-const hasAI = () => !!store.get().settings.apiKey?.trim();
+const hasAI = () => aiReady();
 const pct = x => `${Math.round(x * 100)} %`;
 const listen = (text, label = 'Escuchar') => h('button.tiny', { 'aria-label': label, onclick: () => say(text) }, '🔊');
 // La frase con el hueco marcado.
@@ -82,7 +82,7 @@ export function topicScreen(topic, { back, startChat }) {
     h('button.wide', { onclick: () => runSay({ topic, back: again, startChat }) }, `🎤 Dígalo usted (${T.SAY_SIZE} frases)`),
     h('button.wide', { onclick: () => startChat(T.practiceMission(topic)) }, '🗣 Charlar usando esto'),
     lesson ? h('button.wide', { onclick: () => openLesson(lesson, again) }, `🧩 Rompecabezas: ${lesson.title}`) : null,
-    hasAI() ? more : h('p.muted', {}, 'Con su clave de DeepSeek puede pedir más preguntas de este tema.'),
+    hasAI() ? more : h('p.muted', {}, 'Con su clave de IA puede pedir más preguntas de este tema.'),
     h('div.row.topic-nav', {},
       prev ? h('button.small', { onclick: () => topicScreen(prev, { back, startChat }) }, `← ${prev.title.split(' → ')[0]}`) : h('span'),
       next ? h('button.small', { onclick: () => topicScreen(next, { back, startChat }) }, `${next.title.split(' → ')[0]} →`) : h('span'))));
@@ -105,7 +105,7 @@ async function explainMore(q, { chosen = '', said = '' } = {}) {
   sheet(box);
   try {
     const r = await chatJson('explain', P.explainMessages({ original: said || q.en.replace('___', chosen), corrected: q.full,
-      explanation: T.explain(q, chosen), meant: q.es }), { temperature: 0.3, maxTokens: 500 });
+      explanation: T.explain(q, chosen), meant: q.es }), { temperature: 0.3, maxTokens: 500, cache: true });
     box.lastChild.remove();
     box.append(
       h('p', {}, 'Lo que quería decir: ', h('b', {}, r.es || q.es)),

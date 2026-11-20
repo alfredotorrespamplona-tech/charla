@@ -2,7 +2,7 @@
 // y ejercicios nuevos creados por la IA desde cualquier frase (también las corregidas en las charlas).
 // El contenido y la revisión sin IA están en drills.js.
 import * as store from './store.js';
-import { chatJson } from './llm.js';
+import { chatJson, hasAI as aiReady } from './llm.js';
 import * as P from './prompts.js';
 import { h, mount, sheet, closeSheet, toast, spinner, progressBar, setText, buzz } from './ui.js';
 import { Listener, speak, stopSpeaking, canListen } from './speech.js';
@@ -11,7 +11,7 @@ import { addVocab } from './words.js';
 import * as D from './drills.js';
 
 const drills = () => store.get().drills || { done: {}, mine: [], inbox: [] };
-const hasAI = () => !!store.get().settings.apiKey?.trim();
+const hasAI = () => aiReady();
 const say = t => speak(D.plain(t), { rate: 0.9 });
 // Como replaceChildren, pero salta los vacíos (null/false) igual que h().
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false));
@@ -112,7 +112,7 @@ function createCard(kind, back) {
   const inbox = drills().inbox;
   return h('div.card.create-drill', {},
     h('b', {}, kind === 'juggle' ? '✨ Su propio Repeat and Juggle' : '✨ Su propio esqueleto'),
-    h('p.muted', {}, 'Escriba una frase en inglés (o una idea en español) y DeepSeek arma el ejercicio.'),
+    h('p.muted', {}, 'Escriba una frase en inglés (o una idea en español) y la IA arma el ejercicio.'),
     inbox.length ? h('p.muted', {}, `Tiene ${inbox.length} ${inbox.length === 1 ? 'frase guardada' : 'frases guardadas'} desde sus charlas.`) : null,
     h('button.primary.wide', { onclick: () => openCreate(kind, back) }, '✨ Crear desde una frase'));
 }
@@ -136,9 +136,9 @@ export function openCreate(kind, back, initial = '') {
   async function create() {
     const text = input.value.trim();
     if (!text) { input.focus(); return; }
-    if (!hasAI()) { toast('Para crear ejercicios necesita la clave de DeepSeek (Ajustes).', 'bad'); return; }
+    if (!hasAI()) { toast('Para crear ejercicios necesita la clave de IA (Ajustes).', 'bad'); return; }
     go.disabled = true;
-    fill(status, spinner('DeepSeek está armando el ejercicio…'));
+    fill(status, spinner('La IA está armando el ejercicio…'));
     try {
       const st = store.get();
       const r = kind === 'juggle'
@@ -349,9 +349,9 @@ function runDrill({ x, kind, back, steps }) {
   // Skeleton: DeepSeek inventa 3 cambios nuevos (según sus intereses) y se practican al momento.
   async function moreSwaps() {
     if (more) return;
-    if (!hasAI()) { toast('Para crear cambios nuevos necesita la clave de DeepSeek (Ajustes).', 'bad'); return; }
+    if (!hasAI()) { toast('Para crear cambios nuevos necesita la clave de IA (Ajustes).', 'bad'); return; }
     more = true;
-    screen.append(spinner('DeepSeek está creando cambios nuevos…'));
+    screen.append(spinner('La IA está creando cambios nuevos…'));
     try {
       const st = store.get();
       const r = await chatJson('skeleton_more', P.skeletonMoreMessages(x, st.rank, st.interests || [], x.swaps.map(s => s.en)), { temperature: 0.8, maxTokens: 500 });

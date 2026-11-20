@@ -25,7 +25,7 @@ export function alignHints(tokens, hints) {
 export function getHints(text) {
   if (!cache.has(text)) {
     const tokens = tokenize(text);
-    const p = chatJson('pronunciation_hint', P.pronunciationHintMessages(tokens), { temperature: 0.1, maxTokens: 60 + tokens.length * 14 })
+    const p = chatJson('pronunciation_hint', P.pronunciationHintMessages(tokens), { temperature: 0.1, maxTokens: 60 + tokens.length * 14, cache: true })
       .then(r => alignHints(tokens, r.hints))
       .catch(e => { cache.delete(text); throw e; });
     cache.set(text, p);

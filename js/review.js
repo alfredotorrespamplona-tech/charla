@@ -49,6 +49,31 @@ export function validCard(c) {
   return !!c.sentence && c.sentence.split('{{gap}}').length === 2 && Array.isArray(c.options);
 }
 
+// Tarjeta sin IA para algo guardado de las charlas (hace falta su traducción).
+// pool = { en: [palabras en inglés], es: [significados] } para las opciones falsas (otras guardadas y las Mil palabras).
+// Completar necesita una frase de ejemplo que contenga la palabra; si no hay, se pregunta el significado.
+const escRe = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export function localCard(v, family, pool = { en: [], es: [] }, rnd = Math.random) {
+  const text = String(v.text || '').trim();
+  const tr = String(v.translation || '').trim();
+  if (!text || !tr) return null;
+  const pick = (list, not) => [...new Set(list)].filter(x => x && x.toLowerCase() !== not.toLowerCase())
+    .map(x => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 3).map(x => x[1]);
+  const re = new RegExp(`\\b${escRe(text)}\\b`, 'i');
+  const example = [v.example, v.context].find(x => x && re.test(x));
+  if (family === 'completion' && example) {
+    const options = pick(pool.en, text);
+    if (options.length >= 2) return { item: text, family, sentence: example.replace(re, '{{gap}}'), answer: text, options, hint: tr, translation: '', local: true };
+  }
+  if (family !== 'recall') {
+    const options = pick(pool.es, tr);
+    if (options.length >= 2) return { item: text, family: 'meaning', sentence: example || text, answer: tr, options, translation: '', local: true };
+  }
+  const words = text.split(/\s+/);
+  const first = words[0].length <= 2 && words[1] ? `${words[0]} ${words[1]}` : words[0];
+  return { item: text, family: 'recall', prompt: tr, answer: text, hint: words.length > 1 ? `Empieza con «${first}…»` : `Empieza con «${text[0]}…»`, local: true };
+}
+
 // ¿Lo que dijo usa la palabra repasada? (todas o casi todas sus palabras, en orden)
 export function recallOk(item, said) {
   return compareWords(item, said).score >= 80;
@@ -75,9 +100,18 @@ export async function review({ home, only = null, extra = false, onDone = null }
   if (!items.length) { screen.append(caughtUp(s, home)); return; }
   const body = h('div');
   screen.append(body);
-  // Frases esenciales: tarjetas locales. Lo guardado de las charlas: tarjetas de la IA con su contexto.
-  const local = items.filter(v => v.coreId).map(v => ({ ...coreCard(v, v.family), vocab: v })).filter(c => validCard(c));
-  const forAi = items.filter(v => !v.coreId || !local.some(c => c.vocab.id === v.id));
+  // Frases esenciales: tarjetas locales. Lo guardado de las charlas también, si tiene traducción (sin gastar IA);
+  // solo lo que no tiene traducción se le pide a la IA.
+  const core = items.filter(v => v.coreId).map(v => ({ ...coreCard(v, v.family), vocab: v })).filter(c => validCard(c));
+  const { MIL_WORDS } = await import('./milwords.js');
+  const pool = {
+    en: [...s.vocab.map(v => v.text), ...MIL_WORDS.map(r => r[1])],
+    es: [...s.vocab.map(v => v.translation), ...MIL_WORDS.map(r => r[2].replace(/\(\w+\.\)\s*/g, '').split(/[.;]/)[0].trim())],
+  };
+  const own = items.filter(v => !core.some(c => c.vocab.id === v.id))
+    .map(v => { const c = localCard(v, v.family, pool); return c && { ...c, vocab: v }; }).filter(c => c && validCard(c));
+  const local = [...core, ...own];
+  const forAi = items.filter(v => !local.some(c => c.vocab.id === v.id));
   let cards = local;
   if (forAi.length) {
     body.append(spinner('Preparando su repaso personal…'));

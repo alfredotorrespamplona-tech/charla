@@ -21,9 +21,11 @@ const DEFAULT = {
   onboarded: false,
   name: '',
   settings: {
-    apiKey: '',
+    apiKey: '',              // clave de DeepSeek (de pago): respaldo cuando Groq llega a su límite
     baseUrl: 'https://api.deepseek.com',
     model: 'deepseek-flash',
+    groqKey: '',             // clave de Groq (gratis, con límite por minuto y por día): se usa primero
+    groqModel: 'openai/gpt-oss-120b',
     targetLang: 'en-US',
     voiceURI: '',
     voiceEngine: 'phone',    // 'phone' (voz del sistema, inmediata) o 'natural' (Kokoro, más bonita pero lenta)
@@ -61,6 +63,8 @@ const DEFAULT = {
   myErrors: [],            // bitácora del teléfono: errores de las charlas (se copian al cerebro en el PC)
   errorStatus: {},         // id de un error del cerebro -> 'resuelto' marcado desde el teléfono
   usageMonth: null,        // { month: 'AAAA-MM', usd, calls, warned } gasto del mes para el tope
+  usageDay: null,          // { date, groq: {calls, tokens}, deepseek: {calls, tokens} } uso de hoy por proveedor
+  groqPause: {},           // modelo de Groq -> hasta cuándo (ms) no se usa porque llegó a su límite
   backup: { last: 0, snoozeUntil: 0 }, // última copia de seguridad y «más tarde»
   storagePersisted: null,  // el navegador prometió no borrar los datos (navigator.storage.persist)
   inbox: [],               // mensajes de los personajes
@@ -133,10 +137,11 @@ export function update(fn) { fn(state); save(); }
 
 export function reset() { state = structuredClone(DEFAULT); save(); }
 
-// Copia de seguridad SIN la clave de DeepSeek: el archivo puede terminar en Drive, WhatsApp o el correo.
+// Copia de seguridad SIN las claves de la IA: el archivo puede terminar en Drive, WhatsApp o el correo.
 export function exportJson() {
   const copy = structuredClone(state);
   copy.settings.apiKey = '';
+  copy.settings.groqKey = '';
   copy.backupOf = new Date().toISOString();
   return JSON.stringify(copy, null, 2);
 }
@@ -145,9 +150,10 @@ export function exportJson() {
 export function importJson(text) {
   const s = JSON.parse(text);
   if (!s || typeof s !== 'object' || !('settings' in s)) throw new Error('No es un respaldo de Charla');
-  const key = state.settings.apiKey;
+  const { apiKey, groqKey } = state.settings;
   state = merge(s);
-  if (!state.settings.apiKey) state.settings.apiKey = key;
+  if (!state.settings.apiKey) state.settings.apiKey = apiKey;
+  if (!state.settings.groqKey) state.settings.groqKey = groqKey;
   delete state.backupOf;
   save();
 }

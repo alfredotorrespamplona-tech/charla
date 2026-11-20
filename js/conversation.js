@@ -170,7 +170,7 @@ export function startConversation({ place, character, mission, onFinish, onExit,
       if (!tr.classList.contains('hidden')) { tr.classList.add('hidden'); return; }
       tr.classList.remove('hidden');
       tr.textContent = '…';
-      try { tr.textContent = (await chatJson('translate', P.translateMessages(full), { temperature: 0.2, maxTokens: 200 })).translation; }
+      try { tr.textContent = (await chatJson('translate', P.translateMessages(full), { temperature: 0.2, maxTokens: 200, cache: true })).translation; }
       catch (e) { tr.textContent = e.message; }
     };
     const stopTimers = () => { clearInterval(wordTimer); wordTimer = null; segTimers.forEach(clearTimeout); segTimers = []; };
@@ -292,7 +292,7 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     const box = h('div', {}, h('h3', {}, '🧩 Pieza por pieza'), spinner('Armando la explicación…'));
     sheet(box);
     try {
-      const r = await chatJson('explain', P.explainMessages({ original, corrected: a.corrected, explanation: a.explanation }), { temperature: 0.3, maxTokens: 500 });
+      const r = await chatJson('explain', P.explainMessages({ original, corrected: a.corrected, explanation: a.explanation }), { temperature: 0.3, maxTokens: 500, cache: true });
       box.lastChild.remove();
       box.append(
         h('p', {}, 'Lo que quería decir: ', h('b', {}, r.es || '')),

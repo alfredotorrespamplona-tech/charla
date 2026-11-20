@@ -8,7 +8,7 @@ import { checkForUpdate } from './update.js';
 import { levelStudy, levelContent } from './levelscreen.js';
 import { shortVersion } from './version.js';
 import { startConversation } from './conversation.js';
-import { chatJson, testConnection } from './llm.js';
+import { chatJson, testConnection, hasAI, GROQ_MODELS, groqBlockedUntil, hourText } from './llm.js';
 import * as P from './prompts.js';
 import * as scoring from './scoring.js';
 import { addVocab, tierBadge, practiceVocab } from './words.js';
@@ -46,22 +46,22 @@ import { NATURAL_VOICES, loadNatural, disableNatural, naturalStatus, onNaturalSt
 // ---------------- Bienvenida ----------------
 function onboarding() {
   const s = store.get();
-  const data = { name: s.name, rank: s.rank, apiKey: s.settings.apiKey };
+  const data = { name: s.name, rank: s.rank, apiKey: s.settings.groqKey || s.settings.apiKey };
   const plan = planEditor(s);
   const nameIn = h('input', { value: data.name, placeholder: 'Su nombre o apodo' });
-  const keyIn = h('input', { value: data.apiKey, placeholder: 'sk-… (o escriba demo)', type: 'password', autocomplete: 'off' });
+  const keyIn = h('input', { value: data.apiKey, placeholder: 'gsk_… o sk-… (o escriba demo)', type: 'password', autocomplete: 'off' });
   const levels = h('div.choices', {}, SELF_ASSESSMENT.map(a =>
     h('button.choice', { class: data.rank === a.rank ? 'sel' : '', onclick: e => { data.rank = a.rank; [...levels.children].forEach(c => c.classList.remove('sel')); e.currentTarget.classList.add('sel'); } }, a.label)));
 
   mount(h('div.screen.onboarding', {},
     h('h1', {}, h('img.logo', { src: 'icon.svg', alt: '' }), 'Charla'),
-    h('p', {}, 'Practique inglés hablando con personajes en lugares reales. La IA es DeepSeek y la voz es la de su teléfono.'),
+    h('p', {}, 'Practique inglés hablando con personajes en lugares reales. La IA es Groq (gratis) o DeepSeek, y la voz es la de su teléfono.'),
     h('label', {}, '¿Cómo le llamamos?'), nameIn,
     h('label', {}, '¿Qué tanto inglés sabe?'), levels,
     h('p.muted', {}, 'Es solo un punto de partida: con su primera charla ajustamos el nivel.'),
     h('h3', {}, 'Su plan'), plan.el,
-    h('label', {}, 'Clave de API de DeepSeek'), keyIn,
-    h('p.muted', {}, 'Se guarda solo en este teléfono. Escriba «demo» para probar sin gastar.'),
+    h('label', {}, 'Clave de la IA: Groq (gratis, empieza con gsk_) o DeepSeek (sk-)'), keyIn,
+    h('p.muted', {}, 'Se guarda solo en este teléfono. Puede poner la otra después en Ajustes: se usa Groq primero y DeepSeek cuando Groq llega a su límite. Escriba «demo» para probar sin gastar.'),
     h('button.primary.wide', {
       onclick: () => {
         store.update(st => {
@@ -72,7 +72,8 @@ function onboarding() {
           st.levelCustom = {};
           st.placementPending = true;
           plan.apply(st);
-          st.settings.apiKey = keyIn.value.trim();
+          const k = keyIn.value.trim();
+          if (/^gsk_/i.test(k)) st.settings.groqKey = k; else st.settings.apiKey = k;
           st.onboarded = true;
         });
         home();
@@ -186,7 +187,7 @@ export function home() {
     last.length ? h('div.section-head', {}, h('h2', {}, 'Últimas charlas'),
       s.history.length > 3 ? h('button.link', { onclick: () => historyScreen() }, `Ver todas (${s.history.length})`) : null) : null,
     h('div.history', {}, last.map(historyRow)),
-    !s.settings.apiKey ? h('p.warn', {}, '⚠️ Falta la clave de DeepSeek: vaya a Ajustes.') : null));
+    !hasAI(s.settings) ? h('p.warn', {}, '⚠️ Falta su clave de IA (Groq gratis o DeepSeek): vaya a Ajustes.') : null));
 }
 
 // Etiqueta corta del mazo de mil palabras para el inicio.
@@ -740,20 +741,38 @@ const review = () => startReview({ home });
 function settings({ back = home } = {}) {
   const again = () => settings({ back });
   const s = store.get();
-  const key = h('input', { value: s.settings.apiKey, type: 'password', autocomplete: 'off' });
+  const key = h('input', { value: s.settings.apiKey, type: 'password', autocomplete: 'off', placeholder: 'sk-…' });
+  const groqKey = h('input', { value: s.settings.groqKey || '', type: 'password', autocomplete: 'off', placeholder: 'gsk_…' });
+  const groqModels = [...new Set([s.settings.groqModel || GROQ_MODELS[0], ...GROQ_MODELS])];
+  const groqModel = h('select', {}, groqModels.map(m => h('option', { value: m, selected: m === (s.settings.groqModel || GROQ_MODELS[0]) },
+    m === GROQ_MODELS[0] ? `${m} (el que mejor corrige)` : m)));
+  const groqOut = h('p.muted', {}, '');
+  const groqTest = h('button.small', {
+    onclick: async () => {
+      groqTest.disabled = true;
+      groqOut.className = 'muted';
+      groqOut.textContent = 'Probando…';
+      try {
+        const ids = await testConnection('groq', groqKey.value);
+        groqOut.className = 'good';
+        setText(groqOut, '✅ Conexión correcta. Modelos: ' + (ids.join(', ') || '—'));
+      } catch (e) {
+        groqOut.className = 'bad';
+        setText(groqOut, '❌ ' + e.message);
+      } finally { groqTest.disabled = false; }
+    },
+  }, '🔌 Probar Groq');
   const modelList = h('datalist', { id: 'model-list' });
   const model = h('input', { value: s.settings.model, list: 'model-list', autocomplete: 'off' });
   const connOut = h('p.muted', {}, '');
   const testBtn = h('button.small', {
     onclick: async () => {
       // Probar con lo que está escrito ahora (aunque no se haya guardado).
-      const prev = { ...store.get().settings };
-      Object.assign(store.get().settings, { apiKey: key.value.trim(), baseUrl: baseUrl.value.trim() || 'https://api.deepseek.com' });
       testBtn.disabled = true;
       connOut.className = 'muted';
       connOut.textContent = 'Probando…';
       try {
-        const ids = await testConnection();
+        const ids = await testConnection('deepseek', key.value, baseUrl.value.trim());
         modelList.innerHTML = '';
         ids.forEach(id => modelList.appendChild(h('option', { value: id })));
         connOut.className = 'good';
@@ -762,11 +781,10 @@ function settings({ back = home } = {}) {
         connOut.className = 'bad';
         setText(connOut, '❌ ' + e.message);
       } finally {
-        Object.assign(store.get().settings, prev);
         testBtn.disabled = false;
       }
     },
-  }, '🔌 Probar conexión');
+  }, '🔌 Probar DeepSeek');
   const baseUrl = h('input', { value: s.settings.baseUrl });
   const levelEd = levelEditor(s);
   const plan = planEditor(s);
@@ -828,11 +846,17 @@ function settings({ back = home } = {}) {
 
   mount(h('div.screen.settings', {},
     h('div.topbar', {}, h('button.icon', { 'aria-label': 'Volver', onclick: () => back() }, '←'), h('h2', {}, '⚙️ Ajustes')),
-    h('label', {}, 'Clave de API de DeepSeek'), key,
+    h('h3', {}, '🤖 Inteligencia artificial'),
+    h('p.muted', {}, 'Primero se usa Groq, que es gratis pero tiene límite por minuto y por día. Si un modelo de Groq llega a su límite se prueba otro de Groq, y si se agotan todos sigue DeepSeek (de pago, muy barato) hasta que Groq vuelva. Puede poner una sola clave o las dos.'),
+    aiStatus(s),
+    h('label', {}, 'Clave de Groq (gratis · console.groq.com)'), groqKey,
+    h('div.row', {}, groqTest), groqOut,
+    h('label', {}, 'Modelo de Groq preferido'), groqModel,
+    h('label', {}, 'Clave de DeepSeek (respaldo de pago)'), key,
     h('div.row', {}, testBtn), connOut,
-    h('label', {}, 'Modelo'), model, modelList,
+    h('label', {}, 'Modelo de DeepSeek'), model, modelList,
     h('p.muted', {}, 'Por defecto deepseek-flash. Puede poner otro modelo compatible.'),
-    h('label', {}, 'Dirección de la API'), baseUrl,
+    h('label', {}, 'Dirección de la API de DeepSeek'), baseUrl,
     h('h3', {}, 'Nivel de inglés'),
     h('p.muted', {}, '🔓 Los 6 niveles están abiertos, igual que todos los lugares, temas y lecciones: elija el que quiera. El nivel solo cambia cómo le hablan (velocidad, ayudas, vocabulario).'),
     levelEd.el,
@@ -856,6 +880,9 @@ function settings({ back = home } = {}) {
       onclick: () => {
         store.update(st => {
           st.settings.apiKey = key.value.trim();
+          if (st.settings.groqKey !== groqKey.value.trim()) st.groqPause = {};   // clave nueva: sin pausas viejas
+          st.settings.groqKey = groqKey.value.trim();
+          st.settings.groqModel = groqModel.value;
           st.settings.model = model.value.trim() || 'deepseek-flash';
           st.settings.baseUrl = baseUrl.value.trim() || 'https://api.deepseek.com';
           saveVoice(st);
@@ -877,7 +904,7 @@ function settings({ back = home } = {}) {
       h('p.muted', {}, 'Los errores de sus charlas que el coach vigila, y los de su cerebro de inglés. Desde aquí se marcan como resueltos y se copian para el cerebro.'),
       h('button.small', { onclick: () => bitacora.bitacoraScreen({ back: again }) }, `Abrir (${bitacora.activeErrors().length} activos)`)),
     h('div.card', {}, h('b', {}, '💾 Copia de seguridad'),
-      h('p.muted', {}, safety.lastBackupText(s) + ' La copia no lleva su clave de DeepSeek: al importarla se conserva la de este teléfono.'),
+      h('p.muted', {}, safety.lastBackupText(s) + ' La copia no lleva sus claves de IA: al importarla se conservan las de este teléfono.'),
       h('p.muted', {}, safety.storageText(s)),
       h('div.row', {},
         h('button.small', { onclick: async () => { if (await safety.saveBackup()) again(); } }, 'Exportar'),
@@ -886,6 +913,17 @@ function settings({ back = home } = {}) {
     h('div.card', {}, h('b', {}, `📱 Versión de Charla: ${shortVersion()}`),
       h('p.muted', {}, 'Al volver a la app se revisa sola si hay una versión nueva y se actualiza.'),
       h('button.small', { onclick: () => checkForUpdate({ manual: true, beforeReload: noteAway }) }, '🔄 Buscar actualización'))));
+}
+
+// Qué IA se está usando hoy: llamadas y tokens de Groq (gratis) y de DeepSeek, y si Groq está en pausa.
+function aiStatus(s) {
+  const d = s.usageDay?.date === store.todayIso() ? s.usageDay : null;
+  const g = d?.groq || { calls: 0, tokens: 0 }, k = d?.deepseek || { calls: 0, tokens: 0 };
+  const until = groqBlockedUntil(s);
+  const calls = n => `${n} ${n === 1 ? 'llamada' : 'llamadas'}`;
+  return h('div.card', {},
+    h('p', {}, `Hoy: Groq ${calls(g.calls)} (${g.tokens.toLocaleString('es')} tokens, gratis) · DeepSeek ${calls(k.calls)} (${k.tokens.toLocaleString('es')} tokens)`),
+    until ? h('p.warn', {}, `⏸ Groq llegó a su límite gratis. Vuelve a las ${hourText(until)}; mientras tanto se usa DeepSeek.`) : null);
 }
 
 // Gasto: lo de este mes, el tope y la pausa (se guardan al cambiarlos).
@@ -899,7 +937,7 @@ function spendSettings(s, u, again) {
     h('p', {}, `Este mes: ${usd(st.usd)}${st.cap ? ` de ${usd(st.cap)}` : ''} · ${st.calls} llamadas`),
     st.cap ? progressBar(Math.min(1, st.pct), st.level === 'over' ? 'var(--bad)' : st.level === 'near' ? 'var(--warn)' : '') : null,
     h('label', {}, 'Tope del mes (US$, 0 = sin tope)', cap),
-    h('label.check', {}, block, ' Al llegar al tope, pausar la IA hasta el mes siguiente'),
+    h('label.check', {}, block, ' Al llegar al tope, pausar DeepSeek hasta el mes siguiente (Groq, que es gratis, sigue)'),
     h('p.muted', {}, `Calculado con el precio más caro de DeepSeek (hora pico: US$${p.miss} por millón de tokens de entrada y US$${p.out} de salida); fuera de esas horas cuesta la mitad. En total: ${u.calls} llamadas, ${u.input.toLocaleString()} tokens de entrada y ${u.output.toLocaleString()} de salida.`));
 }
 
@@ -909,6 +947,7 @@ window.addEventListener('error', e => console.error(e.error || e.message));
 window.addEventListener('pointerdown', unlockAudio, { capture: true });
 if (store.get().settings.voiceEngine === 'natural') setTimeout(loadNatural, 1500); // después de pintar el inicio
 // Avisa una vez al cruzar el 80 % o el tope de gasto del mes.
+window.addEventListener('charla:provider', e => toast(`⏸ Groq llegó a su límite gratis: sigo con DeepSeek hasta las ${hourText(e.detail.until)}.`));
 window.addEventListener('charla:spend', e => toast(e.detail.level === 'over' ? `💰 Llegó a su tope del mes (${usd(e.detail.cap)})` : `💰 Ya usó el 80 % de su tope del mes (${usd(e.detail.usd)} de ${usd(e.detail.cap)})`, 'bad'));
 store.persistStorage();   // que el navegador no borre los datos
 

@@ -1,7 +1,8 @@
 # Charla — practique inglés hablando (uso personal)
 
 App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), con:
-- **DeepSeek** como cerebro (usted paga solo los tokens).
+- **Groq** como cerebro, gratis, y **DeepSeek** de respaldo cuando Groq llega a su límite (usted paga solo
+  esos tokens). Ver «La IA: Groq primero, DeepSeek de respaldo» más abajo.
 - **Voz del teléfono** para escuchar y hablar (gratis).
 - **Amy, una sola compañera para todas las charlas** (Ajustes → Charlas): dibujada por código, con voz de
   mujer y los **labios al ritmo de la voz** (`js/lipsync.js` parte cada palabra en sílabas: la «a» abre la
@@ -399,7 +400,8 @@ https://github.com/alfredotorrespamplona-tech/charla). Hay dos formas de tenerla
 **B. Desde Chrome** (sin instalar nada): abra el enlace en **Chrome de Android** → menú ⋮ →
 **Instalar app** (o **Agregar a la pantalla principal**).
 
-En las dos, ponga su clave de DeepSeek en Ajustes. Se guarda **solo en su teléfono**, nunca en la página.
+En las dos, ponga su clave de Groq (gratis) y, si quiere, la de DeepSeek en Ajustes. Se guardan **solo en su
+teléfono**, nunca en la página.
 Las actualizaciones llegan solas: al publicar una versión nueva, la app la descarga la próxima vez que abra.
 No hace falta volver a instalar el APK.
 
@@ -417,13 +419,46 @@ No hace falta volver a instalar el APK.
   (archivo `.well-known/assetlinks.json`), que es lo que le dice a Android que la app y la página son
   del mismo dueño.
 
+## La IA: Groq primero, DeepSeek de respaldo (v39)
+- **Ajustes → 🤖 Inteligencia artificial** tiene dos claves: **Groq** (gratis, se saca en console.groq.com) y
+  **DeepSeek** (de pago). Puede poner una sola o las dos. En la bienvenida, una clave que empieza con
+  `gsk_` se guarda como de Groq y una `sk-…` como de DeepSeek.
+- Orden de uso: `openai/gpt-oss-120b` (el que mejor corrige) → `qwen/qwen3.8-27b` → `openai/gpt-oss-20b` →
+  DeepSeek. Cada modelo de Groq tiene su propio límite gratis (unas 1000 llamadas al día y 8000 tokens por
+  minuto cada uno, revisado el 2026-11-20), así que cuando uno se agota se usa el siguiente.
+- Cuando Groq responde «límite alcanzado» (429), ese modelo queda en pausa el tiempo que Groq dice
+  (`groqPause` en el progreso) y no se le vuelve a llamar hasta entonces. Si se agotan los tres, sigue
+  DeepSeek y aparece una vez el aviso «Groq llegó a su límite gratis: sigo con DeepSeek hasta las…».
+  Sin clave de DeepSeek, la app dice a qué hora vuelve Groq.
+- Ajustes muestra lo de hoy: llamadas y tokens de Groq (gratis) y de DeepSeek, y si Groq está en pausa.
+- Solo DeepSeek suma al gasto del mes. Con «pausar al llegar al tope», DeepSeek se pausa pero Groq sigue.
+- Probar todas las tareas de la app contra la IA de verdad (la clave va solo en la variable, nunca en un archivo):
+  ```powershell
+  $env:GROQ_KEY = "gsk_..."; node herramientas/probar_deepseek.mjs
+  ```
+  Con Groq salieron 23 de 25 bien (2026-11-20). La prueba hace 24 llamadas en un minuto y pasa el límite por
+  minuto: si Groq pide esperar menos de 6 s, la app espera y sigue con el mejor modelo; si es más, pasa al
+  siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
+  ejercicio del taller o no cierran la despedida.
+
+### Gastar menos (v39)
+- **Respuestas guardadas**: traducir, explicar («❓ No entiendo / No lo entiendo»), las pistas de
+  pronunciación y el significado de una palabra se guardan en el teléfono (`charla.ia-cache`, las últimas
+  400). Si vuelve a pedir lo mismo, no se gasta nada.
+- **Palabras sin IA**: al tocar una palabra se busca primero en sus palabras guardadas y en las Mil palabras
+  (también sus formas: ran → run, getting → get, tried → try). Si está, se muestra sin gastar, con el botón
+  «🤖 Ver qué significa en esta frase (con IA)» por si quiere más.
+- **Repaso sin IA**: lo guardado de las charlas que tiene traducción se repasa con tarjetas armadas en el
+  teléfono (significado, completar si hay frase de ejemplo, y decirlo). Solo lo que no tiene traducción se
+  le pide a la IA.
+
 ## Costos
-Cada turno hace 2 llamadas pequeñas a DeepSeek (respuesta del personaje + corrección), y hay
-llamadas extra si usa sugerencias, traducción o palabras.
+Cada turno hace 2 llamadas pequeñas a la IA (respuesta del personaje + corrección), y hay
+llamadas extra si usa sugerencias, traducción o palabras. Con Groq no cuestan nada.
 
 **💰 Tope de gasto** (Ajustes): muestra lo gastado este mes en dólares, calculado con el precio de hora
 pico (el más caro; el real es igual o menor). Al llegar al 80 % y al tope avisa una vez (y una tarjeta en
-el inicio). Si marca «pausar la IA», al pasar el tope Charla no llama a DeepSeek hasta el mes siguiente.
+el inicio). Si marca «pausar DeepSeek», al pasar el tope Charla no llama a DeepSeek hasta el mes siguiente (Groq sigue).
 Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 
 ## Su progreso está a salvo
@@ -433,7 +468,8 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 - **Copia cada 2 semanas**: cuando ya tiene algo que perder (3 charlas o 10 palabras), el inicio le
   recuerda guardar una copia. En el celular abre «Compartir» (Drive, WhatsApp, correo); en el PC la
   descarga. Se puede posponer 3 días.
-- **La copia no lleva su clave de DeepSeek.** Al importarla en otro teléfono, ese teléfono conserva la suya.
+- **La copia no lleva sus claves de IA (Groq ni DeepSeek).** Al importarla en otro teléfono, ese teléfono
+  conserva las suyas.
 
 ## Archivos
 | Archivo | Para qué |
@@ -464,7 +500,8 @@ Viene en US$3; 0 = sin tope. Los precios están en `js/budget.js`.
 | `js/customtopics.js` | Temas propios revisados y guardados |
 | `js/inbox.js` | Mensajes de los personajes y premio por responder a tiempo |
 | `js/topics.js` | Temas de conversación por grupo, sorteo de misiones y los lugares banco, escuela, centro comercial y peluquería |
-| `js/prompts.js` | Las instrucciones que recibe DeepSeek para cada tarea |
+| `js/prompts.js` | Las instrucciones que recibe la IA para cada tarea |
+| `js/llm.js` | Cliente de la IA: Groq primero (3 modelos con pausas por límite), DeepSeek de respaldo, respuestas guardadas y modo demo |
 | `js/scoring.js` | El algoritmo: puntos, estrellas, racha, relación, nivel, familiaridad |
 | `js/conversation.js` | El bucle de la conversación |
 | `js/speech.js` | Micrófono y voz |

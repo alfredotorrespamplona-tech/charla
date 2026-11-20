@@ -1957,3 +1957,179 @@ test('técnicas: modo demo responde a «Mis frases» y al minuto', async () => {
   assert.ok(Array.isArray(j.version) && j.version.every(v => v.en && v.es));
   assert.ok(j.fixes.length);
 });
+
+// ---------------- Groq primero, DeepSeek de respaldo ----------------
+// Respuesta falsa de la API: ok con JSON, o un error con su estado.
+const apiOk = obj => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(obj) }, finish_reason: 'stop' }], usage: { prompt_tokens: 100, completion_tokens: 20 } }), { status: 200 });
+const apiErr = (status, msg) => new Response(JSON.stringify({ error: { message: msg } }), { status });
+
+test('IA: el orden es Groq (sus modelos) y luego DeepSeek; las pausas y el «vuelva en…» de Groq', async () => {
+  const L = await import('../js/llm.js');
+  store.update(s => { s.settings.groqKey = 'gsk_prueba'; s.settings.apiKey = 'sk-prueba'; });
+  const st = store.get();
+  assert.ok(L.hasAI(st.settings));
+  assert.deepEqual(L.routes(st).map(r => `${r.provider}:${r.model}`), [...L.GROQ_MODELS.map(m => 'groq:' + m), 'deepseek:deepseek-flash']);
+  st.groqPause = { [L.GROQ_MODELS[0]]: Date.now() + 60000 };
+  assert.equal(L.routes(st)[0].model, L.GROQ_MODELS[1], 'el modelo en pausa se salta');
+  assert.equal(L.groqBlockedUntil(st), 0);
+  st.groqPause = Object.fromEntries(L.GROQ_MODELS.map((m, i) => [m, Date.now() + 60000 * (i + 1)]));
+  assert.ok(L.groqBlockedUntil(st) > Date.now(), 'todos en pausa: Groq vuelve con el primero que se libere');
+  assert.deepEqual(L.routes(st).map(r => r.provider), ['deepseek']);
+  assert.equal(L.retryAfterMs(null, 'Rate limit reached ... Please try again in 1m30.5s. Need more tokens?'), 90500);
+  assert.equal(L.retryAfterMs(null, 'Please try again in 7.25s'), 7250);
+  assert.equal(L.retryAfterMs(new Response('', { headers: { 'retry-after': '12' } })), 12000);
+  assert.equal(L.retryAfterMs(null, 'otra cosa'), 60000);
+  // Solo una clave: también sirve; sin ninguna, no hay IA.
+  assert.ok(L.hasAI({ groqKey: 'gsk_x', apiKey: '' }));
+  assert.ok(!L.hasAI({ groqKey: ' ', apiKey: '' }));
+  assert.ok(L.isDemo({ groqKey: 'demo', apiKey: '' }));
+});
+
+test('IA: si Groq llega a su límite pasa al otro modelo de Groq, y al final a DeepSeek (solo DeepSeek suma gasto)', async () => {
+  const { chatJson } = await import('../js/llm.js');
+  store.update(s => { s.settings.groqKey = 'gsk_prueba'; s.settings.apiKey = 'sk-prueba'; s.settings.capBlock = false; });
+  const calls = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    calls.push({ url, body, auth: init.headers.Authorization });
+    if (url.includes('groq')) return apiErr(429, 'Rate limit reached for model on tokens per day (TPD). Please try again in 2m0s.');
+    return apiOk({ reply: 'hola' });
+  };
+  try {
+    assert.deepEqual(await chatJson('reply', [{ role: 'user', content: 'hi' }]), { reply: 'hola' });
+  } finally { globalThis.fetch = real; }
+  assert.equal(calls.length, 4, '3 modelos de Groq y luego DeepSeek');
+  assert.ok(calls.slice(0, 3).every(c => c.url.startsWith('https://api.groq.com/openai/v1/') && c.auth === 'Bearer gsk_prueba'));
+  assert.equal(calls[0].body.reasoning_effort, 'low');
+  assert.equal(calls[0].body.thinking, undefined, 'a Groq no se le manda el parámetro de DeepSeek');
+  assert.deepEqual(calls[3].body.thinking, { type: 'disabled' });
+  assert.equal(calls[3].auth, 'Bearer sk-prueba');
+  const st = store.get();
+  assert.equal(Object.keys(st.groqPause).length, 3, 'los 3 modelos quedan en pausa');
+  assert.ok(Object.values(st.groqPause).every(t => t > Date.now() + 100000));
+  assert.equal(st.usageDay.deepseek.calls, 1);
+  assert.equal(st.usageMonth.calls, 1);
+  // La siguiente llamada ya no intenta Groq mientras dure la pausa.
+  const urls = [];
+  globalThis.fetch = async url => { urls.push(url); return apiOk({ ok: 1 }); };
+  try { await chatJson('reply', [{ role: 'user', content: 'again' }]); } finally { globalThis.fetch = real; }
+  assert.deepEqual(urls.map(u => u.includes('groq')), [false]);
+});
+
+test('IA: con Groq bien no se toca DeepSeek ni el gasto; sin DeepSeek y Groq agotado, avisa cuándo vuelve', async () => {
+  const { chatJson } = await import('../js/llm.js');
+  store.update(s => { s.settings.groqKey = 'gsk_prueba'; s.settings.apiKey = 'sk-prueba'; });
+  const real = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async url => { urls.push(url); return apiOk({ reply: 'hi' }); };
+  try { await chatJson('reply', [{ role: 'user', content: 'hi' }]); } finally { globalThis.fetch = real; }
+  assert.equal(urls.length, 1);
+  assert.ok(urls[0].includes('groq'));
+  assert.equal(store.get().usageDay.groq.calls, 1);
+  assert.equal(store.get().usageDay.groq.tokens, 120);
+  assert.equal(store.get().usageMonth, null, 'Groq es gratis: no suma al gasto del mes');
+  // Groq da un JSON roto: se prueba el siguiente modelo (no se queda con el error).
+  let n = 0;
+  globalThis.fetch = async () => (++n === 1 ? new Response(JSON.stringify({ choices: [{ message: { content: 'no es json' }, finish_reason: 'stop' }] }), { status: 200 }) : apiOk({ ok: 2 }));
+  try { assert.deepEqual(await chatJson('x', [{ role: 'user', content: 'y' }]), { ok: 2 }); } finally { globalThis.fetch = real; }
+  // Solo Groq y todos sus modelos al límite.
+  store.update(s => { s.settings.apiKey = ''; s.groqPause = {}; });
+  globalThis.fetch = async () => apiErr(429, 'Please try again in 10m0s');
+  try { await assert.rejects(chatJson('x', [{ role: 'user', content: 'z' }]), /Groq llegó a su límite gratis\. Vuelve a las .*DeepSeek/); }
+  finally { globalThis.fetch = real; }
+  await assert.rejects(chatJson('x', [{ role: 'user', content: 'z2' }]), /Vuelve a las/, 'en pausa: ni siquiera llama');
+  // Con DeepSeek en pausa por el tope del mes, Groq sigue funcionando.
+  store.update(s => { s.groqPause = {}; s.settings.apiKey = 'sk-prueba'; s.settings.capBlock = true; s.settings.monthlyCap = 1; s.usageMonth = { month: store.todayIso().slice(0, 7), usd: 5, calls: 9, warned: 'over' }; });
+  globalThis.fetch = async url => apiOk({ via: url.includes('groq') ? 'groq' : 'deepseek' });
+  try { assert.deepEqual(await chatJson('x', [{ role: 'user', content: 'cap' }]), { via: 'groq' }); } finally { globalThis.fetch = real; }
+});
+
+test('IA: las respuestas que no cambian (traducir, explicar) se guardan y la segunda vez no gastan', async () => {
+  const { chatJson, clearCache, cacheKey } = await import('../js/llm.js');
+  clearCache();
+  store.update(s => { s.settings.groqKey = 'gsk_prueba'; });
+  const real = globalThis.fetch;
+  let n = 0;
+  globalThis.fetch = async () => { n++; return apiOk({ translation: 'Hola' }); };
+  const msgs = [{ role: 'user', content: 'Translate: Hello' }];
+  try {
+    assert.deepEqual(await chatJson('translate', msgs, { cache: true }), { translation: 'Hola' });
+    const again = await chatJson('translate', msgs, { cache: true });
+    assert.deepEqual(again, { translation: 'Hola' });
+    again.translation = 'cambiada';   // lo que se devuelve es una copia: no estropea lo guardado
+    assert.deepEqual(await chatJson('translate', msgs, { cache: true }), { translation: 'Hola' });
+    await chatJson('translate', msgs);   // sin cache: sí llama
+  } finally { globalThis.fetch = real; }
+  assert.equal(n, 2);
+  assert.ok(localStorage.getItem('charla.ia-cache').includes('Hola'), 'queda en el teléfono');
+  assert.notEqual(cacheKey('a', [{ content: 'x' }]), cacheKey('a', [{ content: 'y' }]));
+  assert.notEqual(cacheKey('a', [{ content: 'x' }]), cacheKey('b', [{ content: 'x' }]));
+  clearCache();
+});
+
+test('IA: la copia de seguridad no lleva la clave de Groq y al importar se queda la del teléfono', () => {
+  store.update(s => { s.settings.groqKey = 'gsk_secreta'; s.settings.apiKey = 'sk-secreta'; });
+  const json = store.exportJson();
+  assert.ok(!json.includes('gsk_secreta') && !json.includes('sk-secreta'));
+  store.importJson(json);
+  assert.equal(store.get().settings.groqKey, 'gsk_secreta');
+  assert.equal(store.get().settings.apiKey, 'sk-secreta');
+});
+
+test('sin IA: la palabra se busca en sus guardadas y en las Mil palabras (también ran, getting, tried…)', async () => {
+  const W = await import('../js/words.js');
+  const { MIL_WORDS } = await import('../js/milwords.js');
+  assert.deepEqual(W.wordForms('Tried').slice(0, 1), ['tried']);
+  assert.ok(W.wordForms('tried').includes('try'));
+  assert.ok(W.wordForms('getting').includes('get'));
+  assert.ok(W.wordForms('making').includes('make'));
+  assert.ok(W.wordForms('stopped').includes('stop'));
+  const ran = W.localWord('ran', MIL_WORDS, []);
+  assert.equal(ran.word, 'run');
+  assert.equal(ran.category, 'Verb');
+  assert.match(ran.translation, /Correr/);
+  assert.ok(!/\(v\.\)/.test(ran.translation), 'sin las marcas (v.) de la lista');
+  assert.equal(ran.local, 'mil');
+  assert.equal(W.localWord('getting', MIL_WORDS, []).word, 'get');
+  const saved = W.localWord('latte', MIL_WORDS, [{ text: 'latte', translation: 'café con leche', type: 'Noun' }]);
+  assert.equal(saved.local, 'saved');
+  assert.equal(saved.translation, 'café con leche');
+  assert.equal(W.localWord('zzzqqq', MIL_WORDS, []), null, 'si no está, se le pide a la IA');
+});
+
+test('sin IA: el repaso arma tarjetas con lo guardado que tiene traducción', async () => {
+  const rv = await import('../js/review.js');
+  const pool = { en: ['table', 'run', 'happy', 'latte'], es: ['mesa', 'correr', 'feliz', 'café con leche'] };
+  const v = { text: 'latte', translation: 'café con leche', example: 'I would like a latte, please.' };
+  const meaning = rv.localCard(v, 'meaning', pool, () => 0.5);
+  assert.equal(meaning.family, 'meaning');
+  assert.equal(meaning.answer, 'café con leche');
+  assert.ok(!meaning.options.includes('café con leche') && meaning.options.length === 3);
+  assert.ok(rv.validCard(meaning));
+  const comp = rv.localCard(v, 'completion', pool);
+  assert.equal(comp.sentence, 'I would like a {{gap}}, please.');
+  assert.ok(rv.validCard(comp));
+  const noExample = rv.localCard({ text: 'latte', translation: 'café con leche' }, 'completion', pool);
+  assert.equal(noExample.family, 'meaning', 'sin frase de ejemplo no se puede completar: pregunta el significado');
+  const recall = rv.localCard({ text: 'take it easy', translation: 'tómalo con calma' }, 'recall', pool);
+  assert.equal(recall.prompt, 'tómalo con calma');
+  assert.equal(recall.answer, 'take it easy');
+  assert.match(recall.hint, /take/);
+  assert.equal(rv.localCard({ text: 'latte' }, 'meaning', pool), null, 'sin traducción: la hace la IA');
+});
+
+test('IA: si Groq pide esperar solo unos segundos (límite por minuto), espera y sigue con el mismo modelo', async () => {
+  const { chatJson, GROQ_MODELS } = await import('../js/llm.js');
+  store.update(s => { s.settings.groqKey = 'gsk_prueba'; s.settings.apiKey = 'sk-prueba'; });
+  const models = [];
+  const real = globalThis.fetch;
+  let n = 0;
+  globalThis.fetch = async (url, init) => {
+    models.push(JSON.parse(init.body).model);
+    return ++n === 1 ? apiErr(429, 'Rate limit reached on tokens per minute (TPM). Please try again in 0.2s.') : apiOk({ ok: true });
+  };
+  try { assert.deepEqual(await chatJson('x', [{ role: 'user', content: 'tpm' }]), { ok: true }); } finally { globalThis.fetch = real; }
+  assert.deepEqual(models, [GROQ_MODELS[0], GROQ_MODELS[0]], 'el mismo modelo, después de esperar');
+  assert.deepEqual(store.get().groqPause || {}, {}, 'no queda en pausa');
+});

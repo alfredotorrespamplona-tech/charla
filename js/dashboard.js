@@ -12,6 +12,9 @@ import { practiceDays } from './stats.js';
 import * as M from './mil.js';
 import { speak } from './speech.js';
 
+// ¿Tiene alguna clave de IA? (Groq o DeepSeek). Igual que hasAI de llm.js, sin cargar ese módulo.
+const hasAI = st => !!((st.groqKey || '').trim() || (st.apiKey || '').trim());
+
 const DAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -174,5 +177,5 @@ export function dashboard(go) {
     h('div.dash-footer', {},
       h('button.link', { onclick: go.map }, '🗺️ Mapa'),
       h('button.link', { onclick: go.settings }, '⚙️ Ajustes')),
-    !s.settings.apiKey ? h('p.warn', {}, '⚠️ Falta la clave de DeepSeek: vaya a Ajustes.') : null));
+    !hasAI(s.settings) ? h('p.warn', {}, '⚠️ Falta su clave de IA (Groq gratis o DeepSeek): vaya a Ajustes.') : null));
 }

@@ -2,7 +2,7 @@
 // (infinitivo, pasado y participio con su español) y «Su frase», que la IA parte en piezas.
 // El contenido y la revisión están en grammar.js.
 import * as store from './store.js';
-import { chatJson } from './llm.js';
+import { chatJson, hasAI as aiReady } from './llm.js';
 import * as P from './prompts.js';
 import { RANKS } from './data.js';
 import { h, mount, sheet, closeSheet, toast, spinner, progressBar, setText, buzz } from './ui.js';
@@ -12,7 +12,7 @@ import { addVocab } from './words.js';
 import * as G from './grammar.js';
 
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false));
-const hasAI = () => !!store.get().settings.apiKey?.trim();
+const hasAI = () => aiReady();
 const best = () => store.get().grammar?.best || {};
 const say = (t, rate = 0.9) => speak(t, { rate });
 const rankOf = id => RANKS.find(r => r.id === id) || RANKS[0];
@@ -98,7 +98,7 @@ function lessonIntro(lesson, back) {
       h('p', {}, '→ ', h('b', {}, marked(x.en, x.pieces.map(p => p.en), 'piece en')), ' ', h('button.tiny', { 'aria-label': 'Escuchar', onclick: () => say(x.en) }, '🔊'))),
     h('button.primary.wide', { onclick: () => runPuzzle({ title: lesson.title, items: lesson.exercises, lessonId: lesson.id, back: () => lessonIntro(lesson, back), done: back }) },
       `Empezar (${lesson.exercises.length} ejercicios)`),
-    hasAI() ? h('div.row.center', {}, more) : h('p.muted', {}, 'Con su clave de DeepSeek puede pedir más ejercicios de esta lección.')));
+    hasAI() ? h('div.row.center', {}, more) : h('p.muted', {}, 'Con su clave de IA puede pedir más ejercicios de esta lección.')));
 }
 
 async function moreWithAI(lesson, back, btn) {
@@ -375,7 +375,7 @@ function mineTab(back) {
   async function go() {
     const text = input.value.trim();
     if (!text) { input.focus(); return; }
-    if (!hasAI()) { toast('Para esto hace falta su clave de DeepSeek (Ajustes). Para probar, escriba «demo».', 'bad'); return; }
+    if (!hasAI()) { toast('Para esto hace falta su clave de IA (Ajustes). Para probar, escriba «demo».', 'bad'); return; }
     btn.disabled = true; setText(btn, 'Partiendo…');
     try {
       const r = await chatJson('grammar', P.grammarMessages({ sentence: text, rankId: store.get().rank }), { temperature: 0.3, maxTokens: 700 });
@@ -387,7 +387,7 @@ function mineTab(back) {
   return [
     h('div.card', {},
       h('b', {}, 'Lo que usted quiere decir hoy'),
-      h('p.muted', {}, 'Escriba en español una frase de su día. DeepSeek la parte en piezas y usted la arma en inglés con los mismos 5 pasos.'),
+      h('p.muted', {}, 'Escriba en español una frase de su día. La IA la parte en piezas y usted la arma en inglés con los mismos 5 pasos.'),
       input, btn),
     methodCard(),
   ];

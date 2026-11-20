@@ -1,4 +1,6 @@
-// Cliente de DeepSeek (API compatible con OpenAI). Clave "demo" = respuestas simuladas sin gastar tokens.
+// Cliente de la IA (APIs compatibles con OpenAI). Primero Groq (gratis, con límite por minuto y por día);
+// cuando un modelo de Groq llega a su límite se prueba el siguiente de Groq y, al final, DeepSeek (de pago).
+// Clave "demo" = respuestas simuladas sin gastar tokens.
 import * as store from './store.js';
 import { BITACORA } from './cerebro.js';
 import { addSpend, spendStatus, usd } from './budget.js';
@@ -9,74 +11,153 @@ const TIMEOUT_MS = 35000;       // redes móviles: no dejar la pantalla colgada
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
+export const GROQ_BASE = 'https://api.groq.com/openai/v1';
+// Modelos de Groq en orden de preferencia (revisados con la API el 2026-11-20). Cada modelo tiene su propio
+// límite gratis, así que si uno se agota se sigue con el otro antes de pasar a DeepSeek.
+export const GROQ_MODELS = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+export const NAMES = { groq: 'Groq', deepseek: 'DeepSeek' };
+// Si Groq pide esperar menos que esto (límite por minuto), se espera y se reintenta el mismo modelo.
+export const GROQ_SHORT_WAIT_MS = 6000;
+
+const clean = k => (k || '').trim();
 function apiBase(s) { return (s.baseUrl || 'https://api.deepseek.com').replace(/\/+$/, ''); }
 
-async function request(url, init) {
+// ¿Hay alguna clave de IA? (Groq o DeepSeek; «demo» cuenta).
+export function hasAI(s = store.get().settings) { return !!(clean(s.groqKey) || clean(s.apiKey)); }
+export function isDemo(s = store.get().settings) { return [s.groqKey, s.apiKey].some(k => clean(k).toLowerCase() === 'demo'); }
+
+// Las rutas a probar, en orden: los modelos de Groq que no están en pausa y luego DeepSeek.
+export function routes(st = store.get(), now = Date.now()) {
+  const s = st.settings;
+  const out = [];
+  if (clean(s.groqKey)) {
+    const pause = st.groqPause || {};
+    const models = [s.groqModel || GROQ_MODELS[0], ...GROQ_MODELS].filter((m, i, a) => m && a.indexOf(m) === i);
+    for (const model of models) if (!(pause[model] > now)) out.push({ provider: 'groq', base: GROQ_BASE, key: clean(s.groqKey), model });
+  }
+  if (clean(s.apiKey)) out.push({ provider: 'deepseek', base: apiBase(s), key: clean(s.apiKey), model: s.model || 'deepseek-flash' });
+  return out;
+}
+
+// Cuánto esperar después de un 429 de Groq: la cabecera retry-after o el «try again in 1m30s» del mensaje.
+export function retryAfterMs(res, body = '') {
+  const h = Number(res?.headers?.get?.('retry-after'));
+  if (h > 0) return h * 1000;
+  const m = /try again in\s+((?:\d+(?:\.\d+)?[hms]\s*)+)/i.exec(body);
+  if (m) {
+    let ms = 0;
+    for (const [, n, u] of m[1].matchAll(/(\d+(?:\.\d+)?)([hms])/g)) ms += Number(n) * { h: 3600000, m: 60000, s: 1000 }[u];
+    if (ms > 0) return ms;
+  }
+  return 60000;
+}
+
+// Pone en pausa un modelo de Groq hasta que se le pase el límite.
+function pauseGroq(model, ms, now = Date.now()) {
+  store.update(s => {
+    const p = { ...(s.groqPause || {}) };
+    for (const k of Object.keys(p)) if (p[k] <= now) delete p[k];   // limpia las pausas vencidas
+    p[model] = now + Math.max(5000, ms);
+    s.groqPause = p;
+  });
+}
+
+// Hasta cuándo está Groq sin ningún modelo disponible (0 = hay alguno libre).
+export function groqBlockedUntil(st = store.get(), now = Date.now()) {
+  const s = st.settings;
+  if (!clean(s.groqKey)) return 0;
+  const models = [s.groqModel || GROQ_MODELS[0], ...GROQ_MODELS].filter((m, i, a) => m && a.indexOf(m) === i);
+  const until = models.map(m => (st.groqPause || {})[m] || 0);
+  return until.every(u => u > now) ? Math.min(...until) : 0;
+}
+
+export const hourText = ms => new Date(ms).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+
+async function request(url, init, route) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     return await fetch(url, { ...init, signal: ctrl.signal });
   } catch (e) {
-    if (e.name === 'AbortError') throw new LlmError('DeepSeek tardó demasiado en responder. Revise su conexión e intente otra vez.');
-    throw new LlmError('No hay conexión con DeepSeek. Revise su internet.');
-  } finally {
+    const name = NAMES[route?.provider] || 'la IA';
+    if (e.name === 'AbortError') throw Object.assign(new LlmError(`${name} tardó demasiado en responder. Revise su conexión e intente otra vez.`), { slow: true });
+    throw new LlmError(`No hay conexión con ${name}. Revise su internet.`);
+  }
+  finally {
     clearTimeout(t);
   }
 }
 
-async function explain(res, model) {
+async function explain(res, route) {
   const body = await res.text().catch(() => '');
-  if (res.status === 401) return new LlmError('La clave de API no es válida (401). Revísela en Ajustes.');
+  const name = NAMES[route.provider];
+  if (res.status === 401) return new LlmError(`La clave de ${name} no es válida (401). Revísela en Ajustes.`);
   if (res.status === 402) return new LlmError('Su cuenta de DeepSeek no tiene saldo (402). Recárguela en platform.deepseek.com.');
-  if (res.status === 429) return new LlmError('Demasiadas solicitudes seguidas (429). Espere un momento.');
-  if (res.status === 400 && /model/i.test(body)) return new LlmError(`El modelo «${model}» no existe. Cámbielo en Ajustes (use «Probar conexión» para ver los disponibles).`);
-  return new LlmError(`DeepSeek respondió ${res.status}: ${body.slice(0, 160)}`);
+  if (res.status === 429) return new LlmError(route.provider === 'groq'
+    ? `Groq llegó a su límite gratis. Vuelve a las ${hourText(Date.now() + retryAfterMs(res, body))}; mientras, ponga su clave de DeepSeek en Ajustes para seguir.`
+    : 'Demasiadas solicitudes seguidas (429). Espere un momento.');
+  if ((res.status === 400 || res.status === 404) && /model/i.test(body)) return new LlmError(`El modelo «${route.model}» no existe en ${name}. Cámbielo en Ajustes (use «Probar conexión» para ver los disponibles).`);
+  return new LlmError(`${name} respondió ${res.status}: ${body.slice(0, 160)}`);
 }
 
-// onText(textoAcumulado): si se pasa, la respuesta llega por partes (stream) y se avisa a medida que llega.
-// Así el personaje empieza a hablar con la primera frase, sin esperar la respuesta completa.
-export async function chatJson(task, messages, { temperature = 0.8, maxTokens = 500, onText = null } = {}) {
-  const s = store.get().settings;
-  if (!s.apiKey) throw new LlmError('Falta la clave de API de DeepSeek. Póngala en Ajustes.');
-  if (s.apiKey.trim().toLowerCase() === 'demo') {
-    const r = await demo(task, messages);
-    if (onText) await fakeStream(JSON.stringify(r), onText);
-    return r;
+// Parámetros propios de cada proveedor.
+function bodyFor(route, { messages, temperature, budget, stream, thinking }) {
+  const body = { model: route.model, messages, temperature, max_tokens: budget, response_format: { type: 'json_object' }, stream };
+  if (stream) body.stream_options = { include_usage: true };
+  if (route.provider === 'deepseek' && thinking) body.thinking = { type: 'disabled' };
+  // Los modelos de Groq que «razonan» gastan tokens pensando: aquí son tareas cortas, así que lo mínimo.
+  if (route.provider === 'groq') {
+    if (/gpt-oss/.test(route.model)) body.reasoning_effort = 'low';
+    else if (/qwen/.test(route.model)) body.reasoning_effort = 'none';
   }
-  // Si DeepSeek no acepta la respuesta por partes, se pide entera (como antes) y sigue funcionando igual.
-  let stream = !!onText && typeof ReadableStream !== 'undefined';
+  return body;
+}
 
-  // Tope de gasto con pausa activada: no se llama a la IA hasta el mes siguiente.
-  const spend = spendStatus(store.get());
-  if (s.capBlock && spend.level === 'over') throw new LlmError(`Llegó a su tope de gasto de este mes (${usd(spend.usd)} de ${usd(spend.cap)}). Súbalo en Ajustes o espere al próximo mes.`);
-  const model = s.model || 'deepseek-flash';
-  // deepseek-flash (V4.1) «piensa» antes de contestar y ese razonamiento gasta max_tokens: las respuestas
-  // largas se cortaban sin JSON. Aquí no hace falta pensar (son tareas cortas con formato fijo), así que se apaga:
-  // responde en la mitad del tiempo y con muchos menos tokens.
-  let thinking = true;          // se quita si el modelo elegido no acepta el parámetro
+// Una llamada con una ruta. Si falla de un modo en que conviene probar la siguiente ruta, el error lleva next = true.
+async function callRoute(route, messages, { temperature, maxTokens, onText }) {
+  const groq = route.provider === 'groq';
+  let stream = !!onText && typeof ReadableStream !== 'undefined';
+  let thinking = true;          // DeepSeek: se quita si el modelo elegido no acepta el parámetro
   let budget = maxTokens;
+  let waited = false;
+  const next = (err, extra = {}) => Object.assign(err, { next: true }, extra);
   for (let round = 0; round < 3; round++) {
-    const body = { model, messages, temperature, max_tokens: budget, response_format: { type: 'json_object' }, stream };
-    if (stream) body.stream_options = { include_usage: true };
-    if (thinking) body.thinking = { type: 'disabled' };
-    const init = { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + s.apiKey.trim() }, body: JSON.stringify(body) };
+    const init = { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + route.key },
+      body: JSON.stringify(bodyFor(route, { messages, temperature, budget, stream, thinking })) };
     let res;
     for (let attempt = 0; attempt < 3; attempt++) {
-      try { res = await request(apiBase(s) + '/chat/completions', init); }
+      try { res = await request(route.base + '/chat/completions', init, route); }
       catch (e) {
+        if (groq) throw next(e);   // Groq sin red o lento: pasar a la siguiente ruta
         // Red móvil que se cae un momento: un reintento antes de rendirse (no si se agotó el tiempo).
-        if (attempt === 0 && !/tardó/.test(e.message)) { await wait(1200); continue; }
+        if (attempt === 0 && !e.slow) { await wait(1200); continue; }
         throw e;
       }
-      if (!RETRY_STATUS.has(res.status) || attempt === 2) break;
-      await wait(1200 * (attempt + 1));   // el servidor está ocupado: esperar y reintentar
+      // Groq ocupado o al límite: no se espera, se pasa enseguida a la siguiente ruta (el usuario está esperando).
+      if (groq || !RETRY_STATUS.has(res.status) || attempt === 2) break;
+      await wait(1200 * (attempt + 1));   // DeepSeek ocupado: esperar y reintentar
     }
-    if (res.status === 400 && thinking) {
+    if (res.status === 400 && thinking && !groq) {
       const err = await res.clone().text().catch(() => '');
       if (/thinking/i.test(err)) { thinking = false; continue; }
     }
-    if (res.status === 400 && stream) { stream = false; round--; continue; }
-    if (!res.ok) throw await explain(res, model);
+    if (res.status === 400 && stream) {
+      const err = await res.clone().text().catch(() => '');
+      if (!groq || /stream/i.test(err)) { stream = false; round--; continue; }
+    }
+    if (!res.ok) {
+      if (groq && (res.status === 429 || res.status === 413)) {
+        const body = await res.clone().text().catch(() => '');
+        const pauseMs = res.status === 429 ? retryAfterMs(res, body) : 0;
+        // Límite por minuto que se libera en unos segundos: vale más esperar y seguir con el mejor modelo que
+        // pasar a uno más flojo. Una sola vez por llamada.
+        if (res.status === 429 && pauseMs <= GROQ_SHORT_WAIT_MS && !waited) { waited = true; await wait(pauseMs + 300); round--; continue; }
+        throw next(await explain(res, route), { pauseMs, limit: true });
+      }
+      // Clave mala, modelo que ya no existe, JSON que el modelo no supo armar o error del servidor: siguiente ruta.
+      if (groq) throw next(await explain(res, route));
+      throw await explain(res, route);
+    }
     let text, finish;
     if (stream && res.body) {
       let r;
@@ -86,32 +167,122 @@ export async function chatJson(task, messages, { temperature = 0.8, maxTokens = 
         if (heard) throw e;                 // ya empezó a hablar: no se puede repetir a medias
         stream = false; round--; continue;  // falló antes de llegar nada: se pide entera
       }
-      trackUsage(r.usage, model);
+      trackUsage(r.usage, route);
       ({ text, finish } = r);
     } else {
       const data = await res.json();
-      trackUsage(data.usage, model);
+      trackUsage(data.usage, route);
       const choice = data.choices?.[0];
       text = choice?.message?.content || '';
       finish = choice?.finish_reason;
     }
     if (finish === 'length' && round < 2) { budget = Math.min(budget * 2 + 400, 8000); continue; }   // se cortó: más espacio
     if (!text && finish === 'length') throw new LlmError('La respuesta de la IA quedó cortada. Intente otra vez.');
-    return parseJson(text);
+    try { return parseJson(text); }
+    catch (e) { if (groq) throw next(e); throw e; }
   }
   throw new LlmError('La respuesta de la IA quedó cortada. Intente otra vez.');
 }
 
-// Ajustes → «Probar conexión»: valida la clave y devuelve los modelos disponibles.
-export async function testConnection() {
-  const s = store.get().settings;
-  if (!s.apiKey) throw new LlmError('Escriba primero su clave.');
-  if (s.apiKey.trim().toLowerCase() === 'demo') return ['deepseek-flash (modo demo)'];
-  const res = await request(apiBase(s) + '/models', { headers: { Authorization: 'Bearer ' + s.apiKey.trim() } });
-  if (!res.ok) throw await explain(res, s.model);
-  const data = await res.json();
-  return (data.data || []).map(m => m.id);
+// onText(textoAcumulado): si se pasa, la respuesta llega por partes (stream) y se avisa a medida que llega.
+// Así el personaje empieza a hablar con la primera frase, sin esperar la respuesta completa.
+// cache: true = tarea que siempre responde lo mismo (traducir, explicar una palabra…): se guarda la respuesta
+// en el teléfono y la próxima vez no se gasta nada.
+export async function chatJson(task, messages, { temperature = 0.8, maxTokens = 500, onText = null, cache = false } = {}) {
+  const st = store.get();
+  const s = st.settings;
+  if (!hasAI(s)) throw new LlmError('Falta su clave de IA (Groq gratis o DeepSeek). Póngala en Ajustes.');
+  const ckey = cache ? cacheKey(task, messages) : '';
+  if (ckey) {
+    const hit = cacheGet(ckey);
+    if (hit) return hit;
+  }
+  if (isDemo(s)) {
+    const r = await demo(task, messages);
+    if (onText) await fakeStream(JSON.stringify(r), onText);
+    if (ckey) cacheSet(ckey, r);
+    return r;
+  }
+  let list = routes(st);
+  // Tope de gasto con pausa activada: no se llama a DeepSeek hasta el mes siguiente (Groq, que es gratis, sigue).
+  const spend = spendStatus(st);
+  const capped = s.capBlock && spend.level === 'over';
+  if (capped) list = list.filter(r => r.provider !== 'deepseek');
+  if (!list.length) {
+    if (capped && !clean(s.groqKey)) throw new LlmError(`Llegó a su tope de gasto de este mes (${usd(spend.usd)} de ${usd(spend.cap)}). Súbalo en Ajustes o espere al próximo mes.`);
+    const until = groqBlockedUntil(st);
+    throw new LlmError(`Groq llegó a su límite gratis. Vuelve a las ${hourText(until || Date.now() + 60000)}${capped ? ' (y DeepSeek está en pausa por su tope del mes)' : '; mientras, ponga su clave de DeepSeek en Ajustes para seguir'}.`);
+  }
+  let lastErr = null;
+  let groqLimited = false;
+  for (const route of list) {
+    try {
+      const r = await callRoute(route, messages, { temperature, maxTokens, onText });
+      if (route.provider === 'deepseek' && groqLimited) notifySwitch();
+      if (ckey) cacheSet(ckey, r);
+      return r;
+    } catch (e) {
+      lastErr = e;
+      if (e.limit) { groqLimited = true; if (e.pauseMs) pauseGroq(route.model, e.pauseMs); }
+      if (!e.next) throw e;
+    }
+  }
+  throw lastErr;
 }
+
+// Aviso (una vez por pausa) de que Groq se agotó y sigue DeepSeek.
+function notifySwitch() {
+  const until = groqBlockedUntil();
+  if (!until || store.get().groqNotice === until) return;
+  store.update(s => { s.groqNotice = until; });
+  if (typeof globalThis.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+    globalThis.dispatchEvent(new CustomEvent('charla:provider', { detail: { until } }));
+  }
+}
+
+// Ajustes → «Probar conexión»: valida la clave y devuelve los modelos disponibles.
+export async function testConnection(provider = 'deepseek', key = '', baseUrl = '') {
+  const k = clean(key);
+  if (!k) throw new LlmError('Escriba primero su clave.');
+  if (k.toLowerCase() === 'demo') return [provider === 'groq' ? `${GROQ_MODELS[0]} (modo demo)` : 'deepseek-flash (modo demo)'];
+  const route = { provider, model: '', base: provider === 'groq' ? GROQ_BASE : (baseUrl || 'https://api.deepseek.com').replace(/\/+$/, '') };
+  const res = await request(route.base + '/models', { headers: { Authorization: 'Bearer ' + k } }, route);
+  if (!res.ok) throw await explain(res, route);
+  const data = await res.json();
+  // En Groq se muestran solo los modelos de texto (no los de voz ni los filtros).
+  return (data.data || []).filter(m => m.active !== false && !/whisper|orpheus|guard|allam/i.test(m.id)).map(m => m.id);
+}
+
+// ---------- Respuestas guardadas (cache) ----------
+// Viven aparte del progreso (no van en la copia de seguridad) y se guardan las últimas MAX_CACHE.
+const CACHE_KEY = 'charla.ia-cache';
+export const MAX_CACHE = 400;
+const memCache = new Map();
+export function cacheKey(task, messages) {
+  const src = task + '|' + JSON.stringify(messages);
+  let h1 = 5381, h2 = 52711;
+  for (let i = 0; i < src.length; i++) { const c = src.charCodeAt(i); h1 = (h1 * 33) ^ c; h2 = (h2 * 33) ^ c; }
+  return `${task}:${(h1 >>> 0).toString(36)}${(h2 >>> 0).toString(36)}:${src.length}`;
+}
+function readCache() {
+  try { return JSON.parse(globalThis.localStorage?.getItem(CACHE_KEY) || '{}') || {}; } catch { return {}; }
+}
+export function cacheGet(k) {
+  if (memCache.has(k)) return structuredClone(memCache.get(k));
+  const v = readCache()[k];
+  return v ? structuredClone(v.v) : null;
+}
+export function cacheSet(k, v) {
+  memCache.set(k, v);
+  try {
+    const all = readCache();
+    all[k] = { v, t: Date.now() };
+    const keys = Object.keys(all);
+    if (keys.length > MAX_CACHE) keys.sort((a, b) => all[a].t - all[b].t).slice(0, keys.length - MAX_CACHE).forEach(x => delete all[x]);
+    globalThis.localStorage?.setItem(CACHE_KEY, JSON.stringify(all));
+  } catch { /* sin espacio o sin localStorage: queda solo en memoria */ }
+}
+export function clearCache() { memCache.clear(); try { globalThis.localStorage?.removeItem(CACHE_KEY); } catch {} }
 
 // Lee una respuesta por partes (Server-Sent Events: líneas «data: {...}») y junta el texto.
 // Si deja de llegar texto por un rato (la red se colgó a medias), se corta en vez de esperar para siempre.
@@ -146,7 +317,7 @@ export async function readStream(res, onText, stallMs = STALL_MS) {
       while ((i = buf.indexOf('\n')) >= 0) { line(buf.slice(0, i)); buf = buf.slice(i + 1); }
     }
   } catch {
-    throw new LlmError('Se cortó la conexión con DeepSeek. Revise su internet.');
+    throw new LlmError('Se cortó la conexión con la IA. Revise su internet.');
   }
   if (buf) line(buf);
   return { text, finish, usage };
@@ -204,9 +375,9 @@ function parseJson(text) {
   throw new LlmError('La IA devolvió una respuesta que no se pudo leer.');
 }
 
-// Cuenta de tokens para que usted vea cuánto gasta.
-// También suma el gasto del mes; al cruzar el 80 % o el tope avisa una vez (la app lo muestra con un aviso).
-function trackUsage(u, model) {
+// Cuenta de tokens para que usted vea cuánto gasta, y el uso de hoy de cada proveedor.
+// Solo DeepSeek suma al gasto del mes (Groq es gratis); al cruzar el 80 % o el tope avisa una vez.
+export function trackUsage(u, route) {
   if (!u) return;
   let crossed = null;
   store.update(s => {
@@ -214,7 +385,13 @@ function trackUsage(u, model) {
     s.usage.input += u.prompt_tokens || 0;
     s.usage.output += u.completion_tokens || 0;
     s.usage.calls += 1;
-    crossed = addSpend(s, u, model);
+    const today = store.todayIso();
+    const d = s.usageDay?.date === today ? s.usageDay : { date: today, groq: { calls: 0, tokens: 0 }, deepseek: { calls: 0, tokens: 0 } };
+    const p = d[route.provider] || (d[route.provider] = { calls: 0, tokens: 0 });
+    p.calls += 1;
+    p.tokens += (u.prompt_tokens || 0) + (u.completion_tokens || 0);
+    s.usageDay = d;
+    if (route.provider === 'deepseek') crossed = addSpend(s, u, route.model);
   });
   if (crossed && typeof globalThis.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
     globalThis.dispatchEvent(new CustomEvent('charla:spend', { detail: { level: crossed, ...spendStatus(store.get()) } }));
