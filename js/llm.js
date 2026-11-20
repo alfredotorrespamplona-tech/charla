@@ -491,6 +491,12 @@ async function demo(task, messages) {
         { en: 'But sometimes I feel alone.', es: 'Pero a veces me siento solo.' },
         { en: 'So I go to the office once a week.', es: 'Así que voy a la oficina una vez por semana.' }],
       tip: 'Use «because» y «for example» para estirar cada idea.' };
+    case 'answer': return { good: '(demo) Respondió la pregunta y se le entendió la idea principal.',
+      fixes: [{ said: 'I am agree', better: 'I agree', why: 'En inglés «estar de acuerdo» es un solo verbo: agree.' }],
+      version: [{ en: 'After work, I usually go to the gym.', es: 'Después del trabajo, normalmente voy al gimnasio.' },
+        { en: 'I go at around seven, near my house.', es: 'Voy a eso de las siete, cerca de mi casa.' },
+        { en: 'It helps me relax after a long day.', es: 'Me ayuda a relajarme después de un día largo.' }],
+      tip: 'Empiece siempre con las palabras de la pregunta: así no se queda en blanco.' };
     case 'grammar': {
       // Demo: siempre el mismo ejercicio de «si hubiera…, habría…» (sin IA no se analiza la frase del alumno).
       return { items: [{ es: 'Si hubiera sabido, te habría llamado.',

@@ -244,6 +244,8 @@ label.check input { width: 20px; height: 20px; accent-color: var(--brand); }
 .suggestion { text-align: left; display: flex; flex-direction: column; border-radius: 14px; border-color: var(--line); }
 .suggestion small, .practice small { color: var(--muted); display: block; }
 .practice { background: var(--surface); border: 1px solid var(--brand-100); border-radius: 14px; padding: 10px 12px; }
+.steal-line { background: var(--surface); border: 1px dashed var(--brand-100); border-radius: 14px; padding: 8px 12px; line-height: 1.5; }
+.grammar .trap, .tec-answer .trap { margin-top: 8px; }
 .keyboard-row { display: flex; gap: 6px; margin-bottom: 8px; }
 .controls { display: flex; justify-content: space-around; align-items: center; padding: 6px 0 calc(8px + env(safe-area-inset-bottom)); }
 .round { width: 52px; height: 52px; border-radius: 50%; font-size: 1.25rem; padding: 0; display: grid; place-items: center; border-color: var(--line); box-shadow: var(--shadow-sm); color: var(--text); }

@@ -336,6 +336,21 @@ ${coachRules()}Return ONLY JSON: {"items": [{"es": "...", "en": "..."}]}` },
   ];
 }
 
+// ---- Técnicas: «Responder en el momento»: corrige la respuesta y la devuelve natural, con la misma estructura ----
+export function answerMessages({ question, frame, text, rankId }) {
+  const rank = rankById(rankId);
+  return [
+    { role: 'system', content: `The learner (native ${LEARNER_LANG}, level ${rank.code}) was asked "${question}" and answered on the spot, trying to start with the words of the question and to follow the structure "${frame}". You get the speech-recognition transcript: ignore recognition mistakes, missing punctuation and fillers.
+Give short, encouraging feedback for a speaker, in plain ${LEARNER_LANG}, never using grammar labels:
+- "good": one sentence about what went well (communication first: was the answer clear and on topic?);
+- "fixes": up to 3 of the most useful corrections, each {"said": "what they said", "better": "how to say it", "why": "very short ${LEARNER_LANG} reason, starting from the meaning"};
+- "version": their own answer said naturally in English at their level, keeping their ideas, starting with the words of the question and following the structure, as 3 or 4 short sentences, each {"en": "...", "es": "natural ${LEARNER_LANG} version"};
+- "tip": one short idea for answering better next time.
+${coachRules()}${knownErrorsText()}Return ONLY JSON: {"good": "...", "fixes": [{"said": "...", "better": "...", "why": "..."}], "version": [{"en": "...", "es": "..."}], "tip": "..."}` },
+    { role: 'user', content: text },
+  ];
+}
+
 // ---- Técnicas: «Un minuto sin parar» (JAM): qué decir mejor, en español primero ----
 export function jamMessages({ topic, text, rankId }) {
   const rank = rankById(rankId);

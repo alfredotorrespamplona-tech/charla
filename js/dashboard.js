@@ -107,7 +107,7 @@ export function techLabel(s = store.get()) {
   const today = t.today?.date === store.todayIso() ? (t.today.steps || []).length : 0;
   if (today) return `Hoy: ${today}/3`;
   const tried = Object.keys(t.done || {}).filter(k => !k.includes(':')).length;
-  return tried ? `${tried} probadas` : '10 técnicas';
+  return tried ? `${tried} probadas` : '11 técnicas';
 }
 
 // go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings, mil, tecnicas }

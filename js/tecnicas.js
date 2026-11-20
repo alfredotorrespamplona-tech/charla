@@ -63,6 +63,10 @@ export const TECHNIQUES = [
     what: 'Una charla con la IA en la que, sin avisar, algo sale mal: un vuelo cancelado, una pregunta inesperada en la entrevista…',
     why: 'Otra técnica del DLI: practicar solo el guion perfecto no prepara para el momento en que algo cambia. Aquí entrena a reaccionar en inglés cuando el plan se rompe.',
     how: ['Elija la situación.', 'Charle normal: en algún momento pasará algo que no espera.', 'Resuélvalo en inglés, con calma.'] },
+  { id: 'responder', group: 'reaccionar', icon: '🎯', name: 'Responder en el momento',
+    what: 'Le hacen una pregunta y arma la respuesta en segundos: empieza con las palabras de la pregunta, la ordena en 3 partes y la dice corta y clara.',
+    why: 'Lo que más frena al hablar no es la falta de palabras: es tener que decidir qué decir y cómo decirlo al mismo tiempo. Si roba las palabras de la pregunta, ya tiene el comienzo; si tiene una estructura lista (Qué · Y qué · Ahora qué, de Matt Abrahams en Stanford), solo piensa en el contenido. Y en bloques cortos se equivoca menos que en frases largas.',
+    how: ['Escuche la pregunta.', 'Empiece con sus mismas palabras: «What do you do after work?» → «After work, I…».', 'Si necesita tiempo, use una frase para pensar («Good question. Let me think…»).', 'Diga 3 partes: la respuesta, por qué importa y qué sigue.', 'Corta y clara. Si se equivoca, corríjase y siga: lo importante es comunicar.', 'Compare con el ejemplo y dígala otra vez, mejor.'] },
 ];
 export const techniqueById = id => TECHNIQUES.find(t => t.id === id);
 
@@ -664,4 +668,205 @@ export function simMission(sim, rnd = Math.random) {
     expressions: sim.expressions,
     facets: {},
   };
+}
+
+// ---------------- Responder en el momento ----------------
+// Cerebro: construccion_oraciones_rapidas.md (Talk Emma: robar palabras de la pregunta, frases para empezar,
+// bloques, corto, hablar primero y corregir después), tecnicas_comunicacion_oral.md (Matt Abrahams, Stanford:
+// parafrasear, Qué · Y qué · Ahora qué y Problema · Solución · Beneficio) y metodo_5w.md (English with Tiffany).
+// Las preguntas y las respuestas de ejemplo son propias.
+export const ANSWER_SIZE = 3;   // preguntas por ronda
+
+// Frases para ganar unos segundos sin decir «eh…» (cada una con su traducción).
+export const STARTERS = [
+  { es: 'Para ganar unos segundos', list: [["That's a good question.", 'Buena pregunta.'], ['Let me think for a second.', 'Déjeme pensar un segundo.'],
+    ['Well, to be honest,', 'Bueno, para ser sincero,'], ['The thing is,', 'Lo que pasa es que']] },
+  { es: 'Para repetir la pregunta con sus palabras', list: [['So, you want to know…', 'O sea, quiere saber…'],
+    ["If I understand correctly, you're asking about…", 'Si entiendo bien, me pregunta sobre…']] },
+  { es: 'Si la respuesta no es simple', list: [['It depends.', 'Depende.'], ['Yes and no.', 'Sí y no.']] },
+];
+
+// Las 3 estructuras: cada parte con lo que tiene que decir (en español) y bloques para empezarla.
+export const FRAMES = {
+  qyq: { name: 'Qué · Y qué · Ahora qué', use: 'Para presentarse, explicar algo o dar su opinión.', parts: [
+    { es: 'Qué: la respuesta directa', chunks: [['I…', 'Yo…'], ['Right now, I…', 'Ahora mismo…']] },
+    { es: 'Y qué: por qué importa', chunks: [['That matters because…', 'Eso importa porque…'], ["That's why…", 'Por eso…'], ['For example,…', 'Por ejemplo,…']] },
+    { es: 'Ahora qué: qué sigue', chunks: [['Now I want to…', 'Ahora quiero…'], ["Next, I'd like to…", 'Después, me gustaría…']] }] },
+  psb: { name: 'Problema · Solución · Beneficio', use: 'Para contar cómo resolvió algo o para convencer.', parts: [
+    { es: 'Problema: qué pasaba', chunks: [['The problem was that…', 'El problema era que…'], ['We had an issue with…', 'Teníamos un problema con…']] },
+    { es: 'Solución: qué hizo usted', chunks: [['So I decided to…', 'Así que decidí…'], ['What I did was…', 'Lo que hice fue…']] },
+    { es: 'Beneficio: cómo terminó', chunks: [['As a result,…', 'Como resultado,…'], ['That way,…', 'Así,…']] }] },
+  w5: { name: '¿Quién? ¿Qué? ¿Cuándo? ¿Dónde? ¿Por qué?', use: 'Para contar su rutina, su día o algo que pasó.', parts: [
+    { es: 'Quién y qué', chunks: [['I usually…', 'Normalmente yo…'], ['My family and I…', 'Mi familia y yo…']] },
+    { es: 'Cuándo y dónde', chunks: [['at around seven', 'a eso de las siete'], ['on Saturday', 'el sábado'], ['at home', 'en casa']] },
+    { es: 'Por qué', chunks: [['because…', 'porque…'], ['so that…', 'para que…']] }] },
+};
+
+export const ANSWER_GROUPS = [
+  { id: 'entrevista', icon: '🤝', name: 'Su entrevista' },
+  { id: 'vida', icon: '☀', name: 'Su vida' },
+  { id: 'opinion', icon: '💭', name: 'Su opinión' },
+];
+
+// q: la pregunta · start: cómo empezar robando sus palabras · frame: la estructura · model: una respuesta posible.
+export const ANSWER_QUESTIONS = [
+  { id: 'rq-about', group: 'entrevista', frame: 'qyq', q: 'Tell me about yourself.', es: 'Hábleme de usted.',
+    start: 'Sure, let me tell you about myself.', startEs: 'Claro, le cuento de mí.',
+    model: "Sure, let me tell you about myself. I'm a sales advisor with five years of experience. I love helping customers find what they need, and that's why I'm good with people. Now I want to grow in a bigger company like this one.",
+    modelEs: 'Claro, le cuento de mí. Soy asesor de ventas con cinco años de experiencia. Me encanta ayudar a los clientes a encontrar lo que necesitan, y por eso me va bien con la gente. Ahora quiero crecer en una empresa más grande como esta.' },
+  { id: 'rq-why-job', group: 'entrevista', frame: 'qyq', q: 'Why do you want this job?', es: '¿Por qué quiere este trabajo?',
+    start: 'I want this job because…', startEs: 'Quiero este trabajo porque…',
+    model: "I want this job because it matches my experience in sales. That matters to me because I can learn a lot here. Next, I'd like to grow with the team.",
+    modelEs: 'Quiero este trabajo porque encaja con mi experiencia en ventas. Eso me importa porque aquí puedo aprender mucho. Después, me gustaría crecer con el equipo.' },
+  { id: 'rq-strength', group: 'entrevista', frame: 'qyq', q: 'What is your greatest strength?', es: '¿Cuál es su mayor fortaleza?',
+    start: 'My greatest strength is…', startEs: 'Mi mayor fortaleza es…',
+    model: 'My greatest strength is that I stay calm under pressure. That helps the team because problems get solved faster. Now I want to use it in a role like this one.',
+    modelEs: 'Mi mayor fortaleza es que mantengo la calma bajo presión. Eso ayuda al equipo porque los problemas se resuelven más rápido. Ahora quiero usarla en un puesto como este.' },
+  { id: 'rq-problem', group: 'entrevista', frame: 'psb', q: 'Tell me about a problem you solved at work.', es: 'Cuénteme un problema que resolvió en el trabajo.',
+    start: 'Sure. A problem I solved at work was that…', startEs: 'Claro. Un problema que resolví en el trabajo fue que…',
+    model: 'Sure. A problem I solved at work was that our customers waited too long for answers. So I decided to write a simple list of common questions. As a result, we answered twice as fast.',
+    modelEs: 'Claro. Un problema que resolví en el trabajo fue que nuestros clientes esperaban demasiado por una respuesta. Así que decidí escribir una lista sencilla de preguntas comunes. Como resultado, respondíamos el doble de rápido.' },
+  { id: 'rq-leave', group: 'entrevista', frame: 'qyq', q: 'Why did you leave your last job?', es: '¿Por qué dejó su último trabajo?',
+    start: 'I left my last job because…', startEs: 'Dejé mi último trabajo porque…',
+    model: "I left my last job because I wanted new challenges. I learned a lot there, but I wasn't growing anymore. Now I want to find a place where I can grow.",
+    modelEs: 'Dejé mi último trabajo porque quería nuevos retos. Aprendí mucho allí, pero ya no estaba creciendo. Ahora quiero encontrar un lugar donde pueda crecer.' },
+  { id: 'rq-five', group: 'entrevista', frame: 'qyq', q: 'Where do you see yourself in five years?', es: '¿Dónde se ve en cinco años?',
+    start: 'In five years, I see myself…', startEs: 'En cinco años, me veo…',
+    model: "In five years, I see myself leading a small team. That matters to me because I enjoy helping others improve. That's why I'm improving my English now.",
+    modelEs: 'En cinco años, me veo dirigiendo un equipo pequeño. Eso me importa porque disfruto ayudar a otros a mejorar. Por eso ahora estoy mejorando mi inglés.' },
+  { id: 'rq-stress', group: 'entrevista', frame: 'psb', q: 'How do you handle stress?', es: '¿Cómo maneja el estrés?',
+    start: 'I handle stress by…', startEs: 'Manejo el estrés con…',
+    model: 'I handle stress by making a plan. When I have too much work, I feel stressed, so I make a list and do the most important things first. That way, I finish on time and I feel calm.',
+    modelEs: 'Manejo el estrés con un plan. Cuando tengo demasiado trabajo, me estreso, así que hago una lista y hago primero lo más importante. Así termino a tiempo y me siento tranquilo.' },
+  { id: 'rq-questions', group: 'entrevista', frame: 'qyq', q: 'Do you have any questions for us?', es: '¿Tiene alguna pregunta para nosotros?',
+    start: "Yes, I do. I'd like to know…", startEs: 'Sí. Me gustaría saber…',
+    model: "Yes, I do. I'd like to know what a normal day looks like in this role. That's important for me because I want to help the team from the first week.",
+    modelEs: 'Sí. Me gustaría saber cómo es un día normal en este puesto. Eso es importante para mí porque quiero ayudar al equipo desde la primera semana.' },
+  { id: 'rq-after-work', group: 'vida', frame: 'w5', q: 'What do you usually do after work?', es: '¿Qué suele hacer después del trabajo?',
+    start: 'After work, I usually…', startEs: 'Después del trabajo, normalmente…',
+    model: 'After work, I usually go to the gym with a friend. We go at around seven, near my house, because it helps me relax.',
+    modelEs: 'Después del trabajo, normalmente voy al gimnasio con un amigo. Vamos a eso de las siete, cerca de mi casa, porque me ayuda a relajarme.' },
+  { id: 'rq-weekend', group: 'vida', frame: 'w5', q: 'What did you do last weekend?', es: '¿Qué hizo el fin de semana pasado?',
+    start: 'Last weekend, I…', startEs: 'El fin de semana pasado, yo…',
+    model: "Last weekend, I visited my family. We had lunch at my mom's house on Sunday, because it was my brother's birthday.",
+    modelEs: 'El fin de semana pasado visité a mi familia. Almorzamos en la casa de mi mamá el domingo, porque era el cumpleaños de mi hermano.' },
+  { id: 'rq-commute', group: 'vida', frame: 'w5', q: 'How do you get to work?', es: '¿Cómo llega al trabajo?',
+    start: 'I get to work by…', startEs: 'Llego al trabajo en…',
+    model: "I get to work by bus. I leave home at around seven thirty, and I take the bus because it's cheaper than driving.",
+    modelEs: 'Llego al trabajo en bus. Salgo de casa a eso de las siete y media, y tomo el bus porque es más barato que manejar.' },
+  { id: 'rq-weekends', group: 'vida', frame: 'w5', q: 'What do you like to do on weekends?', es: '¿Qué le gusta hacer los fines de semana?',
+    start: 'On weekends, I like to…', startEs: 'Los fines de semana, me gusta…',
+    model: "On weekends, I like to cook with my family. We usually cook on Saturday at home, because it's the only time we're all together.",
+    modelEs: 'Los fines de semana me gusta cocinar con mi familia. Normalmente cocinamos el sábado en casa, porque es el único momento en que estamos todos juntos.' },
+  { id: 'rq-morning', group: 'vida', frame: 'w5', q: 'Tell me about your morning routine.', es: 'Cuénteme su rutina de la mañana.',
+    start: 'Sure. In the morning, I…', startEs: 'Claro. En la mañana, yo…',
+    model: 'Sure. In the morning, I wake up at six and make coffee. Then I read the news in the kitchen, because I like to start the day informed.',
+    modelEs: 'Claro. En la mañana me levanto a las seis y hago café. Luego leo las noticias en la cocina, porque me gusta empezar el día informado.' },
+  { id: 'rq-home-office', group: 'opinion', frame: 'qyq', q: 'What do you think about working from home?', es: '¿Qué opina de trabajar desde casa?',
+    start: 'I think working from home is…', startEs: 'Creo que trabajar desde casa es…',
+    model: "I think working from home is great for many people. That matters because you save time and money. But next year I'd like to go to the office once a week.",
+    modelEs: 'Creo que trabajar desde casa es genial para mucha gente. Eso importa porque se ahorra tiempo y dinero. Pero el próximo año me gustaría ir a la oficina una vez por semana.' },
+  { id: 'rq-english', group: 'opinion', frame: 'qyq', q: 'Is it important to learn English?', es: '¿Es importante aprender inglés?',
+    start: "Yes, I think it's important to learn English because…", startEs: 'Sí, creo que es importante aprender inglés porque…',
+    model: "Yes, I think it's important to learn English because it opens many doors. For example, you can get a better job. That's why I want to practice every day.",
+    modelEs: 'Sí, creo que es importante aprender inglés porque abre muchas puertas. Por ejemplo, se puede conseguir un mejor trabajo. Por eso quiero practicar todos los días.' },
+  { id: 'rq-city', group: 'opinion', frame: 'psb', q: 'What would you change about your city?', es: '¿Qué cambiaría de su ciudad?',
+    start: 'If I could change something about my city, I would…', startEs: 'Si pudiera cambiar algo de mi ciudad, yo…',
+    model: 'The problem in my city is the traffic. If I could change something, I would build more bike lanes. That way, people would get to work faster.',
+    modelEs: 'El problema de mi ciudad es el tráfico. Si pudiera cambiar algo, construiría más ciclorrutas. Así, la gente llegaría más rápido al trabajo.' },
+  { id: 'rq-save', group: 'opinion', frame: 'psb', q: "What's the best way to save money?", es: '¿Cuál es la mejor forma de ahorrar dinero?',
+    start: 'I think the best way to save money is…', startEs: 'Creo que la mejor forma de ahorrar dinero es…',
+    model: 'Many people spend money without noticing. I think the best way to save money is to write down every expense. That way, you see where your money goes and you spend less.',
+    modelEs: 'Mucha gente gasta dinero sin darse cuenta. Creo que la mejor forma de ahorrar es anotar cada gasto. Así ve a dónde se va su dinero y gasta menos.' },
+  { id: 'rq-travel', group: 'opinion', frame: 'qyq', q: 'Do you prefer to travel alone or with friends?', es: '¿Prefiere viajar solo o con amigos?',
+    start: 'I prefer to travel with friends because…', startEs: 'Prefiero viajar con amigos porque…',
+    model: "I prefer to travel with friends because it's more fun. For example, we share the costs and the stories. Next year, we want to go to the beach together.",
+    modelEs: 'Prefiero viajar con amigos porque es más divertido. Por ejemplo, compartimos los gastos y las historias. El próximo año queremos ir juntos a la playa.' },
+];
+export const answerQuestionById = id => ANSWER_QUESTIONS.find(q => q.id === id);
+// Una ronda: preguntas distintas del grupo, al azar.
+export const answerSet = (group, rnd = Math.random) => T.shuffle(ANSWER_QUESTIONS.filter(q => q.group === group), rnd).slice(0, ANSWER_SIZE);
+
+// Señales de cada parte de la estructura (revisión sin IA, aproximada). null = la parte 1 se cumple respondiendo.
+// Van sobre el texto normalizado (contracciones abiertas: «that's» = «that is», «I'd like» = «i would like»).
+const PART_KEYS = {
+  qyq: [null,
+    /\b(because|that is why|it helps|helps|matters|important|so i|which means|for example)\b/,
+    /\b(now|next|in the future|want to|would like to|plan to|hope to|going to|from now on|next year)\b/],
+  psb: [/\b(problem|issue|difficult|hard|challenge|stress|stressed|too much|too many|too long|was not|did not|could not|without)\b/,
+    /\b(so i|so we|decided|what i did|if i could|i would|best way|you should|you can|i (created|made|started|talked|asked|changed|used|organized|make|do|try|write|wrote|take|took|build|built))\b/,
+    /\b(as a result|result|thanks to|in the end|finally|that way|faster|better|improved|easier|cleaner|less|more|on time|calm)\b/],
+  w5: [null,
+    /\b(at|in the (morning|afternoon|evening)|every|on (monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekends?)|around|oclock|yesterday|last|near|home|office|house|park|gym|by (bus|car|bike|train))\b/,
+    /\b(because|so that|so i|since|that is why|in order to|it helps|to relax)\b/],
+};
+
+// Revisa la respuesta dicha o escrita, sin IA: ¿empezó con las palabras de la pregunta?, ¿tiene las 3 partes?,
+// ¿es corta y clara? Devuelve también un consejo para la próxima.
+export function answerCheck(item, said) {
+  const text = normalize(said);
+  const ws = text ? text.split(' ') : [];
+  const startWords = normalize(String(item.start).replace(/…/g, ' ')).split(' ')
+    .filter(w => w.length > 2 && !/^(the|and|you|sure|yes|let|tell|do)$/.test(w));
+  const stole = startWords.length ? startWords.filter(w => ws.includes(w)).length / startWords.length >= 0.6 : true;
+  const keys = PART_KEYS[item.frame] || PART_KEYS.qyq;
+  const parts = keys.map((re, i) => (i === 0 && !re ? ws.length >= 4 : re.test(text)));
+  const short = ws.length >= 8 && ws.length <= 70;
+  const fillers = (String(said || '').match(/\b(um+|uh+|uhm+|er+m?|ah+|hmm+|you know|i mean)\b/gi) || []).length;
+  const ok = [stole, ...parts, short].filter(Boolean).length;
+  const frame = FRAMES[item.frame] || FRAMES.qyq;
+  const miss = parts.findIndex(p => !p);
+  const tip = !ws.length ? 'No se escuchó nada: dígala otra vez.'
+    : !stole ? `Empiece con las palabras de la pregunta: «${item.start}»`
+    : miss >= 0 ? `Le faltó «${frame.parts[miss].es}». Pruebe con «${frame.parts[miss].chunks[0][0]}»`
+    : ws.length < 8 ? 'Muy corta: agregue por qué, con «because…».'
+    : ws.length > 70 ? 'Se alargó: diga lo mismo en 3 frases cortas.'
+    : '¡Así se responde! Dígala otra vez, un poco más rápido.';
+  return { stole, parts, short, words: ws.length, fillers, score: ok / 5, tip };
+}
+
+// Robar palabras de la pregunta (para la charla): convierte la última pregunta del personaje en el comienzo de
+// una respuesta. «What do you usually do after work?» → «After work, I usually…». null si no sabe.
+const cap = t => (t ? t[0].toUpperCase() + t.slice(1) : t);
+function swapPerson(t) {
+  return String(t || '').replace(/\b(yourself|yours|your|you're|you|me|my|myself|us|our)\b/gi, (w, _, i, all) => {
+    const k = w.toLowerCase();
+    if (k === 'you') return /\b(to|for|with|call|tell|help|ask|give|about|at|see|meet|like|love|than)\s+$/i.test(all.slice(0, i)) ? 'me' : 'I';
+    return { yourself: 'myself', yours: 'mine', your: 'my', "you're": "I'm", me: 'you', my: 'your', myself: 'yourself', us: 'you', our: 'your' }[k];
+  }).trim();
+}
+export function stealStart(text) {
+  const t = String(text || '');
+  const tell = t.match(/\btell me (?:a (?:little )?bit |a little |more )?about ([^.!?]+)/i);
+  const qs = t.match(/[^.!?]*\?/g);
+  if (!qs) return tell ? `Sure. Let me tell you about ${swapPerson(tell[1])}.` : null;
+  let q = qs[qs.length - 1].replace(/\?$/, '').trim().replace(/^(?:and|so|well|oh|ok|okay|great|nice|sure)\b[,!]?\s*/i, '');
+  // «And how about you, what do you…» / «Anna, how was…»: la pregunta de verdad va después de la coma.
+  const tail = q.match(/,\s*((?:what|how|why|where|when|do|did|are|have|would|can|could|is)\b.*)$/i);
+  if (tail) q = tail[1];
+  const R = [
+    [/^(?:can|could) you tell me (?:a (?:little )?bit |a little |more )?about (.+)$/i, m => `Sure. Let me tell you about ${swapPerson(m[1])}.`],
+    [/^what do you think (?:about|of) (.+)$/i, m => `I think ${swapPerson(m[1])} is…`],
+    [/^what do you like (?:most |best )?about (.+)$/i, m => `What I like about ${swapPerson(m[1])} is…`],
+    [/^what (do|did) you (usually |normally |often |like to |want to )?do\b\s*(.*)$/i, m => {
+      const adv = (m[2] || '').trim(), rest = swapPerson(m[3]);
+      if (!rest) return m[1].toLowerCase() === 'did' ? 'I…' : (adv ? `I ${adv}…` : 'I work as… / I usually…');
+      return `${cap(rest)}, I${adv ? ' ' + adv : ''}…`;
+    }],
+    [/^what would you like(?: to (\w+))?\b.*$/i, m => (m[1] ? `I'd like to ${m[1]}…` : "I'd like…")],
+    [/^what do you (usually |normally |often |really )?(\w+)\b\s*(.*)$/i, m => `I ${m[1] || ''}${m[2]}…${m[3] ? ' ' + swapPerson(m[3]) : ''}`],
+    [/^what(?:'s| is) your (.+)$/i, m => `My ${swapPerson(m[1])} is…`],
+    [/^how (was|is) your (.+)$/i, m => `My ${swapPerson(m[2])} ${m[1].toLowerCase()}…`],
+    [/^why do you want (.+)$/i, m => `I want ${swapPerson(m[1])} because…`],
+    [/^why did you (.+)$/i, m => `I decided to ${swapPerson(m[1])} because…`],
+    [/^how long have you (.+)$/i, m => `I've ${swapPerson(m[1])} for…`],
+    [/^where are you from$/i, () => "I'm from…"],
+    [/^would you like (.+)$/i, m => `Yes, I'd like ${swapPerson(m[1])}… / No, thanks.`],
+    [/^have you ever (.+)$/i, m => `Yes, I've ${swapPerson(m[1])}… / No, I've never ${swapPerson(m[1])}.`],
+    [/^do you (.+)$/i, m => `Yes, I ${swapPerson(m[1]).replace(/\bany\b/i, 'some')}… / No, I don't.`],
+    [/^did you (.+)$/i, () => "Yes, I did… / No, I didn't…"],
+    [/^are you (.+)$/i, m => `Yes, I'm ${swapPerson(m[1])}… / No, I'm not.`],
+  ];
+  for (const [re, f] of R) { const m = q.match(re); if (m) return cap(f(m)); }
+  return tell ? `Sure. Let me tell you about ${swapPerson(tell[1])}.` : null;
 }

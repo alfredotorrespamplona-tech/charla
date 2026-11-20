@@ -10,6 +10,7 @@ import { Listener, speak, stopSpeaking, canListen } from './speech.js';
 import { wordStates, verdict } from './pronounce.js';
 import { addVocab } from './words.js';
 import * as G from './grammar.js';
+import { sendToWorkshop } from './workshop.js';
 
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false));
 const hasAI = () => aiReady();
@@ -285,7 +286,7 @@ function verbsTab(back) {
     input,
     h('div.row', {}, seg, count),
     h('button.primary.small', { onclick: () => verbQuiz(G.searchVerbs(st.q, st.kind), back) }, '🎯 Pruébese con estos verbos'),
-    h('div.verb-head', {}, h('span', {}, 'Infinitivo'), h('span', {}, 'Pasado'), h('span', {}, 'Participio')),
+    h('div.verb-head', {}, h('span', {}, 'Base'), h('span', {}, 'Pasado'), h('span', {}, 'Terminada (have…)')),
     list,
   ];
 }
@@ -304,11 +305,11 @@ function verbSheet(v) {
   say(forms, 0.8);
   sheet(h('div', {},
     h('h3', {}, `${v.base} — ${v.es}`),
-    h('p.muted', {}, `Verbo ${G.KIND[v.type]}${v.type === 'R' ? ': pasado y participio con -ed' : ''}.`),
+    h('p.muted', {}, `Verbo ${G.KIND[v.type]}${v.type === 'R' ? ': pasado y forma terminada con -ed' : ''}.`),
     v.note ? h('p', {}, '💡 ', v.note) : null,
     h('table.verb-forms', {},
       h('tr', {}, h('th', {}, ''), h('th', {}, 'Inglés'), h('th', {}, 'Español')),
-      [['Infinitivo', v.base, v.es], ['Pasado', v.past, v.esPast], ['Participio', v.pp, v.esPp]].map(([k, en, es]) =>
+      [['Base', v.base, v.es], ['Pasado', v.past, v.esPast], ['Terminada (have…)', v.pp, v.esPp]].map(([k, en, es]) =>
         h('tr', {}, h('td.muted', {}, k), h('td', {}, h('b', {}, en)), h('td', {}, es)))),
     v.example ? h('div.correction.better', {}, h('small', {}, 'Ejemplo'), h('div', {}, v.example), h('button.tiny', { 'aria-label': 'Escuchar', onclick: () => say(v.example) }, '🔊')) : null,
     h('div.row', {},
@@ -351,7 +352,7 @@ function verbQuiz(list, back) {
       progressBar(i / qs.length),
       h('p.muted.drill-step', {}, `${i + 1} de ${qs.length}`),
       h('p.sentence.es', {}, `«${q.es}»`),
-      h('p', {}, `¿Cómo se dice en inglés? (${q.kind === 'past' ? 'pasado' : 'participio'} de «${q.verb.es}», to ${q.verb.base})`),
+      h('p', {}, `¿Cómo se dice en inglés? (${q.kind === 'past' ? 'pasado' : 'forma terminada, la de «have…»'} de «${q.verb.es}», to ${q.verb.base})`),
       h('div.options', {}, opts),
       result);
   }
@@ -368,27 +369,51 @@ function verbQuiz(list, back) {
   show();
 }
 
-// ---------------- Su frase (con IA) ----------------
+// ---------------- Su frase: piezas sin IA, ejercicio completo con IA ----------------
 function mineTab(back) {
   const input = h('textarea.text-input', { rows: 3, placeholder: 'Ej.: Si hubiera tenido tiempo, habría ido al gimnasio.', 'aria-label': 'Su frase en español' });
-  const btn = h('button.primary', { onclick: () => go() }, '🧩 Partirla en piezas');
+  const out = h('div');
+  const btn = h('button.primary', { onclick: () => local() }, '🧩 Ver sus piezas');
+  const aiBtn = h('button', { onclick: () => go() }, '🤖 Armar el ejercicio con IA');
+  // Paso 2 y 3 del puzzle, en el teléfono: qué formas tiene su frase y qué pieza del inglés va en cada una.
+  function local() {
+    const text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    const list = G.spanishPieces(text);
+    const attempt = h('input.text-input', { placeholder: 'Ármela en inglés con esas piezas…', 'aria-label': 'Su frase en inglés' });
+    fill(out, list.length
+      ? h('div.card', {},
+        h('b', {}, 'Las piezas de su frase'), h('small.muted', {}, ' (sin gastar IA)'),
+        list.map(p => h('div.trap', {},
+          h('div', {}, h('b', {}, `«${p.es}»`), ' → ', h('b.good', {}, p.en), ' ', /[a-z]/.test(p.en) && !p.en.includes('(') ? h('button.tiny', { 'aria-label': 'Escuchar', onclick: () => say(p.en) }, '🔊') : null),
+          h('small.muted', {}, `${p.piece}: ${p.idea}`))),
+        h('p', {}, 'Ahora cambie cada pieza, arme la frase completa y dígala en voz alta.'),
+        attempt,
+        h('div.row', {},
+          h('button.small', { onclick: () => attempt.value.trim() ? say(attempt.value.trim()) : attempt.focus() }, '🔊 Oír cómo suena'),
+          h('button.small', { onclick: () => attempt.value.trim() ? sendToWorkshop(attempt.value.trim()) : attempt.focus() }, '🧩 Al taller')),
+        h('p.muted', {}, 'Para saber si quedó bien, arme el ejercicio con IA: la IA revisa la frase entera.'))
+      : h('div.card', {}, h('p', {}, 'No encontré formas del verbo para cambiar (-ando, -ado, -ré, -ría, he…, hubiera…, habría…, quiero + -ar…).'),
+        h('p.muted', {}, 'Pruebe con otra frase de su día, o arme el ejercicio con IA.')));
+  }
   async function go() {
     const text = input.value.trim();
     if (!text) { input.focus(); return; }
     if (!hasAI()) { toast('Para esto hace falta su clave de IA (Ajustes). Para probar, escriba «demo».', 'bad'); return; }
-    btn.disabled = true; setText(btn, 'Partiendo…');
+    aiBtn.disabled = true; setText(aiBtn, 'Partiendo…');
     try {
       const r = await chatJson('grammar', P.grammarMessages({ sentence: text, rankId: store.get().rank }), { temperature: 0.3, maxTokens: 700 });
       const x = G.validExercise(r?.items?.[0]);
       if (!x) throw new Error('No se pudo partir esa frase. Pruebe con una frase que tenga verbos.');
       runPuzzle({ title: 'Su frase', items: [x], back, done: back });
-    } catch (e) { toast(e.message, 'bad'); btn.disabled = false; setText(btn, '🧩 Partirla en piezas'); }
+    } catch (e) { toast(e.message, 'bad'); aiBtn.disabled = false; setText(aiBtn, '🤖 Armar el ejercicio con IA'); }
   }
   return [
     h('div.card', {},
       h('b', {}, 'Lo que usted quiere decir hoy'),
-      h('p.muted', {}, 'Escriba en español una frase de su día. La IA la parte en piezas y usted la arma en inglés con los mismos 5 pasos.'),
-      input, btn),
+      h('p.muted', {}, 'Escriba en español una frase real de su día. Primero vea sus piezas (sin IA) y ármela usted; después, si quiere, la IA arma el ejercicio y lo revisa.'),
+      input, h('div.row', {}, btn, aiBtn)),
+    out,
     methodCard(),
   ];
 }

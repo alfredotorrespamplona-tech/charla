@@ -14,6 +14,8 @@ import { openTranscript } from './transcript.js';
 import { findError } from './bitacora.js';
 import * as tutorial from './tutorial.js';
 import { sendToWorkshop } from './workshop.js';
+import { stealStart } from './tecnicas.js';
+import { framesGuide } from './tecnicasscreen.js';
 
 // Si se queda callado, el personaje retoma (una vez por turno; después solo se marca «¡Su turno!»).
 const NUDGES = ["Take your time. I'm listening!", 'No rush. What do you think?', 'Are you still there? Your turn!', "Go ahead, I'm all ears."];
@@ -737,6 +739,18 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     } catch (e) { setStatus(''); toast(e.message, 'bad'); }
   }
 
+  // «Empiece con las palabras de la pregunta» (técnica Responder en el momento, del cerebro): el comienzo de la
+  // respuesta armado en el teléfono con la última pregunta del personaje, sin gastar IA. 📋 abre las 3 estructuras.
+  function stealLine() {
+    const q = [...session.history].reverse().find(m => m.role === 'character')?.text || '';
+    const start = stealStart(q);
+    if (!start) return null;
+    return h('div.steal-line', {},
+      h('small.muted', {}, '🎯 Empiece con sus palabras: '), h('b', {}, start), ' ',
+      h('button.tiny', { 'aria-label': 'Escuchar', onclick: () => say(start.split(' / ')[0].replace(/…/g, '')) }, '🔊'),
+      h('button.tiny', { title: 'Las 3 estructuras para responder', onclick: () => sheet(h('div', {}, framesGuide(true), h('button.wide', { onclick: closeSheet }, 'Cerrar'))) }, '📋'));
+  }
+
   // Sugerencia (ConversationSuggestion): una sola, con «Otra idea» por si no le sirve.
   let lastIdea = '';
   async function showSuggestions(another = false) {
@@ -744,10 +758,13 @@ export function startConversation({ place, character, mission, onFinish, onExit,
     if (!another) lastIdea = '';
     suggestBox.classList.remove('hidden');
     suggestBox.innerHTML = '';
+    const steal = stealLine();
+    if (steal) suggestBox.appendChild(steal);
     suggestBox.appendChild(spinner('Pensando ideas…'));
     try {
       const r = await chatJson('suggestions', P.suggestionMessages({ history: session.history, rankId: store.get().rank, mission: { ...mission, objectives: mission.objectives.filter(o => !session.completed.has(o.id)) }, avoid: lastIdea }), { temperature: another ? 0.9 : 0.7, maxTokens: 140 });
       suggestBox.innerHTML = '';
+      if (steal) suggestBox.appendChild(steal);
       const list = (r.suggestions || []).filter(x => x?.text);
       const pickIdea = list.find(x => x.text !== lastIdea) || list[0];
       for (const sug of pickIdea ? [pickIdea] : []) {

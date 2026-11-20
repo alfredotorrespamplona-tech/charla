@@ -77,7 +77,7 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
     empieza la charla en la cafetería y al salir vuelve al mismo nivel.
   - «Charlar en nivel X» cambia el nivel de sus charlas sin pasar por Ajustes.
   - Todo el contenido nuevo está escrito para Charla, con palabras propias.
-- **🚀 Técnicas avanzadas** (v38; botón «Técnicas» del inicio y cuadro ancho de la portada): 10 técnicas
+- **🚀 Técnicas avanzadas** (v38; botón «Técnicas» del inicio y cuadro ancho de la portada): 11 técnicas
   sacadas del cerebro de inglés para aprender más rápido. Cada una abre con «Qué es», «Por qué funciona» y
   «Cómo se hace», en español y sin palabras de gramática. Están en 4 grupos:
   - **Entender inglés rápido**
@@ -105,9 +105,16 @@ App propia, modelada sobre la metodología de LingoLooper (ver `ANALISIS.md`), c
   - **Reaccionar cuando algo cambia**
     - 🎲 **Simulacro con imprevisto** (DLI): 6 charlas (2 de entrevista, aeropuerto, restaurante, hotel,
       consultorio) en las que, sin avisar, algo sale mal.
+    - 🎯 **Responder en el momento** (v42): le hacen una pregunta (18 propias: entrevista, vida, opinión) y
+      la arma en segundos. Empieza con las palabras de la pregunta, usa una frase para pensar si hace falta,
+      la ordena en 3 partes (Qué · Y qué · Ahora qué, de Matt Abrahams; Problema · Solución · Beneficio; o
+      las 5 preguntas) y la dice corta. El teléfono revisa la forma sin IA (comienzo, 3 partes, largo,
+      muletillas) y muestra una respuesta de ejemplo. Con clave, la IA corrige la gramática y la devuelve
+      natural; se guarda en «Mis frases» o va al Taller.
   - **🔁 Las 5 de hoy**: las mismas 5 frases todo el día de 3 maneras (oírlas, repetirlas, decirlas de
     memoria). Se eligen de: entrevista de trabajo, frases de su nivel, «Mis frases» o su repaso.
-  - **🎯 Para su entrevista**: acceso directo a STAR, al minuto con preguntas de entrevista y al simulacro.
+  - **🎯 Para su entrevista**: acceso directo a STAR, al minuto con preguntas de entrevista, al simulacro y a
+    «Responder en el momento».
   - Todo el contenido es propio; el avance se guarda en `tecnicas` y viaja en la copia de seguridad.
 - 19 lugares (cafetería, aeropuerto, hotel, oficina, parque, restaurante, consultorio, calle, tienda,
   gimnasio, fiesta, entrevista de trabajo, **tu barrio, supermercado, ayuntamiento, banco, escuela de
@@ -440,6 +447,18 @@ No hace falta volver a instalar el APK.
   minuto: si Groq pide esperar menos de 6 s, la app espera y sigue con el mejor modelo; si es más, pasa al
   siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
   ejercicio del taller o no cierran la despedida.
+
+### Armar frases para comunicar (v42)
+- Del cerebro (`wiki/metodologias/responder_en_el_momento.md`, síntesis de construccion_oraciones_rapidas,
+  tecnicas_comunicacion_oral, metodo_5w y hacks_habla_articulada) más el método de Pablo Bolen.
+- **En la charla**, al tocar 💡 sale primero «🎯 Empiece con sus palabras»: el comienzo de la respuesta armado
+  con la última pregunta del personaje («What do you usually do after work?» → «After work, I usually…»).
+  Se arma en el teléfono (`stealStart` en `js/tecnicas.js`), sin IA. 📋 abre las 3 estructuras.
+- **Gramática → Su frase**: primero muestra las piezas de su frase en español sin IA (`spanishPieces` en
+  `js/grammar.js`): «hubiera llegado» → had arrived, «habría conocido» → would have known, «si tuviera» →
+  had (después de «si» va pasado, nunca would), «iré» → will go, «me gustaría quedarme» → would like to stay.
+  El verbo en inglés sale de la tabla de verbos del cerebro. La IA solo arma el ejercicio y lo revisa.
+- Las lecciones de gramática ya no dicen «participio»: dicen «forma terminada» (regla sin jerga).
 
 ### Lo que la IA recibe siempre completo (v41)
 - La v40 resumió sus reglas y sus errores y cortó el historial para gastar menos, pero eso quitaba cosas que

@@ -78,7 +78,7 @@ const LESSON_DATA = [
       ['[Me gustaría] un café.', '[I would like] a coffee.', [['I will like', 'I like would']]],
       ['Ellos no [entenderían] el chiste.', 'They [would not understand] the joke.', [['would not understood', 'not would understand']]],
     ] },
-  { id: 'g-have', rank: 3, icon: '✅', title: 'He comido → have + participio',
+  { id: 'g-have', rank: 3, icon: '✅', title: 'He comido → have + forma terminada',
     idea: '«He comido», «ha viajado»: algo del pasado que sigue conectado con hoy, sin decir cuándo. «He / ha» es have / has, y el -ado / -ido es la tercera columna de la Tabla de verbos (eaten, gone, worked).',
     table: [['he comido', 'I have eaten'], ['ha viajado', 'she has traveled'], ['hemos visto', 'we have seen']],
     ex: [
@@ -98,8 +98,8 @@ const LESSON_DATA = [
       ['Ella [no puede venir] hoy.', 'She [cannot come] today.', [['can not to come', "doesn't can come"]]],
       ['[Deberíamos salir] temprano.', 'We [should leave] early.', [['should to leave', 'should leaving']]],
     ] },
-  { id: 'g-had', rank: 4, icon: '⏪', title: 'Había comido → had + participio',
-    idea: '«Había comido» o «hubiera comido»: un pasado que va antes de otro pasado, o algo que no pasó. En inglés las dos se dicen con la misma pieza: had + participio.',
+  { id: 'g-had', rank: 4, icon: '⏪', title: 'Había comido → had + forma terminada',
+    idea: '«Había comido» o «hubiera comido»: un pasado que va antes de otro pasado, o algo que no pasó. En inglés las dos se dicen con la misma pieza: had + forma terminada.',
     table: [['había salido', 'had left'], ['había perdido', 'had lost'], ['hubiera sabido', 'had known']],
     ex: [
       ['Cuando llegué, el tren [ya había salido].', 'When I arrived, the train [had already left].', [['has already left', 'had already leave']]],
@@ -119,7 +119,7 @@ const LESSON_DATA = [
       ['Si [hablaras] inglés, [conseguirías] ese trabajo.', 'If you [spoke] English, you [would get] that job.', [['would speak', 'speak'], ['will get', 'got']]],
     ] },
   { id: 'g-passive', rank: 4, icon: '🏛', title: 'Fue hecho, se habla → was made, is spoken',
-    idea: 'Cuando importa más la cosa que quién la hace: «la casa fue construida en 1990», «aquí se habla inglés». En inglés: am / is / are o was / were + participio (made, built, spoken). Si quiere decir quién lo hizo, agregue «by».',
+    idea: 'Cuando importa más la cosa que quién la hace: «la casa fue construida en 1990», «aquí se habla inglés». En inglés: am / is / are o was / were + forma terminada (made, built, spoken). Si quiere decir quién lo hizo, agregue «by».',
     table: [['fue construida', 'was built'], ['se habla', 'is spoken'], ['fueron vendidos', 'were sold'], ['será enviado', 'will be sent']],
     ex: [
       ['La casa [fue construida] en 1990.', 'The house [was built] in 1990.', [['built', 'was build']]],
@@ -128,8 +128,8 @@ const LESSON_DATA = [
       ['El paquete [será enviado] mañana.', 'The package [will be sent] tomorrow.', [['will send', 'will be send']]],
       ['Este libro [fue escrito] por mi profesora.', 'This book [was written] by my teacher.', [['was wrote', 'wrote']]],
     ] },
-  { id: 'g-wouldhave', rank: 5, icon: '🧩', title: 'Habría ido → would have + participio',
-    idea: '«Iría» es una pieza: todavía es posible. «Habría ido» son dos piezas: ya no pasó. Si en español hay «habría» + -ado / -ido, en inglés también van dos piezas: would have + participio (gone, worked).',
+  { id: 'g-wouldhave', rank: 5, icon: '🧩', title: 'Habría ido → would have + forma terminada',
+    idea: '«Iría» es una pieza: todavía es posible. «Habría ido» son dos piezas: ya no pasó. Si en español hay «habría» + -ado / -ido, en inglés también van dos piezas: would have + forma terminada (gone, worked).',
     table: [['iría', 'I would go'], ['habría ido', 'I would have gone'], ['habría trabajado', 'I would have worked']],
     ex: [
       ['Yo [habría ido] contigo.', 'I [would have gone] with you.', [['would go', 'would have went']]],
@@ -139,7 +139,7 @@ const LESSON_DATA = [
       ['¿Qué [habrías hecho] tú?', 'What [would you have done]?', [['would you do', 'would you have did']]],
     ] },
   { id: 'g-if3', rank: 5, icon: '🔁', title: 'Si hubiera…, habría… → If I had…, would have',
-    idea: 'Para lamentar o imaginar el pasado: «Si hubiera estudiado, habría aprobado». Las dos mitades hacen juego: had + participio con would have + participio. Es el error de su bitácora: el would no va con el if.',
+    idea: 'Para lamentar o imaginar el pasado: «Si hubiera estudiado, habría aprobado». Las dos mitades hacen juego: had + forma terminada con would have + forma terminada. Es el error de su bitácora: el would no va con el if.',
     table: [['si hubiera sabido', 'if I had known'], ['habría llamado', 'I would have called']],
     ex: [
       ['Si [hubiera sabido], te [habría llamado].', 'If I [had known], I [would have called] you.', [['would have known', 'have known'], ['would call', 'had called']]],
@@ -149,7 +149,7 @@ const LESSON_DATA = [
       ['Si [hubiera aprendido] inglés, [trabajaría] en una gran empresa.', 'If I [had learned] English, I [would work] for a big company.', [['would have learned', 'learned'], ['would have worked', 'will work']]],
     ] },
   { id: 'g-wish', rank: 5, icon: '✨', title: 'Ojalá tuviera… → I wish I had…',
-    idea: 'Para desear algo distinto de lo que es: «ojalá tuviera más tiempo» → I wish I had more time (I wish + pasado). Para lamentar algo que ya pasó: «ojalá hubiera estudiado» → I wish I had studied (I wish + had + participio).',
+    idea: 'Para desear algo distinto de lo que es: «ojalá tuviera más tiempo» → I wish I had more time (I wish + pasado). Para lamentar algo que ya pasó: «ojalá hubiera estudiado» → I wish I had studied (I wish + had + forma terminada).',
     table: [['ojalá tuviera', 'I wish I had'], ['ojalá supiera', 'I wish I knew'], ['ojalá hubiera ido', 'I wish I had gone']],
     ex: [
       ['[Ojalá tuviera] más tiempo.', '[I wish I had] more time.', [['I wish I have', 'I hope I had']]],
@@ -297,4 +297,126 @@ export function verbQuestions(list, n = 8, rnd = Math.random) {
     qs.push(mk('pp', pp, firstForm(v.esPp), [...extra, ...(v.type === 'R' ? [base, third(v.base)] : [past !== pp ? past : reg, reg, base]), ...spare]));
   }
   return qs;
+}
+
+// ---------------- Piezas de su frase, sin IA (método de Pablo Bolen) ----------------
+// Cerebro: equivalencia_estructural_espanol_ingles.md y ejercicio_puzzle_verbal.md. Reconoce en la frase en
+// español las formas del verbo (-ar, -ando, -ado, -ré, -ría, he…, había/hubiera…, habría…, voy a…) y dice qué
+// pieza del inglés va en su lugar. El verbo en inglés sale de la tabla de verbos del cerebro; si no está, solo
+// la pieza (ej.: «would + el verbo»). Es una guía para armarla usted: la IA solo hace falta para revisarla.
+const ES_ENDING = /(ar|er|ir|ír)$/;
+const IRREG_STEM = { tener: 'tendr', poner: 'pondr', salir: 'saldr', venir: 'vendr', poder: 'podr', saber: 'sabr', haber: 'habr',
+  querer: 'querr', decir: 'dir', hacer: 'har', caber: 'cabr', valer: 'valdr' };
+const IRREG_GER = { ir: 'yendo', leer: 'leyendo', traer: 'trayendo', creer: 'creyendo', oir: 'oyendo', decir: 'diciendo', dormir: 'durmiendo',
+  pedir: 'pidiendo', sentir: 'sintiendo', venir: 'viniendo', poder: 'pudiendo', seguir: 'siguiendo', morir: 'muriendo', servir: 'sirviendo' };
+const enBase = v => firstForm(v.base.replace(/\s*\(.*?\)/g, ''));
+const enPp = v => (hasForm(v.pp) ? firstForm(v.pp) : enBase(v));
+const DOUBLE = new Set(['run', 'get', 'put', 'sit', 'stop', 'swim', 'begin', 'plan', 'shop', 'cut', 'set', 'win', 'forget', 'hit', 'let']);
+export function ingForm(base) {
+  const [w, ...rest] = String(base).split(' ');
+  const ing = DOUBLE.has(w) ? w + w.slice(-1) + 'ing' : w.endsWith('ie') ? w.slice(0, -2) + 'ying'
+    : /[^aeiou]e$/.test(w) && w !== 'be' ? w.slice(0, -1) + 'ing' : w + 'ing';
+  return [ing, ...rest].join(' ');
+}
+
+// Índices: infinitivo, participio, gerundio, futuro y condicional (sin tildes) → verbo de la tabla.
+let IDX = null;
+function index() {
+  if (IDX) return IDX;
+  IDX = { inf: new Map(), pp: new Map(), ger: new Map(), fut: new Map(), cond: new Map() };
+  const put = (m, k, v) => { if (k && !m.has(k)) m.set(k, v); };
+  for (const v of VERBS) {
+    for (const alt of String(v.es).split('/')) {
+      const inf = bare(alt.trim().split(' ')[0]).replace(/se$/, '');
+      if (!ES_ENDING.test(inf)) continue;
+      put(IDX.inf, inf, v);
+      put(IDX.pp, inf.replace(/ar$/, 'ado').replace(/[ei]r$/, 'ido'), v);
+      put(IDX.ger, IRREG_GER[inf] || inf.replace(/ar$/, 'ando').replace(/[ei]r$/, 'iendo'), v);
+      const stem = IRREG_STEM[inf] || inf;
+      for (const e of ['e', 'as', 'a', 'emos', 'an']) put(IDX.fut, stem + e, v);
+      for (const e of ['ia', 'ias', 'iamos', 'ian']) put(IDX.cond, stem + e, v);
+    }
+    for (const alt of String(v.esPp || '').split('/')) put(IDX.pp, bare(alt.trim().split(' ')[0]), v);
+  }
+  // «Si tuviera…»: la forma que va después de «si» para algo imaginario (en inglés, el verbo en pasado).
+  IDX.subj = new Map();
+  for (const [inf, v] of IDX.inf) {
+    const stem = SUBJ_STEM[inf] || inf.replace(/ar$/, 'ara').replace(/[ei]r$/, 'iera');
+    for (const e of ['', 's', 'mos', 'n']) put(IDX.subj, (e === 'mos' ? stem.replace(/a$/, 'amos') : stem + e), v);
+  }
+  return IDX;
+}
+const SUBJ_STEM = { tener: 'tuviera', estar: 'estuviera', hacer: 'hiciera', poder: 'pudiera', querer: 'quisiera', saber: 'supiera',
+  venir: 'viniera', poner: 'pusiera', ser: 'fuera', ir: 'fuera', decir: 'dijera', traer: 'trajera', dar: 'diera', ver: 'viera', haber: 'hubiera' };
+// Palabras comunes que parecen formas del verbo y no lo son.
+const NOT_VERB = new Set(['cuando', 'cuanto', 'mando', 'bando', 'comando', 'para', 'parar']);
+// «quedarme» → «quedar»: el verbo sin el me/te/se/lo… pegado al final.
+const noClitic = x => { const y = x.replace(/(me|te|se|nos|lo|la|le|los|las|les)$/, ''); return /(ar|er|ir)$/.test(y) ? y : x; };
+
+const PIECE_INFO = {
+  had: { en: 'had + forma terminada', idea: 'Algo que ya había pasado antes de otra cosa, o que no pasó («si hubiera…»).' },
+  wouldhave: { en: 'would have + forma terminada', idea: 'Algo del pasado que ya no se puede cambiar: dos piezas en inglés.' },
+  have: { en: 'have / has + forma terminada', idea: 'Empezó antes y sigue conectado con hoy.' },
+  ing: { en: 'am / is / are (was, would be…) + -ing', idea: 'La acción en el momento en que ocurre.' },
+  goingto: { en: 'going to + verbo', idea: 'Un plan que ya decidió.' },
+  will: { en: 'will + verbo', idea: 'Algo que todavía no pasó, pero va a pasar. Igual para todas las personas.' },
+  would: { en: 'would + verbo', idea: 'Algo que pasaría: todavía posible o imaginario. Una sola pieza.' },
+  to: { en: 'to + verbo', idea: 'El verbo «en crudo» (-ar, -er, -ir) después de otro verbo o de «para».' },
+  past: { en: 'el verbo en pasado (had, went, worked…)', idea: 'Después de «si», para algo imaginario: en inglés el verbo va en pasado y nunca lleva would.' },
+};
+const HAD = new Set(['hubiera', 'hubieras', 'hubieramos', 'hubieran', 'hubiese', 'hubieses', 'hubiesemos', 'hubiesen', 'habia', 'habias', 'habiamos', 'habian']);
+const HABRIA = new Set(['habria', 'habrias', 'habriamos', 'habrian']);
+const HE = { he: 'have', has: 'have', ha: 'has', hemos: 'have', han: 'have' };
+const ESTAR = { estoy: 'am', estas: 'are', esta: 'is', estamos: 'are', estan: 'are', estaba: 'was', estabas: 'were', estabamos: 'were', estaban: 'were',
+  estuve: 'was', estuvo: 'was', estuvimos: 'were', estuvieron: 'were', estare: 'will be', estaria: 'would be' };
+const IR_A = new Set(['voy', 'vas', 'va', 'vamos', 'van', 'iba', 'ibas', 'ibamos', 'iban']);
+// Verbos (o frases) que piden el otro verbo «en crudo»: qué pieza va en inglés.
+const BEFORE_INF = [
+  ['me gustaria', 'would like to'], ['le gustaria', 'would like to'], ['te gustaria', 'would like to'], ['nos gustaria', 'would like to'],
+  ['me gusta', 'like to'], ['tengo que', 'have to'], ['tiene que', 'has to'], ['tienes que', 'have to'], ['tenemos que', 'have to'],
+  ['tenia que', 'had to'], ['tuve que', 'had to'], ['trato de', 'try to'], ['trate de', 'tried to'], ['empece a', 'started to'],
+  ['aprendi a', 'learned to'], ['acabo de', 'have just'],
+  ['quiero', 'want to'], ['quieres', 'want to'], ['quiere', 'wants to'], ['queremos', 'want to'], ['quieren', 'want to'], ['queria', 'wanted to'], ['quise', 'wanted to'],
+  ['necesito', 'need to'], ['necesita', 'needs to'], ['necesitamos', 'need to'], ['necesitaba', 'needed to'],
+  ['puedo', 'can'], ['puede', 'can'], ['puedes', 'can'], ['podemos', 'can'], ['pueden', 'can'], ['pude', 'could'], ['podia', 'could'],
+  ['debo', 'must'], ['deberia', 'should'], ['debes', 'should'], ['espero', 'hope to'], ['decidi', 'decided to'], ['intento', 'try to'],
+  ['prefiero', 'prefer to'], ['suelo', 'usually'], ['para', 'to'],
+];
+
+// spanishPieces('Si hubiera llegado antes, habría conocido a tu hermana.') →
+// [{ es: 'hubiera llegado', kind: 'had', en: 'had arrived', piece: 'had + forma terminada', idea }, …]
+export function spanishPieces(text) {
+  const { inf, pp, ger, fut, cond, subj } = index();
+  const raw = String(text || '').match(/[\p{L}]+/gu) || [];
+  const w = raw.map(x => bare(x));
+  const out = [];
+  const isPp = x => pp.has(x) || (/(ado|ido)$/.test(x) && x.length > 4);
+  const isGer = x => !NOT_VERB.has(x) && (ger.has(x) || (/(ando|iendo|yendo)$/.test(x) && x.length > 5));
+  const isInf = x => !NOT_VERB.has(noClitic(x)) && (inf.has(noClitic(x)) || (/(ar|er|ir)$/.test(noClitic(x)) && noClitic(x).length > 3));
+  const infVerb = x => inf.get(noClitic(x));
+  const add = (i, n, kind, en) => out.push({ es: raw.slice(i, i + n).join(' '), kind, en, piece: PIECE_INFO[kind].en, idea: PIECE_INFO[kind].idea });
+  for (let i = 0; i < w.length; i++) {
+    const a = w[i], b = w[i + 1] || '', c = w[i + 2] || '';
+    if (HAD.has(a) && isPp(b)) { const v = pp.get(b); add(i, 2, 'had', v ? `had ${enPp(v)}` : 'had + (su verbo con -ed)'); i++; continue; }
+    if (HABRIA.has(a) && isPp(b)) { const v = pp.get(b); add(i, 2, 'wouldhave', v ? `would have ${enPp(v)}` : 'would have + (su verbo con -ed)'); i++; continue; }
+    if (HE[a] && isPp(b)) { const v = pp.get(b); add(i, 2, 'have', v ? `${HE[a]} ${enPp(v)}` : `${HE[a]} + (su verbo con -ed)`); i++; continue; }
+    if (ESTAR[a] && isGer(b)) { const v = ger.get(b); add(i, 2, 'ing', v ? `${ESTAR[a]} ${ingForm(enBase(v))}` : `${ESTAR[a]} + (su verbo con -ing)`); i++; continue; }
+    if (IR_A.has(a) && b === 'a' && isInf(c)) { const v = infVerb(c); add(i, 3, 'goingto', `${/^ib/.test(a) ? 'was going to' : 'going to'} ${v ? enBase(v) : '+ (su verbo)'}`); i += 2; continue; }
+    const lead = BEFORE_INF.find(([k]) => { const ks = k.split(' '); return ks.every((x, j) => w[i + j] === x) && isInf(w[i + ks.length] || ''); });
+    if (lead) {
+      const n = lead[0].split(' ').length, v = infVerb(w[i + n]);
+      add(i, n + 1, 'to', `${lead[1]} ${v ? enBase(v) : '+ (su verbo)'}`);
+      i += n; continue;
+    }
+    // «si (yo/no) tuviera» → pasado: lo que más se confunde (would no va del lado del «si»).
+    if ((w[i - 1] === 'si' || w[i - 2] === 'si') && !HAD.has(a) && (subj.has(a) || /(ara|aras|aramos|aran|iera|ieras|ieramos|ieran)$/.test(a))) {
+      const v = subj.get(a); add(i, 1, 'past', v ? firstForm(v.past) : '(su verbo en pasado)'); continue;
+    }
+    if (cond.has(a) && !HABRIA.has(a)) { add(i, 1, 'would', `would ${enBase(cond.get(a))}`); continue; }
+    const condStem = a.match(/^(.+)(ar|er|ir)(ia|ias|iamos|ian)$/);
+    if (condStem && condStem[1].length >= 3 && !HABRIA.has(a) && raw[i].includes('í')) { add(i, 1, 'would', 'would + (su verbo)'); continue; }
+    if (fut.has(a) && /[éá]/.test(raw[i])) { add(i, 1, 'will', `will ${enBase(fut.get(a))}`); continue; }
+    if (isGer(a) && !ESTAR[w[i - 1]] && a.length > 5) { const v = ger.get(a); add(i, 1, 'ing', v ? ingForm(enBase(v)) : '(su verbo con -ing)'); }
+  }
+  return out;
 }

@@ -1,6 +1,7 @@
 // Pantallas de las técnicas avanzadas (contenido y revisión en tecnicas.js): «Las 5 de hoy», dictado activo,
 // adivine el final, sombra con intención, un minuto sin parar (JAM), frase que crece, una frase en 5 capas,
-// cuéntelo de otra persona, ida y vuelta, mis frases (islas de lenguaje con STAR) y el simulacro con imprevisto.
+// cuéntelo de otra persona, ida y vuelta, mis frases (islas de lenguaje con STAR), el simulacro con imprevisto y
+// responder en el momento (robar palabras de la pregunta + estructura de 3 partes).
 // Casi todo funciona sin IA (voz del teléfono + revisión local); la IA solo pasa sus frases a inglés y revisa el minuto.
 import * as store from './store.js';
 import { chatJson, hasAI as aiReady } from './llm.js';
@@ -10,6 +11,7 @@ import { speak, stopSpeaking, Listener, canListen } from './speech.js';
 import { wordStates, tokens, verdict } from './pronounce.js';
 import { addVocab } from './words.js';
 import * as X from './tecnicas.js';
+import { sendToWorkshop } from './workshop.js';
 
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false));
 const hasAI = () => aiReady();
@@ -112,7 +114,8 @@ export function tecnicasScreen({ home, startSim }) {
       h('div.packs', {},
         h('button.small', { onclick: () => islandScreen(X.islandById('entrevista'), go, self) }, '🏝 Mis respuestas con STAR'),
         h('button.small', { onclick: () => jamSetup(go, self, 'entrevista') }, '⏱ Un minuto: preguntas de entrevista'),
-        h('button.small', { onclick: () => simScreen(go, self, 'interview') }, '🎲 Entrevista con imprevisto'))),
+        h('button.small', { onclick: () => simScreen(go, self, 'interview') }, '🎲 Entrevista con imprevisto'),
+        h('button.small', { onclick: () => runResponder(answerSet('entrevista'), self) }, '🎯 Responder en el momento'))),
     X.GROUPS.map(g => h('div', {},
       h('div.section-head', {}, h('h2', {}, g.name)),
       h('div.packs', {}, X.TECHNIQUES.filter(t => t.group === g.id).map(row))))));
@@ -176,6 +179,10 @@ function openTechnique(id, go, back) {
     ida: () => idaList(again),
     islas: () => islandsList(go, again),
     imprevisto: () => [h('button.primary.wide', { onclick: () => simScreen(go, again) }, '🎲 Elegir la situación')],
+    responder: () => [framesGuide(),
+      h('div.packs', {}, X.ANSWER_GROUPS.map(g => h('button.pack', { onclick: () => runResponder(answerSet(g.id), again) },
+        h('span.pack-icon', {}, g.icon),
+        h('span.pack-body', {}, h('span.pack-name', {}, g.name), h('small.muted', {}, `${X.ANSWER_SIZE} preguntas al azar`)))))],
   }[id];
   mount(h('div.screen.tecnicas', {},
     topbar(`${t.icon} ${t.name}`, back),
@@ -1153,4 +1160,129 @@ function simScreen(go, back, place = null) {
     } },
     h('span.pack-icon', {}, sim.icon),
     h('span.pack-body', {}, h('span.pack-name', {}, sim.name), h('small.muted', {}, sim.description)))))));
+}
+
+// =====================================================================================
+// Responder en el momento (robar palabras de la pregunta + estructura de 3 partes + corto y claro)
+// =====================================================================================
+const answerSet = group => X.answerSet(group);
+const ANSWER_ISLAND = { entrevista: 'entrevista', vida: 'dia', opinion: 'opiniones' };
+
+// Las 3 estructuras y las frases para ganar tiempo (también se abren desde la charla).
+export function framesGuide(open = false) {
+  return h('details.card.tec-frame', open ? { open: true } : {},
+    h('summary', {}, h('b', {}, '📋 Las 3 estructuras y las frases para ganar tiempo')),
+    Object.values(X.FRAMES).map(f => h('div', {},
+      h('p', {}, h('b', {}, f.name), h('br'), h('small.muted', {}, f.use)),
+      h('ol.tec-how', {}, f.parts.map(p => h('li', {}, p.es, h('br'), h('small', {}, p.chunks.map(([en, es]) => `${en} (${es})`).join(' · '))))))),
+    X.STARTERS.map(g => h('p', {}, h('b', {}, g.es), h('br'), g.list.map(([en, es]) => [listen(en), ' ', en, ' ', h('small.muted', {}, `(${es})`), h('br')]))));
+}
+
+function runResponder(items, back) {
+  stopSpeaking();
+  const screen = h('div.screen.drill.tecnica.tec-answer', {});
+  const listener = new Listener();
+  const best = items.map(() => null);   // mejor revisión de cada pregunta
+  mount(screen);
+  const leave = () => { listener.abort(); stopSpeaking(); back(); };
+  const check = ok => h('span', { class: ok ? 'good' : 'muted' }, ok ? '✅ ' : '⬜ ');
+
+  function show(i) {
+    const item = items[i];
+    const frame = X.FRAMES[item.frame];
+    fill(screen,
+      topbar('🎯 Responder en el momento', leave, '✕'),
+      progressBar(i / items.length),
+      h('p.muted.drill-step', {}, `${i + 1} de ${items.length}`),
+      h('div.card.tec-topic', {}, h('small.muted', {}, 'Le preguntan'),
+        h('div', {}, h('b', {}, item.q), ' ', listen(item.q), ' ', listen(item.q, 0.65, '🐢')),
+        h('small.muted', {}, item.es)),
+      h('div.card', {}, h('b', {}, '1 · Empiece con las palabras de la pregunta'),
+        h('p', {}, listen(item.start), ' ', item.start, h('br'), h('small.muted', {}, item.startEs))),
+      h('div.card', {}, h('b', {}, `2 · Ordénela: ${frame.name}`),
+        h('ol.tec-how', {}, frame.parts.map(p => h('li', {}, p.es, h('br'), h('small.muted', {}, p.chunks.map(([en, es]) => `${en} (${es})`).join(' · ')))))),
+      h('details.tec-frame', {}, h('summary', {}, 'Si necesita unos segundos para pensar'),
+        X.STARTERS[0].list.concat(X.STARTERS[1].list).map(([en, es]) => h('p', {}, listen(en), ' ', en, ' ', h('small.muted', {}, `(${es})`)))),
+      h('p', {}, h('b', {}, '3 · Dígala corta y clara. '), h('span.muted', {}, 'Si se equivoca, corríjase y siga.')),
+      answerBox(listener, text => result(i, text), { label: '🎤 Responder', placeholder: 'O escriba su respuesta en inglés…', giveUp: 'Ver un ejemplo sin responder' }));
+    say(item.q);
+  }
+
+  function result(i, text) {
+    const item = items[i];
+    const frame = X.FRAMES[item.frame];
+    const c = X.answerCheck(item, text);
+    if (text && (!best[i] || c.score >= best[i].score)) best[i] = { ...c, text };
+    if (text) buzz(c.score >= 0.8 ? 'good' : 'tap');
+    const last = i + 1 >= items.length;
+    const ai = h('div');
+    fill(screen,
+      topbar('🎯 Responder en el momento', leave, '✕'),
+      progressBar((i + 1) / items.length),
+      h('div.card.tec-topic', {}, h('small.muted', {}, 'Le preguntaron'), h('b', {}, item.q)),
+      text ? h('div.card', {},
+        h('div.big-score', {}, `${Math.round(c.score * 5)}/5`),
+        h('p', {}, check(c.stole), 'Empezó con las palabras de la pregunta'),
+        frame.parts.map((p, k) => h('p', {}, check(c.parts[k]), p.es)),
+        h('p', {}, check(c.short), `Corta y clara (${c.words} palabras)`),
+        c.fillers ? h('p.muted', {}, `${c.fillers} ${c.fillers === 1 ? 'muletilla' : 'muletillas'} (um, eh…): en su lugar use una frase para pensar.`) : null,
+        h('p', { class: c.score >= 0.8 ? 'good' : '' }, '💡 ', c.tip),
+        h('details', {}, h('summary', {}, 'Lo que se le entendió'), h('p.muted', {}, text)),
+        h('small.muted', {}, 'Revisión del teléfono, sin IA: mira la forma de la respuesta, no la gramática.')) : null,
+      h('div.card', {}, h('b', {}, 'Una forma de decirlo'),
+        h('p', {}, listen(item.model), ' ', item.model, h('br'), h('small.muted', {}, item.modelEs)),
+        h('div.row', {},
+          h('button.small', { onclick: () => say(item.model, 0.8) }, '🗣 Oírla y repetirla'),
+          h('button.small', { onclick: () => saveModel(item) }, '🏝 A Mis frases'),
+          h('button.small', { onclick: () => sendToWorkshop(item.model) }, '🧩 Al taller'))),
+      text && hasAI() ? h('button.wide', { onclick: e => aiFix(e.currentTarget, item, text, ai) }, '🧑‍🏫 Que la IA corrija mi respuesta') : null,
+      text && !hasAI() ? h('p.muted', {}, 'Con su clave de IA, la IA le corrige la gramática y le da su respuesta dicha de forma natural.') : null,
+      ai,
+      h('button.wide', { onclick: () => show(i) }, '🔁 Responder otra vez'),
+      h('button.primary.wide', { onclick: () => (last ? end() : show(i + 1)) }, last ? 'Ver resultado' : 'Siguiente pregunta'));
+  }
+
+  async function aiFix(btn, item, text, box) {
+    btn.disabled = true;
+    fill(box, spinner('Revisando su respuesta…'));
+    try {
+      const r = await chatJson('answer', P.answerMessages({ question: item.q, frame: X.FRAMES[item.frame].name, text, rankId: store.get().rank }), { temperature: 0.4, maxTokens: 700 });
+      const version = (Array.isArray(r.version) ? r.version : []).filter(v => v?.en).map(v => ({ en: String(v.en), es: String(v.es || '') }));
+      btn.remove();
+      fill(box,
+        r.good ? h('p.good', {}, '👍 ', r.good) : null,
+        (r.fixes || []).length ? h('div.card', {}, h('b', {}, 'Para decirlo mejor'), (r.fixes || []).map(f => h('div.trap', {},
+          h('div', {}, h('s.bad', {}, f.said), ' → ', h('b.good', {}, f.better), ' ', listen(f.better)), h('small.muted', {}, f.why)))) : null,
+        version.length ? h('div.card', {}, h('b', {}, 'Su respuesta, dicha de forma natural'),
+          version.map(v => h('p', {}, listen(v.en), ' ', v.en, v.es ? [h('br'), h('small.muted', {}, v.es)] : null)),
+          version.every(v => v.es) ? h('button.small', { onclick: () => saveVersion(item, version) }, '🏝 Guardarla en Mis frases') : null) : null,
+        r.tip ? h('p.muted', {}, '💡 ', r.tip) : null);
+    } catch (e) { btn.disabled = false; fill(box, h('p.bad', {}, e.message)); }
+  }
+
+  function saveVersion(item, version) {
+    const island = ANSWER_ISLAND[item.group] || 'dia';
+    const before = tec().islas.length;
+    store.update(s => { s.tecnicas.islas = X.addIslandItems(s.tecnicas.islas, island, version); });
+    const n = tec().islas.length - before;
+    toast(n ? `🏝 ${n} ${n === 1 ? 'frase guardada' : 'frases guardadas'} en «${X.islandById(island).name}»` : 'Ya estaban en Mis frases', n ? 'good' : '');
+  }
+  const saveModel = item => saveVersion(item, item.model.split(/(?<=[.!?])\s+/).map((en, k) => ({ en, es: item.modelEs.split(/(?<=[.!?])\s+/)[k] || '' })).filter(x => x.es));
+
+  function end() {
+    const tried = best.filter(Boolean);
+    const score = tried.length ? tried.reduce((a, b) => a + b.score, 0) / items.length : 0;
+    record('responder', tried.length ? score : null);
+    fill(screen,
+      topbar('🎯 Responder en el momento', back),
+      h('div.card.center', {},
+        h('div.big-score', {}, tried.length ? pct(score) : '—'),
+        h('p', {}, tried.length === items.length && score >= 0.8 ? '🌟 ¡Respuestas claras y ordenadas!' : 'Repita las que le costaron: la segunda vez sale más fácil.')),
+      h('div.card', {}, items.map((it, k) => h('p', {}, h('b', {}, it.q), h('br'),
+        h('small.muted', {}, best[k] ? `${Math.round(best[k].score * 5)}/5 · ${best[k].tip}` : 'Sin responder')))),
+      h('button.primary.wide', { onclick: () => runResponder(X.answerSet(items[0].group), back) }, 'Otra ronda'),
+      h('button.wide', { onclick: back }, 'Volver'));
+  }
+
+  show(0);
 }

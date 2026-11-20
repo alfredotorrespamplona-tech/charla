@@ -1757,11 +1757,11 @@ test('mil palabras: el avance va en la copia de seguridad y la portada arma el p
 });
 
 // ---------------- Técnicas avanzadas (del cerebro de inglés) ----------------
-test('técnicas: 10 técnicas con qué es, por qué funciona y cómo se hace, en español y sin jerga', async () => {
+test('técnicas: 11 técnicas con qué es, por qué funciona y cómo se hace, en español y sin jerga', async () => {
   const X = await import('../js/tecnicas.js');
   const JERGA = /participio|condicional|subjuntivo|pasiva|cláusula|gerundio|infinitivo|auxiliar|pretérito|tiempo verbal/i;
-  assert.equal(X.TECHNIQUES.length, 10);
-  assert.equal(new Set(X.TECHNIQUES.map(t => t.id)).size, 10);
+  assert.equal(X.TECHNIQUES.length, 11);
+  assert.equal(new Set(X.TECHNIQUES.map(t => t.id)).size, 11);
   for (const t of X.TECHNIQUES) {
     assert.ok(t.what && t.why && t.how.length >= 2, t.id);
     assert.ok(X.GROUPS.some(g => g.id === t.group), t.id);
@@ -1933,7 +1933,7 @@ test('técnicas: simulacro con imprevisto esconde el problema en la misión de l
 test('técnicas: el avance se guarda, viaja en la copia de seguridad y la portada lo muestra', async () => {
   const D = await import('../js/dashboard.js');
   assert.deepEqual(store.get().tecnicas, { done: {}, best: {}, jam: [], ida: {}, islas: [], today: { date: '', steps: [] } });
-  assert.equal(D.techLabel(store.get()), '10 técnicas');
+  assert.equal(D.techLabel(store.get()), '11 técnicas');
   store.update(s => { s.tecnicas.done.dictado = 2; s.tecnicas.islas.push({ id: 'a', island: 'dia', en: 'I get up at six.', es: 'Me levanto a las seis.' }); });
   assert.equal(D.techLabel(store.get()), '1 probadas');
   store.update(s => { s.tecnicas.today = { date: store.todayIso(), steps: ['dictado'] }; });
@@ -2132,4 +2132,103 @@ test('IA: si Groq pide esperar solo unos segundos (límite por minuto), espera y
   try { assert.deepEqual(await chatJson('x', [{ role: 'user', content: 'tpm' }]), { ok: true }); } finally { globalThis.fetch = real; }
   assert.deepEqual(models, [GROQ_MODELS[0], GROQ_MODELS[0]], 'el mismo modelo, después de esperar');
   assert.deepEqual(store.get().groqPause || {}, {}, 'no queda en pausa');
+});
+
+test('responder en el momento: cada pregunta trae cómo empezar, su estructura y un ejemplo que pasa su propia revisión', async () => {
+  const X = await import('../js/tecnicas.js');
+  const t = X.techniqueById('responder');
+  assert.ok(t && t.group === 'reaccionar');
+  const JERGA = /participio|condicional|subjuntivo|pasiva|cláusula|gerundio|infinitivo|auxiliar|pretérito|tiempo verbal/i;
+  assert.equal(new Set(X.ANSWER_QUESTIONS.map(q => q.id)).size, X.ANSWER_QUESTIONS.length);
+  for (const g of X.ANSWER_GROUPS) assert.ok(X.ANSWER_QUESTIONS.filter(q => q.group === g.id).length >= 5, g.id);
+  for (const g of X.ANSWER_GROUPS) { const set = X.answerSet(g.id); assert.equal(set.length, X.ANSWER_SIZE); assert.equal(new Set(set.map(q => q.id)).size, X.ANSWER_SIZE); assert.ok(set.every(q => q.group === g.id)); }
+  for (const q of X.ANSWER_QUESTIONS) {
+    assert.ok(q.q && q.es && q.start && q.startEs && q.model && q.modelEs, q.id);
+    assert.ok(X.FRAMES[q.frame], q.id);
+    const c = X.answerCheck(q, q.model);
+    assert.equal(c.score, 1, `${q.id}: ${c.tip}`);
+  }
+  // Todo lo que está en inglés trae su traducción, y las explicaciones van sin jerga.
+  for (const f of Object.values(X.FRAMES)) {
+    assert.equal(f.parts.length, 3);
+    for (const p of f.parts) for (const [en, es] of p.chunks) assert.ok(en && es, en);
+    assert.doesNotMatch([f.name, f.use, ...f.parts.map(p => p.es)].join(' '), JERGA);
+  }
+  for (const g of X.STARTERS) for (const [en, es] of g.list) assert.ok(en && es, en);
+  assert.doesNotMatch([t.what, t.why, ...t.how].join(' '), JERGA);
+  // Una respuesta floja: dice qué falta, empezando por las palabras de la pregunta.
+  const about = X.answerQuestionById('rq-about');
+  const weak = X.answerCheck(about, 'I am fine');
+  assert.ok(weak.score < 0.5);
+  assert.match(weak.tip, /palabras de la pregunta/);
+  const after = X.answerQuestionById('rq-after-work');
+  const good = X.answerCheck(after, 'um after work I usually watch TV at home because I am tired');
+  assert.equal(good.score, 1);
+  assert.equal(good.fillers, 1);
+  const noWhy = X.answerCheck(after, 'After work I usually watch TV at home with my wife and my kids');
+  assert.equal(noWhy.parts[2], false);
+  assert.match(noWhy.tip, /Por qué/);
+});
+
+test('robar palabras de la pregunta: el comienzo de la respuesta se arma en el teléfono, sin IA', async () => {
+  const { stealStart } = await import('../js/tecnicas.js');
+  const cases = [
+    ['What do you usually do after work?', 'After work, I usually…'],
+    ['Nice to meet you. So, what do you like to do on weekends?', 'On weekends, I like to…'],
+    ['Do you like your job?', "Yes, I like my job… / No, I don't."],
+    ['Have you ever been to London?', "Yes, I've been to London… / No, I've never been to London."],
+    ["What's your favorite food?", 'My favorite food is…'],
+    ['Anna, how was your trip?', 'My trip was…'],
+    ['Oh, nice! And how about you, what do you usually like?', 'I usually like…'],
+    ['What do you need for the trip?', 'I need… for the trip'],
+    ['Why do you want this job?', 'I want this job because…'],
+    ['Why did you leave your last job?', 'I decided to leave my last job because…'],
+    ['Where are you from?', "I'm from…"],
+    ['What do you think about working from home?', 'I think working from home is…'],
+    ['Hi! Can you tell me about yourself?', 'Sure. Let me tell you about myself.'],
+    ['Tell me about your family.', 'Sure. Let me tell you about my family.'],
+    ['What would you like to order?', "I'd like to order…"],
+    ['Would you like something to drink?', "Yes, I'd like something to drink… / No, thanks."],
+    ['How long have you worked here?', "I've worked here for…"],
+    ['Great. Do you have any questions for us?', "Yes, I have some questions for you… / No, I don't."],
+    ['Do you want me to call you later?', "Yes, I want you to call me later… / No, I don't."],
+  ];
+  for (const [q, want] of cases) assert.equal(stealStart(q), want, q);
+  assert.equal(stealStart('Okay. Here you are.'), null);
+  assert.equal(stealStart(''), null);
+});
+
+test('gramática sin IA: las piezas de su frase con el método de Bolen (y «si tuviera» va en pasado)', async () => {
+  const G = await import('../js/grammar.js');
+  const pieces = t => G.spanishPieces(t).map(p => [p.es, p.en, p.kind]);
+  assert.deepEqual(pieces('Si hubiera llegado antes, habría conocido a tu hermana.'),
+    [['hubiera llegado', 'had arrived', 'had'], ['habría conocido', 'would have known', 'wouldhave']]);
+  assert.deepEqual(pieces('Si tuviera tiempo, viajaría más.'), [['tuviera', 'had', 'past'], ['viajaría', 'would + (su verbo)', 'would']]);
+  assert.deepEqual(pieces('Mañana iré al gimnasio y después voy a cocinar.'), [['iré', 'will go', 'will'], ['voy a cocinar', 'going to cook', 'goingto']]);
+  assert.deepEqual(pieces('Me gustaría quedarme aquí porque he trabajado mucho.'),
+    [['Me gustaría quedarme', 'would like to stay', 'to'], ['he trabajado', 'have worked', 'have']]);
+  assert.deepEqual(pieces('Ayer estaba leyendo cuando llamaste.'), [['estaba leyendo', 'was reading', 'ing']]);
+  assert.deepEqual(pieces('Tengo que llamar a mi mamá.'), [['Tengo que llamar', 'have to call', 'to']]);
+  assert.deepEqual(pieces('Si hubiera aprendido inglés, trabajaría en una gran empresa.').map(p => p[2]), ['had', 'would']);
+  assert.deepEqual(pieces('María vive en Bogotá.'), []);
+  for (const p of G.spanishPieces('Si hubiera llegado antes, habría conocido a tu hermana.')) assert.ok(p.idea && p.piece);
+  assert.equal(G.ingForm('make'), 'making');
+  assert.equal(G.ingForm('run'), 'running');
+  assert.equal(G.ingForm('lie'), 'lying');
+});
+
+test('responder en el momento: la corrección con IA lleva sus reglas completas y sus errores', async () => {
+  const P = await import('../js/prompts.js');
+  const { COACH_RULES } = await import('../js/cerebro.js');
+  const sys = P.answerMessages({ question: 'Tell me about yourself.', frame: 'Qué · Y qué · Ahora qué', text: 'I am a seller', rankId: 3 })[0].content;
+  assert.ok(COACH_RULES.every(r => sys.includes(r)), 'las 5 reglas tal cual');
+  assert.ok(P.knownErrors().every(e => sys.includes(e.id)), 'todos sus errores');
+  assert.match(sys, /Tell me about yourself/);
+});
+
+test('gramática: los títulos y las ideas de las lecciones van sin jerga gramatical', async () => {
+  const G = await import('../js/grammar.js');
+  const JERGA = /participio|condicional|subjuntivo|gerundio|infinitivo|pluscuamperfecto|cláusula|voz pasiva/i;
+  for (const l of G.LESSONS) assert.doesNotMatch(`${l.title} ${l.idea}`, JERGA, l.id);
+  for (const p of G.spanishPieces('Si hubiera llegado antes, habría conocido a tu hermana y estaría trabajando.')) assert.doesNotMatch(`${p.piece} ${p.idea}`, JERGA);
 });
