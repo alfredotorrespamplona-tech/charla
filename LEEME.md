@@ -441,20 +441,12 @@ No hace falta volver a instalar el APK.
   siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
   ejercicio del taller o no cierran la despedida.
 
-### Menos tokens por llamada (v40)
-- Sus 5 reglas de corrección del cerebro iban completas en español en 8 tipos de llamada (~335 tokens cada
-  vez). Ahora va un resumen en inglés que dice lo mismo (`COACH_SHORT` en `js/prompts.js`, ~75 tokens). Si
-  cambia las reglas en el cerebro, actualice también ese resumen.
-- Sus errores frecuentes iban con todas sus variantes y la explicación larga (~620 tokens). Ahora va lo justo
-  para reconocerlos: el id, hasta 2 formas en que lo dijo mal y la buena (máximo 12).
-- La corrección de cada frase pasó de ~1380 a ~740 tokens; «No entiendo», de ~590 a ~350; el resumen
-  final, de ~1650 a ~1000.
-- Charlas largas: al personaje se le manda lo último de la charla (como mínimo los últimos 12 mensajes), y lo
-  viejo se corta de a 10 mensajes para que la caché de DeepSeek siga sirviendo. Las sugerencias usan solo
-  las últimas 6 líneas.
-- Ya estaba al mínimo: el «razonamiento» (apagado en DeepSeek, bajo en Groq) y el tope de respuesta por tarea.
-- Prueba en vivo con Groq (2026-11-20): 25 de 25 tareas bien con ~11 700 tokens de entrada; antes ~15 000
-  y 23 de 25.
+### Lo que la IA recibe siempre completo (v41)
+- La v40 resumió sus reglas y sus errores y cortó el historial para gastar menos, pero eso quitaba cosas que
+  sí sirven. La v41 lo devolvió todo: sus 5 reglas tal cual están en el cerebro, sus errores frecuentes con
+  todas las formas y su «por qué», la charla entera para el personaje y para las sugerencias.
+- El ahorro se hace sin quitar nada: Groq gratis primero, respuestas guardadas (traducir, explicar), palabras
+  y repaso sin IA, razonamiento apagado y tope de respuesta por tarea.
 
 ### Gastar menos (v39)
 - **Respuestas guardadas**: traducir, explicar («❓ No entiendo / No lo entiendo»), las pistas de

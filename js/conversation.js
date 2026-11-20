@@ -450,9 +450,7 @@ export function startConversation({ place, character, mission, onFinish, onExit,
       saveDraft();
     } catch (e) { busy = false; setStatus(''); errorBox(e, requestGoodbye); }
   }
-  // En charlas largas solo va lo último del historial (cortado por bloques: ver P.historyStart).
-  const baseMessages = () => [{ role: 'system', content: system }, ...session.history.slice(P.historyStart(session.history.length))
-    .map(m => ({ role: m.role === 'character' ? 'assistant' : 'user', content: m.role === 'character' ? JSON.stringify({ reply: m.text }) : m.text }))];
+  const baseMessages = () => [{ role: 'system', content: system }, ...session.history.map(m => ({ role: m.role === 'character' ? 'assistant' : 'user', content: m.role === 'character' ? JSON.stringify({ reply: m.text }) : m.text }))];
 
   function armSuggestions() {
     clearTimeout(suggestionTimer);

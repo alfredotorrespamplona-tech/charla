@@ -1,6 +1,6 @@
 // Guarda la app en el teléfono para que abra rápido y sin conexión (la IA sigue necesitando internet).
 // Cambie CACHE cada vez que publique una versión nueva para que los teléfonos la descarguen.
-const CACHE = 'charla-v40';
+const CACHE = 'charla-v41';
 const FILES = ['./', 'index.html', 'styles.css', 'manifest.json', 'icon.svg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png',
   'js/app.js', 'js/avatar.js', 'js/conversation.js', 'js/data.js', 'js/hints.js', 'js/lessons.js', 'js/topics.js', 'js/coins.js', 'js/people.js', 'js/vocab.js', 'js/stats.js', 'js/customtopics.js', 'js/inbox.js', 'js/icons.js', 'js/srs.js', 'js/phrases.js', 'js/cerebro.js', 'js/essentials.js', 'js/llm.js', 'js/natural-voice.js', 'js/natural-worker.js', 'js/prompts.js',

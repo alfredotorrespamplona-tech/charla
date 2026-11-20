@@ -7,21 +7,13 @@ import { AGE_GROUPS, GENDERS } from './lessons.js';
 
 const LEARNER_LANG = 'Spanish';
 
-// Cómo quiere el usuario que lo corrijan (las 5 reglas de COACH_RULES de su cerebro, resumidas).
-// Van en casi todas las llamadas: completas en español eran ~335 tokens cada vez; así son ~75 y dicen lo mismo.
-// Si cambia las reglas en el cerebro, actualice también este resumen.
-export const COACH_SHORT = `Learner's own correction rules: never use grammar jargon («jerga gramatical»: conditional, clause, participle, subjunctive, passive…); explain a form by what it is used for («algo que todavía puede pasar», «algo imaginario»), with a simple formula and an example. When correcting, say exactly which word failed, why in one short sentence, and the fix; keep real precision. If they do not understand, use Pablo Bolen's method (Spanish sentence → its verb pieces → English pieces → assemble).`;
-const coachRules = () => COACH_RULES.length ? COACH_SHORT + '\n' : '';
+// Cómo quiere el usuario que lo corrijan y qué errores suele repetir (de su «cerebro de inglés»).
+const coachRules = () => COACH_RULES.length
+  ? `How this learner wants to be corrected (their own rules, follow them):\n${COACH_RULES.map(r => `- ${r}`).join('\n')}\n` : '';
 // Los errores activos del cerebro y de la bitácora del teléfono (los marcados como resueltos no cuentan).
 export const knownErrors = () => activeErrors().slice(0, 30);
-// En los prompts va lo justo para reconocerlos: id, hasta 2 formas en que lo dijo mal y la buena (sin la
-// explicación larga, que la IA no necesita para detectarlo). Máximo 12: ~25 tokens cada uno en vez de ~100.
-export const PROMPT_ERRORS = 12;
-const knownErrorsText = () => {
-  const list = knownErrors().slice(0, PROMPT_ERRORS);
-  return list.length
-    ? `Recurring errors (id: said wrong → right):\n${list.map(b => `- ${b.id}: ${b.wrong.slice(0, 2).map((w, i) => `"${w}" → "${b.right[i] || b.right[0] || ''}"`).join('; ')}`).join('\n')}\n` : '';
-};
+const knownErrorsText = () => knownErrors().length
+  ? `This learner's recurring errors from their error log (watch for them; explain them WITHOUT the grammar labels used here):\n${knownErrors().map(b => `- id ${b.id}: said ${b.wrong.map(w => `"${w}"`).join(' / ')} → correct ${b.right.map(w => `"${w}"`).join(' / ')}. Why: ${(b.why || '').slice(0, 240)}`).join('\n')}\n` : '';
 
 // Hora del día real del usuario, para que la escena sea creíble ("Good morning" a las 8 a. m.).
 export function timeOfDay(d = new Date()) {
@@ -101,13 +93,6 @@ Answer ONLY with JSON:
 {"reply": "what you say", "objectives_completed": ["ids completed by the learner's LAST message only"], "mood": number from -1 (upset) to 1 (happy), "affection": integer -2..2 (how much you liked this turn), "finished": boolean}`;
 }
 
-// Desde qué mensaje del historial se le manda al personaje. Se guardan siempre los últimos «keep» como mínimo,
-// y lo viejo se corta de a «block» mensajes (no de a uno): así el comienzo de lo que se manda no cambia en
-// varios turnos y la caché de DeepSeek (que cobra ~50 veces menos lo ya visto) sigue sirviendo.
-export function historyStart(len, keep = 12, block = 10) {
-  return len <= keep + block ? 0 : Math.floor((len - keep) / block) * block;
-}
-
 // RequestGoodbyeInConversation: el alumno tiene que irse y le pide al personaje que cierre la charla.
 export function goodbyeUser() {
   return '[The learner has to leave now. Stay in character: wrap up warmly in 1–2 short sentences that fit the scenario (you may mention something from this conversation), say goodbye, do not ask a question, and set "finished": true.]';
@@ -148,7 +133,7 @@ Scenario: ${mission.name} — ${mission.description}. Pending objectives: ${miss
 Give ONE reply the learner could say next: the most natural one, helpful for the objectives.${avoid ? ` It must be different from: "${avoid}".` : ''}
 Their length, vocabulary and grammar must match this level: ${rank.prompt}
 Return ONLY JSON: {"suggestions": [{"text": "English reply", "translation": "${LEARNER_LANG} translation"}]}` },
-    { role: 'user', content: historyText(history.slice(-SUGGEST_LINES)) },
+    { role: 'user', content: historyText(history) },
   ];
 }
 
@@ -159,7 +144,7 @@ export function customSuggestionMessages({ history, rankId, spanish }) {
     { role: 'system', content: `Translate what the learner wants to say into natural spoken English that fits the conversation.
 Use vocabulary and grammar of this level: ${rank.prompt}
 Return ONLY JSON: {"text": "English", "translation": "the ${LEARNER_LANG} meaning"}` },
-    { role: 'user', content: historyText(history.slice(-SUGGEST_LINES)) + `\n\nLearner wants to say (in ${LEARNER_LANG}): "${spanish}"` },
+    { role: 'user', content: historyText(history) + `\n\nLearner wants to say (in ${LEARNER_LANG}): "${spanish}"` },
   ];
 }
 
@@ -379,9 +364,6 @@ Return ONLY JSON: {"cards": [{"item": "item exactly as given", "family": "meanin
     { role: 'user', content: JSON.stringify(items.map(i => ({ item: i.text, meaning: i.translation || '', context: i.context || '', family: i.family }))) },
   ];
 }
-
-// Para sugerir qué decir bastan las últimas líneas de la charla (no toda).
-export const SUGGEST_LINES = 6;
 
 function historyText(history) {
   return history.map(m => `${m.role === 'character' ? 'Character' : 'Learner'}: ${m.text}`).join('\n');
