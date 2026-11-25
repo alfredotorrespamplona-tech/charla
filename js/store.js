@@ -23,6 +23,9 @@ const emptyEscuchar = () => ({ done: {}, mine: [], rate: 0.9, level: '', seconds
 const emptyEntrevista = () => ({ role: '', mocks: [] });
 // Prueba de nivel del mes (v43).
 const emptyNivel = () => ({ tests: [] });
+// Diario, sonidos parecidos y grabaciones (v45). Las grabaciones guardan aquí fecha, texto y números; el audio va
+// aparte, en el teléfono (audiostore.js), y no viaja en la copia de seguridad.
+const emptyPractica = () => ({ diary: [], draft: { text: '', start: '' }, pairs: {}, clips: [] });
 const obj = x => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
 function normalizeExtras(out) {
   const e = obj(out.escuchar), d = emptyEscuchar();
@@ -32,6 +35,13 @@ function normalizeExtras(out) {
   out.entrevista = { role: String(m.role || ''), mocks: Array.isArray(m.mocks) ? m.mocks.filter(x => x && x.at && x.scores).slice(-40) : [] };
   const n = obj(out.nivel);
   out.nivel = { tests: Array.isArray(n.tests) ? n.tests.filter(x => x && x.at && typeof x.score === 'number').slice(-24) : [] };
+  const p = obj(out.practica), dr = obj(p.draft);
+  out.practica = {
+    diary: Array.isArray(p.diary) ? p.diary.filter(x => x && x.at && typeof x.text === 'string').slice(0, 60) : [],
+    draft: { text: String(dr.text || ''), start: String(dr.start || '') },
+    pairs: { ...obj(p.pairs) },
+    clips: Array.isArray(p.clips) ? p.clips.filter(x => x && x.id && x.topic && x.at).slice(-120) : [],
+  };
 }
 
 const DEFAULT = {
@@ -96,6 +106,7 @@ const DEFAULT = {
   escuchar: emptyEscuchar(), // historias y diálogos para escuchar
   entrevista: emptyEntrevista(), // simulacros de entrevista con nota
   nivel: emptyNivel(),     // pruebas de nivel del mes
+  practica: emptyPractica(), // diario, sonidos parecidos y grabaciones (v45)
   mil: emptyMil(),         // mazo de mil palabras: avance de cada tarjeta (el mazo vive en IndexedDB)
 };
 

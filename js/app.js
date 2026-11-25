@@ -43,6 +43,7 @@ import { whisperStatus, canRecord } from './whisper.js';
 import { escucharScreen } from './escucharscreen.js';
 import { entrevistaScreen } from './entrevistascreen.js';
 import { nivelScreen } from './nivelscreen.js';
+import { diarioScreen, grabarseScreen, paresScreen } from './practicascreen.js';
 import { setPeopleNav, characterSheet, contactsScreen, relationLine, levelFraction, nextDiscovery } from './people.js';
 setPeopleNav({ home, chooseMission, isOpen: p => coins.isPlaceOpen(store.get(), p) });
 import { NATURAL_VOICES, loadNatural, disableNatural, naturalStatus, onNaturalStatus, unlockAudio } from './natural-voice.js';
@@ -104,6 +105,9 @@ export function cover() {
     listen: () => escucharScreen({ home: cover }),
     mock: () => entrevistaScreen({ home: cover }),
     nivel: () => nivelScreen({ home: cover }),
+    diario: () => diarioScreen({ home: cover }),
+    grabarse: () => grabarseScreen({ home: cover }),
+    sonidos: () => paresScreen({ home: cover }),
   });
 }
 

@@ -20,6 +20,7 @@ export const GROUPS = [
   { id: 'fluidez', name: 'Hablar con fluidez' },
   { id: 'armar', name: 'Armar frases usted solo' },
   { id: 'reaccionar', name: 'Reaccionar cuando algo cambia' },
+  { id: 'pulir', name: 'Oírse, escribir y pronunciar claro' },
 ];
 
 export const TECHNIQUES = [
@@ -67,6 +68,19 @@ export const TECHNIQUES = [
     what: 'Le hacen una pregunta y arma la respuesta en segundos: empieza con las palabras de la pregunta, la ordena en 3 partes y la dice corta y clara.',
     why: 'Lo que más frena al hablar no es la falta de palabras: es tener que decidir qué decir y cómo decirlo al mismo tiempo. Si roba las palabras de la pregunta, ya tiene el comienzo; si tiene una estructura lista (Qué · Y qué · Ahora qué, de Matt Abrahams en Stanford), solo piensa en el contenido. Y en bloques cortos se equivoca menos que en frases largas.',
     how: ['Escuche la pregunta.', 'Empiece con sus mismas palabras: «What do you do after work?» → «After work, I…».', 'Si necesita tiempo, use una frase para pensar («Good question. Let me think…»).', 'Diga 3 partes: la respuesta, por qué importa y qué sigue.', 'Corta y clara. Si se equivoca, corríjase y siga: lo importante es comunicar.', 'Compare con el ejemplo y dígala otra vez, mejor.'] },
+  // v45 (pantallas en practicascreen.js, contenido en practica.js)
+  { id: 'grabarse', group: 'pulir', icon: '🎙', name: 'Grabarse y compararse',
+    what: 'Se graba 1 o 2 minutos respondiendo una pregunta o leyendo en voz alta, se oye con calma y compara con su primera vez.',
+    why: 'Mientras habla, su cabeza está ocupada armando la frase y no nota los errores. Al oírse después, sí: usted mismo es el profesor que siempre tiene a mano. Y oír su voz en inglés en privado le quita los nervios de hablar frente a otros.',
+    how: ['Grábese 1 o 2 minutos, 2 o 3 veces por semana.', 'Óigase una vez entera, sin parar.', 'Óigase otra vez, marque lo que notó y anote sus errores.', 'Compare con su primera grabación del mismo tema.'] },
+  { id: 'diario', group: 'pulir', icon: '✍', name: 'Diario en inglés',
+    what: 'Escribe unos minutos sobre su día o sus planes, lo relee y la IA lo corrige todo, explicando por qué.',
+    why: 'Escribir y hablar usan la misma parte del cerebro: tiene que buscar las palabras y armar las frases, pero sin el apuro de una charla. Y como escribe de su vida, las palabras se le quedan mejor que de una lista.',
+    how: ['Escriba sin parar a corregirse (unos 15 minutos, o menos).', 'Reléalo y corrija usted mismo lo que vea.', 'Lea las correcciones de la IA y su porqué.', 'Guarde las frases buenas en su repaso; sus errores quedan en «Mis errores».'] },
+  { id: 'sonidos', group: 'pulir', icon: '👂', name: 'Sonidos parecidos',
+    what: 'Pares de palabras que solo cambian en un sonido (ship / sheep, work / walk, thirteen / thirty): primero elige cuál oyó y después la dice.',
+    why: 'El español tiene 5 vocales y el inglés unas 12, así que hay sonidos que a usted le parecen iguales. Si no los separa al oír, no entiende; si los dice igual, le entienden otra palabra. Entrenar el oído primero hace que la boca lo siga.',
+    how: ['Elija un par de sonidos y lea cómo se hace cada uno.', 'Oiga la palabra y elija cuál de las dos fue.', 'Dígala usted: la app le dice cuál se entendió.', 'Repita unos días los que más le cuestan.'] },
 ];
 export const techniqueById = id => TECHNIQUES.find(t => t.id === id);
 

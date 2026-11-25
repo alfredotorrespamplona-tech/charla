@@ -491,6 +491,13 @@ async function demo(task, messages) {
         { en: 'But sometimes I feel alone.', es: 'Pero a veces me siento solo.' },
         { en: 'So I go to the office once a week.', es: 'Así que voy a la oficina una vez por semana.' }],
       tip: 'Use «because» y «for example» para estirar cada idea.' };
+    case 'diary': return { good: '(demo) Contó su día en orden y se entiende todo.',
+      fixes: [{ said: 'Yesterday I go', better: 'Yesterday I went', why: 'Ayer ya pasó, así que va en pasado: go → went.' },
+        { said: 'I am agree', better: 'I agree', why: 'En inglés «estar de acuerdo» es un solo verbo: agree.' }],
+      corrected: 'Yesterday I went to the park with my family. I agree that walking is good for me.',
+      level: 'B1', level_why: '(demo) Une ideas con because y so, pero a veces se le escapa el pasado.',
+      keep: [{ en: 'Walking is good for me.', es: 'Caminar me hace bien.' }, { en: 'I went to the park with my family.', es: 'Fui al parque con mi familia.' }],
+      tip: 'Mañana cuente algo que pasó y use «because» dos veces.' };
     case 'story': return { title: 'A new coworker', titleEs: '(demo) Una compañera nueva',
       lines: [{ who: 'Nina', en: 'Hi, are you the new designer?', es: 'Hola, ¿eres la diseñadora nueva?' },
         { who: 'Eva', en: 'Yes, I started today. I\'m Eva.', es: 'Sí, empecé hoy. Soy Eva.' },

@@ -118,7 +118,24 @@ export function techLabel(s = store.get()) {
   const today = t.today?.date === store.todayIso() ? (t.today.steps || []).length : 0;
   if (today) return `Hoy: ${today}/3`;
   const tried = Object.keys(t.done || {}).filter(k => !k.includes(':')).length;
-  return tried ? `${tried} probadas` : '11 técnicas';
+  return tried ? `${tried} probadas` : '14 técnicas';
+}
+
+// Grabarse, diario y sonidos parecidos (v45).
+export function clipsLabel(s = store.get()) {
+  const n = (s.practica?.clips || []).length;
+  return n ? `${n} ${n === 1 ? 'grabación' : 'grabaciones'}` : 'Empezar';
+}
+export function diaryLabel(s = store.get(), now = new Date()) {
+  const list = s.practica?.diary || [];
+  if (list.some(e => store.todayIso(new Date(e.at)) === store.todayIso(now))) return 'Hoy ✓';
+  return list.length ? `${list.length} ${list.length === 1 ? 'día' : 'días'}` : 'Empezar';
+}
+export function pairsLabel(s = store.get()) {
+  const p = s.practica?.pairs || {};
+  let ok = 0, n = 0;
+  for (const g of Object.values(p)) for (const m of ['hear', 'say']) { ok += g[m]?.[0] || 0; n += g[m]?.[1] || 0; }
+  return n ? `${Math.round((ok / n) * 100)} % bien` : '13 grupos de sonidos';
 }
 
 // go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings, mil, tecnicas, listen, mock, nivel }
@@ -183,6 +200,10 @@ export function dashboard(go) {
       tile({ icon: '🎧', tint: 'blue', title: 'Escuchar', value: `${Object.keys(s.escuchar?.done || {}).length}/${PIECES.length}`, sub: 'historias y diálogos', onclick: go.listen }),
       tile({ icon: '💼', tint: 'gold', title: 'Simulacro', value: lastMock ? `${lastMock.overall}/100` : 'Entrevista', sub: lastMock ? `${mocks.length} ${mocks.length === 1 ? 'hecho' : 'hechos'} · con nota` : '15 min con nota', onclick: go.mock }),
       tile({ icon: '🚀', tint: 'red', title: 'Técnicas', value: techLabel(s), sub: 'dictado, sombra, un minuto sin parar, mis frases…', onclick: go.tecnicas, wide: true })),
+    group('Oírse, escribir y pronunciar', 'Pulir lo que dice: grabarse, escribir y separar sonidos',
+      tile({ icon: '🎙', tint: 'red', title: 'Grabarse', value: clipsLabel(s), sub: 'oírse y comparar', onclick: go.grabarse }),
+      tile({ icon: '✍', tint: 'green', title: 'Diario', value: diaryLabel(s, now), sub: 'escribir y corregir', onclick: go.diario }),
+      tile({ icon: '👂', tint: 'blue', title: 'Sonidos parecidos', value: pairsLabel(s), sub: 'ship / sheep, work / walk, thirteen / thirty…', onclick: go.sonidos, wide: true })),
     group('Palabras y frases', 'Lo que se repasa cada día',
       tile({ icon: '📇', tint: 'violet', title: 'Mil palabras', value: `${deck.learned}/${deck.total}`, sub: deck.toStudy ? `${deck.toStudy} para hoy` : 'al día', onclick: go.mil, accent: deck.toStudy > 0 }),
       tile({ icon: '🧠', tint: 'violet', title: 'Repaso', value: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'Al día', sub: due ? 'Le toca hoy' : 'Nada pendiente', onclick: go.review, accent: due > 0 }),

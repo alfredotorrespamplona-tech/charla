@@ -1757,11 +1757,11 @@ test('mil palabras: el avance va en la copia de seguridad y la portada arma el p
 });
 
 // ---------------- Técnicas avanzadas (del cerebro de inglés) ----------------
-test('técnicas: 11 técnicas con qué es, por qué funciona y cómo se hace, en español y sin jerga', async () => {
+test('técnicas: 14 técnicas con qué es, por qué funciona y cómo se hace, en español y sin jerga', async () => {
   const X = await import('../js/tecnicas.js');
   const JERGA = /participio|condicional|subjuntivo|pasiva|cláusula|gerundio|infinitivo|auxiliar|pretérito|tiempo verbal/i;
-  assert.equal(X.TECHNIQUES.length, 11);
-  assert.equal(new Set(X.TECHNIQUES.map(t => t.id)).size, 11);
+  assert.equal(X.TECHNIQUES.length, 14);
+  assert.equal(new Set(X.TECHNIQUES.map(t => t.id)).size, 14);
   for (const t of X.TECHNIQUES) {
     assert.ok(t.what && t.why && t.how.length >= 2, t.id);
     assert.ok(X.GROUPS.some(g => g.id === t.group), t.id);
@@ -1933,7 +1933,7 @@ test('técnicas: simulacro con imprevisto esconde el problema en la misión de l
 test('técnicas: el avance se guarda, viaja en la copia de seguridad y la portada lo muestra', async () => {
   const D = await import('../js/dashboard.js');
   assert.deepEqual(store.get().tecnicas, { done: {}, best: {}, jam: [], ida: {}, islas: [], today: { date: '', steps: [] } });
-  assert.equal(D.techLabel(store.get()), '11 técnicas');
+  assert.equal(D.techLabel(store.get()), '14 técnicas');
   store.update(s => { s.tecnicas.done.dictado = 2; s.tecnicas.islas.push({ id: 'a', island: 'dia', en: 'I get up at six.', es: 'Me levanto a las seis.' }); });
   assert.equal(D.techLabel(store.get()), '1 probadas');
   store.update(s => { s.tecnicas.today = { date: store.todayIso(), steps: ['dictado'] }; });
@@ -2481,4 +2481,134 @@ test('v44: más contenido en el simulacro, la prueba de nivel y responder en el 
   assert.ok(X.ANSWER_QUESTIONS.length >= 27);
   const { iconName } = await import('../js/icons.js');
   assert.deepEqual(['🧠', '📒', '📚', '🧱', '🐢', '🐇', '🗣'].map(iconName), ['brain', 'notebook', 'books', 'blocks', 'turtle', 'fast', 'speak']);
+});
+
+test('v45 sonidos parecidos: 13 grupos sin jerga, pares únicos y la ronda mezcla las dos palabras', async () => {
+  const R = await import('../js/practica.js');
+  const JERGA = /fonema|vocal larga|schwa|sonora|sorda|aspirad|fricativ|oclusiv|diptong/i;
+  assert.equal(R.PAIR_GROUPS.length, 13);
+  assert.equal(new Set(R.PAIR_GROUPS.map(g => g.id)).size, 13);
+  for (const g of R.PAIR_GROUPS) {
+    assert.ok(g.name && g.how && g.example && g.pairs.length >= 4, g.id);
+    assert.doesNotMatch(g.how + g.name, JERGA, g.id);
+    for (const p of g.pairs) {
+      assert.equal(p.length, 4, g.id);
+      assert.notEqual(p[0], p[2]);
+      assert.ok(p.every(x => typeof x === 'string' && x.trim()), `${g.id}: ${p}`);
+    }
+    const words = g.pairs.flatMap(p => [p[0], p[2]]);
+    assert.equal(new Set(words).size, words.length, `${g.id}: palabra repetida`);
+  }
+  let k = 0; const rnd = () => (k++ % 7) / 7;
+  const round = R.pairRound(['i-ii', 'num'], 10, rnd);
+  assert.equal(round.length, 10);
+  assert.ok(round.every(x => ['i-ii', 'num'].includes(x.group) && [0, 1].includes(x.target)));
+  assert.ok(new Set(round.map(x => x.target)).size === 2, 'a veces la primera, a veces la segunda');
+  assert.equal(R.pairRound([], 30).length, 30, 'si pide más que los pares que hay, repite');
+});
+
+test('v45 sonidos parecidos: la palabra dicha se reconoce (también en cifras o igual sonido) y los aciertos se guardan', async () => {
+  const R = await import('../js/practica.js');
+  const item = (a, b, target = 0) => ({ group: 'x', words: [{ en: a, es: '' }, { en: b, es: '' }], target });
+  assert.equal(R.judgeSaid('Ship.', item('ship', 'sheep')), 'ok');
+  assert.equal(R.judgeSaid('sheep', item('ship', 'sheep')), 'other');
+  assert.equal(R.judgeSaid('shop', item('ship', 'sheep')), 'unclear');
+  assert.equal(R.judgeSaid('30', item('thirteen', 'thirty', 1)), 'ok', 'el teléfono escribe números en cifras');
+  assert.equal(R.judgeSaid('13', item('thirteen', 'thirty', 1)), 'other');
+  assert.equal(R.judgeSaid('which', item('wish', 'witch', 1)), 'ok', 'witch y which suenan igual');
+  assert.equal(R.judgeSaid('played', item('play', 'played', 0)), 'other', 'play no se confunde con played');
+  let st = {};
+  st = R.addPairResult(st, 'i-ii', 'hear', true);
+  st = R.addPairResult(st, 'i-ii', 'hear', false);
+  st = R.addPairResult(st, 'i-ii', 'say', false);
+  st = R.addPairResult(st, 'i-ii', 'say', false);
+  st = R.addPairResult(st, 'num', 'hear', true);
+  assert.deepEqual(st['i-ii'], { hear: [1, 2], say: [0, 2] });
+  assert.deepEqual(R.groupScore(st, 'i-ii'), { ok: 1, n: 4, acc: 0.25 });
+  assert.deepEqual(R.weakGroups(st), ['i-ii'], 'num tiene pocos intentos todavía');
+});
+
+test('v45 diario: la IA recibe el texto completo con sus reglas y errores, y su respuesta se revisa', async () => {
+  const R = await import('../js/practica.js');
+  const P = await import('../js/prompts.js');
+  const long = Array.from({ length: 80 }, (_, i) => `Yesterday I go to the place number ${i}.`).join(' ');
+  const m = P.diaryMessages({ text: long, rankId: 3, start: 'Yesterday I…' });
+  assert.equal(m[1].content, long, 'el texto llega entero, sin cortar');
+  assert.match(m[0].content, /EVERY real mistake/);
+  assert.match(m[0].content, /Yesterday I…/);
+  const r = R.cleanDiaryReview({ good: ' Bien ', fixes: [{ said: 'I go', better: 'I went', why: 'Ayer ya pasó.' }, { said: 'same', better: 'Same.' }, { said: '', better: 'x' }],
+    corrected: '', level: 'B1+', keep: [{ en: 'I went home.', es: 'Me fui a casa.' }, { en: 'sin traducción' }], tip: 'x' }, ' My text. ');
+  assert.equal(r.fixes.length, 1, 'fuera las que no cambian nada o vienen vacías');
+  assert.equal(r.corrected, 'My text.', 'si no trae el texto corregido, queda el suyo');
+  assert.equal(r.level, 'B1+');
+  assert.equal(r.keep.length, 1);
+  assert.equal(R.cleanDiaryReview({ level: 'experto' }, 'a').level, '');
+  const an = R.diaryAnalyses(r.fixes);
+  const { isSavable, addFromAnalyses, activeErrors } = await import('../js/bitacora.js');
+  assert.ok(an.every(isSavable), 'cada corrección vale como error para «Mis errores»');
+  assert.equal(addFromAnalyses(an), 1);
+  assert.ok(activeErrors().some(e => e.wrong.includes('I go') && e.right.includes('I went')));
+  const st = R.diaryStats('I was tired, but I went out because it was sunny. Then I slept!');
+  assert.deepEqual([st.words, st.sentences], [14, 2]);
+  assert.deepEqual(st.links, ['because', 'but', 'then']);
+});
+
+test('v45 diario: modo demo corrige, las entradas se guardan con la racha y viajan en la copia', async () => {
+  const R = await import('../js/practica.js');
+  const P = await import('../js/prompts.js');
+  const { chatJson } = await import('../js/llm.js');
+  store.update(s => { s.settings.groqKey = 'demo'; });
+  const r = R.cleanDiaryReview(await chatJson('diary', P.diaryMessages({ text: 'Yesterday I go to the park.', rankId: 3 })), 'Yesterday I go to the park.');
+  assert.ok(r.fixes.length >= 1 && r.corrected && r.level && r.keep.length);
+  const day = 86400000, now = new Date(2026, 10, 25, 20);
+  const e = (d, review = null) => R.diaryEntry({ text: 'Today I worked a lot and then I rested.', review, at: now.getTime() - d * day });
+  const list = [e(0, r), e(1), e(2), e(4)];
+  assert.equal(R.diaryStreak(list, now), 3);
+  assert.equal(R.diaryStreak([e(1), e(2)], now), 2, 'si hoy no escribió todavía, cuenta hasta ayer');
+  assert.equal(list[0].review.fixes.length, r.fixes.length);
+  store.update(s => { s.practica.diary = list; s.practica.draft = { text: 'a medias', start: '' }; s.practica.pairs = { 'i-ii': { hear: [1, 2], say: [0, 0] } }; });
+  const backup = store.exportJson();
+  store.reset();
+  assert.deepEqual(store.get().practica, { diary: [], draft: { text: '', start: '' }, pairs: {}, clips: [] });
+  store.importJson(backup);
+  assert.equal(store.get().practica.diary.length, 4);
+  assert.equal(store.get().practica.draft.text, 'a medias');
+  const D = await import('../js/dashboard.js');
+  assert.equal(D.diaryLabel(store.get(), now), 'Hoy ✓');
+  assert.equal(D.pairsLabel(store.get()), '50 % bien');
+});
+
+test('v45 grabarse: temas propios, se guardan la primera y las últimas 4, y se compara con la primera', async () => {
+  const R = await import('../js/practica.js');
+  assert.ok(R.REC_TOPICS.length >= 9);
+  assert.equal(new Set(R.REC_TOPICS.map(t => t.id)).size, R.REC_TOPICS.length);
+  for (const t of R.REC_TOPICS) {
+    assert.ok(R.REC_KINDS.some(k => k.id === t.kind), t.id);
+    assert.ok(t.en && t.es && t.tip, t.id);
+    if (t.kind === 'leer') assert.ok(t.titleEs && t.en.split(' ').length >= 40, `${t.id}: texto para leer de 1 minuto`);
+  }
+  const clips = Array.from({ length: 7 }, (_, i) => ({ id: `c${i}`, topic: 'yourself', at: 1000 + i }));
+  clips.push({ id: 'otro', topic: 'hire', at: 5 });
+  assert.deepEqual(R.clipsToDrop(clips, 'yourself'), ['c1', 'c2'], 'queda la primera y las 4 últimas');
+  assert.deepEqual(R.clipsToDrop(clips, 'hire'), []);
+  const s1 = R.clipStats('Um I work in sales and uh I like it', 6000);
+  assert.equal(s1.fillers, 2);
+  assert.equal(s1.wpm, 80);
+  assert.equal(R.clipStats('', 6000), null, 'sin texto (sin Groq) no hay números');
+  const two = [{ id: 'a', topic: 't', at: 1000, stats: { wpm: 70, fillers: 6, words: 80 } }, { id: 'b', topic: 't', at: 1000 + 3 * 86400000, stats: { wpm: 95, fillers: 2, words: 120 } }];
+  const fl = R.firstAndLast(two, 't');
+  assert.deepEqual(fl.change, { wpm: 25, fillers: -4, words: 40, days: 3 });
+  assert.equal(R.selfScore({ clear: true, endings: true }), 0.5);
+  store.update(s => { s.practica.clips = [...two, { topic: 'sin id' }]; });
+  const backup = store.exportJson(); store.reset(); store.importJson(backup);
+  assert.equal(store.get().practica.clips.length, 2, 'los datos raros se descartan');
+  const D = await import('../js/dashboard.js');
+  assert.equal(D.clipsLabel(store.get()), '2 grabaciones');
+});
+
+test('v45 grabadora: puede devolver el audio y grabar sin pasar a texto', async () => {
+  const src = (await import('node:fs')).readFileSync(join(ROOT, 'js', 'whisper.js'), 'utf8');
+  assert.match(src, /keepAudio = false, transcribeAudio = true, maxMs = MAX_MS/);
+  assert.match(src, /if \(!transcribeAudio\) return resolve\(\{ text: '', durationMs: speechMs, \.\.\.kept \}\)/);
+  assert.match(src, /if \(keepAudio\) resolve\(\{ text: '', durationMs: speechMs, error: e\.message, \.\.\.kept \}\)/, 'si Groq falla, la grabación no se pierde');
 });

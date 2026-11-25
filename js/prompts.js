@@ -436,6 +436,24 @@ ${coachRules()}${knownErrorsText()}Return ONLY JSON: {"good": "...", "fixes": [{
   ];
 }
 
+// ---- Diario en inglés (v45, cerebro: diario_en_ingles.md) ----
+// Recibe el texto completo, sin cortar. Corrige todo lo que esté mal (no solo 3 cosas), como pide el cerebro.
+export function diaryMessages({ text, rankId, start = '' }) {
+  const rank = rankById(rankId);
+  return [
+    { role: 'system', content: `The learner (native ${LEARNER_LANG}, practising at level ${rank.code}) wrote a free diary entry in English${start ? `, starting from the prompt "${start}"` : ''}. It is written, not spoken, so spelling counts too.
+Correct it like a kind, detailed teacher, in plain ${LEARNER_LANG}, never using grammar labels (explain from the meaning, e.g. "ayer ya pasó, así que va en pasado"):
+- "good": one or two sentences about what they did well (specific, honest);
+- "fixes": EVERY real mistake (grammar, word choice, spelling, missing words), in the order they appear, each {"said": "the exact words they wrote", "better": "the corrected words", "why": "short ${LEARNER_LANG} reason"}. Do not list style preferences as mistakes;
+- "corrected": the whole entry rewritten correctly and naturally, keeping their ideas, their voice and their level;
+- "level": their level today from this text, one of A1, A2, B1, B1+, B2, C1, C2; "level_why": one short ${LEARNER_LANG} sentence explaining it;
+- "keep": 2 to 4 useful natural phrases from the corrected entry worth memorising, each {"en": "...", "es": "natural ${LEARNER_LANG} translation"};
+- "tip": one short idea for tomorrow's entry.
+${coachRules()}${knownErrorsText()}Return ONLY JSON: {"good": "...", "fixes": [{"said": "...", "better": "...", "why": "..."}], "corrected": "...", "level": "B1", "level_why": "...", "keep": [{"en": "...", "es": "..."}], "tip": "..."}` },
+    { role: 'user', content: text },
+  ];
+}
+
 // ---- Repaso personalizado (tarjetas con {{gap}}) ----
 export function reviewMessages(items, rankId) {
   const rank = rankById(rankId);

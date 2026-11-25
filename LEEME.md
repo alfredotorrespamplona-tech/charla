@@ -448,6 +448,24 @@ No hace falta volver a instalar el APK.
   siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
   ejercicio del taller o no cierran la despedida.
 
+### Oírse, escribir y pronunciar claro (v45)
+Tres técnicas del cerebro que faltaban (`js/practica.js` el contenido, `js/practicascreen.js` las pantallas). Están en la
+portada, en el grupo nuevo «Oírse, escribir y pronunciar», y en Técnicas (ahora son 14).
+- **🎙 Grabarse y compararse** (`wiki/metodologias/autoevaluacion_grabandote.md`): 9 temas propios (4 de entrevista,
+  2 de su vida y 3 textos para leer en voz alta con la voz del teléfono para comparar). Graba hasta 2 min y medio y se
+  detiene sola tras 6 s de silencio. Después: oírse, marcar lo que notó (se entiende, finales -s/-ed, pausas, muletillas),
+  anotar errores directo en «Mis errores» y oír su primera vez del mismo tema. Con clave de Groq también pasa a texto:
+  palabras por minuto, muletillas y cuánto cambió desde la primera. El audio queda **solo en el teléfono** (IndexedDB,
+  `js/audiostore.js`); de cada tema se guardan la primera y las últimas 4. La copia de seguridad lleva fechas y números, no el audio.
+- **✍ Diario en inglés** (`diario_en_ingles.md`): escribir unos 15 min (con frases para arrancar y palabras para unir ideas),
+  releerlo y que la IA lo corrija **todo**, con su porqué, su nivel de hoy, el texto corregido y frases para el repaso. El texto
+  va completo a la IA, con sus reglas y sus errores. Cada corrección queda en «Mis errores». El borrador se guarda solo.
+  Sin IA se guarda igual para releerlo. Cuenta los días seguidos escribiendo.
+- **👂 Sonidos parecidos**: 13 grupos que un hispanohablante confunde (ship/sheep, cat/cut, pen/pan, work/walk, b/v, sh/ch,
+  j/y, th/t, th/d, s/z, con h o sin h, presente o pasado -ed, thirteen/thirty), 81 pares con su significado y cómo se hace
+  cada sonido, sin jerga. «Oír»: suena una y elige cuál fue. «Decir»: la dice y la app le muestra cuál se entendió (acepta
+  cifras y palabras que suenan igual). Guarda los aciertos y propone practicar los que más le cuestan.
+
 ### Más iconos, mejor portada y más ejercicios (v44)
 - **Portada ordenada por grupos**: «Escuchar y hablar», «Palabras y frases», «Gramática» y «Su progreso», cada
   uno con una línea que dice para qué sirve. Cada acceso lleva su icono dentro de una ficha de color (rojo, azul,

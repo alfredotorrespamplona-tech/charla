@@ -950,3 +950,41 @@ table.verb-forms th, table.verb-forms td { text-align: left; padding: 6px 4px; b
 .option:active { transform: scale(.985); }
 /* encabezado de cada técnica y de cada historia */
 .screen > .topbar + .muted { margin-top: -4px; }
+
+/* ===== v45: diario, grabarse y sonidos parecidos ===== */
+.practica .tec-how { margin: 8px 0 4px; padding-left: 20px; }
+.practica .tec-how li { margin: 3px 0; }
+.diary-text { min-height: 190px; resize: vertical; line-height: 1.5; margin-top: 10px; }
+.diary-start { margin: 6px 0 0; font-size: .9rem; color: var(--muted); }
+.diary-meta { justify-content: space-between; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.diary-links { margin: 0 0 12px; }
+.diary-links summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+.diary-links .chips { margin-top: 8px; }
+.diary-fixes { display: grid; gap: 10px; margin-top: 8px; }
+.diary-fix { padding: 10px 12px; border-radius: 12px; background: var(--surface-2, var(--brand-50)); }
+.diary-fix p { margin: 0 0 4px; }
+.diary-said { color: var(--bad); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.diary-better { color: var(--good); }
+.diary-corrected, .diary-original, .rec-read { white-space: pre-wrap; line-height: 1.6; }
+.rec-read { font-size: 1.05rem; }
+.rec-audio { width: 100%; margin-top: 8px; }
+.rec-status { min-height: 1.4em; text-align: center; }
+.rec-check { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-weight: 500; }
+.rec-check input { width: 20px; height: 20px; flex: none; }
+.rec-old .row { justify-content: space-between; }
+.practica .card input + input { margin-top: 8px; }
+.practica .card input:last-of-type + button { margin-top: 10px; }
+button.recording { background: var(--brand-700, var(--brand)); color: #fff; }
+.pairs-mix { gap: 10px; margin: 4px 0 12px; }
+.pairs-mix > button { flex: 1; }
+.pairs-list { display: grid; gap: 8px; }
+.pair-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.pair-word { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; text-align: left; }
+.pair-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.pair-option { display: flex; flex-direction: column; gap: 4px; font-size: 1.15rem; padding: 18px 10px; }
+.pair-option.right small, .pair-option.wrong small { color: #fff; }
+.pair-say { text-align: center; }
+.pair-say h2 { font-size: 2rem; margin: 6px 0; }
+.pair-say .row { justify-content: center; }
+.diary-starts { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; margin: 8px -4px 0; scrollbar-width: thin; }
+.diary-starts .chip { white-space: nowrap; flex: none; }

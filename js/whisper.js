@@ -117,10 +117,12 @@ export async function transcribe(blob, { lang = 'en-US', ext = 'webm', fetchFn =
 
 // Igual que el reconocedor del teléfono (speech.js → Listener): start() devuelve { text, durationMs }.
 // Mientras graba, onInterim muestra el tiempo y el volumen (el texto llega al terminar).
+// «Grabarse y compararse» (v45) pide además el audio: keepAudio devuelve { audio, recordedMs }, y con
+// transcribeAudio: false solo graba (sin clave de Groq no hay texto, pero se puede oír igual).
 export class WhisperListener {
   constructor() { this.active = false; this.end = null; this.cancel = null; }
 
-  start({ lang = 'en-US', onInterim, firstWordMs = 20000, pauseMs = 3000 } = {}) {
+  start({ lang = 'en-US', onInterim, firstWordMs = 20000, pauseMs = 3000, keepAudio = false, transcribeAudio = true, maxMs = MAX_MS } = {}) {
     return new Promise((resolve, reject) => {
       let stream = null, ctx = null, rec = null, timer = null, done = false, aborted = false;
       let floor = 0, calib = 0, calibN = 0, run = 0, firstSpeechAt = 0, lastSpeechAt = 0;
@@ -138,11 +140,17 @@ export class WhisperListener {
         release();
         const speechMs = firstSpeechAt ? Math.max(500, lastSpeechAt - firstSpeechAt + 600) : 0;
         if (aborted || !firstSpeechAt || !chunks.length) return resolve({ text: '', durationMs: 0 });
+        const blob = new Blob(chunks, { type: mime.type || 'audio/webm' });
+        const kept = keepAudio ? { audio: blob, recordedMs: Math.round(performance.now() - startedAt), speechMs } : {};
+        if (!transcribeAudio) return resolve({ text: '', durationMs: speechMs, ...kept });
         onInterim?.('⏳ Pasando su voz a texto…');
         try {
-          const text = cleanTranscript(await transcribe(new Blob(chunks, { type: mime.type || 'audio/webm' }), { lang, ext: mime.ext }), speechMs);
-          resolve({ text, durationMs: text ? speechMs : 0, whisper: true });
-        } catch (e) { reject(e); }
+          const text = cleanTranscript(await transcribe(blob, { lang, ext: mime.ext }), speechMs);
+          resolve({ text, durationMs: text ? speechMs : 0, whisper: true, ...kept });
+        } catch (e) {
+          if (keepAudio) resolve({ text: '', durationMs: speechMs, error: e.message, ...kept });   // la grabación no se pierde
+          else reject(e);
+        }
       };
       const close = () => {
         if (done) return;
@@ -181,7 +189,7 @@ export class WhisperListener {
             if (run >= SPEECH_FRAMES || firstSpeechAt) lastSpeechAt = now;
           } else run = 0;
           onInterim?.(`🎤 Grabando ${clock(el)} ${meter(level)}  ·  ${firstSpeechAt ? 'al callarse se pasa a texto (o toque el micrófono)' : 'hable cuando quiera'}`);
-          if (el > MAX_MS) close();
+          if (el > maxMs) close();
           else if (firstSpeechAt && now - lastSpeechAt > pauseMs) close();
           else if (!firstSpeechAt && el > firstWordMs) close();
         }, TICK_MS);

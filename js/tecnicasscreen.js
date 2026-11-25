@@ -12,6 +12,7 @@ import { wordStates, tokens, verdict } from './pronounce.js';
 import { addVocab } from './words.js';
 import * as X from './tecnicas.js';
 import { sendToWorkshop } from './workshop.js';
+import { diarioScreen, grabarseScreen, paresScreen } from './practicascreen.js';
 
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false));
 const hasAI = () => aiReady();
@@ -180,6 +181,9 @@ function openTechnique(id, go, back) {
     ida: () => idaList(again),
     islas: () => islandsList(go, again),
     imprevisto: () => [h('button.primary.wide', { onclick: () => simScreen(go, again) }, '🎲 Elegir la situación')],
+    grabarse: () => [h('button.primary.wide', { onclick: () => grabarseScreen({ home: again }) }, '🎙 Elegir qué grabar')],
+    diario: () => [h('button.primary.wide', { onclick: () => diarioScreen({ home: again }) }, '✍ Abrir mi diario')],
+    sonidos: () => [h('button.primary.wide', { onclick: () => paresScreen({ home: again }) }, '👂 Elegir los sonidos')],
     responder: () => [framesGuide(),
       h('div.packs', {}, X.ANSWER_GROUPS.map(g => h('button.pack', { onclick: () => runResponder(answerSet(g.id), again) },
         h('span.pack-icon', {}, g.icon),
