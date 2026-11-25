@@ -59,9 +59,15 @@ function ring(pct, label, sub) {
   return h('div.dash-ring', { role: 'img', 'aria-label': `${label} ${sub}` }, h('div', { html: svg }), h('div.dash-ring-text', {}, h('b', {}, label), h('small', {}, sub)));
 }
 
-function tile({ icon, title, value, sub, onclick, accent, wide }) {
+// Grupo de fichas con su título (la portada ordenada por lo que se hace).
+function group(title, sub, ...tiles) {
+  return h('section.dash-group', {}, h('div.dash-group-head', {}, h('h2.dash-title', {}, title), h('small.muted', {}, sub)), h('div.dash-grid', {}, tiles));
+}
+
+// tint = color de la ficha del ícono (red, blue, gold, green, violet): solo decora, no indica estado.
+function tile({ icon, title, value, sub, onclick, accent, wide, tint = 'red' }) {
   return h('button.dash-tile', { class: [accent ? 'accent' : '', wide ? 'wide' : ''].join(' ').trim(), onclick },
-    h('span.dash-tile-top', {}, icon, h('span', {}, title)),
+    h('span.dash-tile-top', {}, h('span.tile-ic', { class: 'tint-' + tint }, icon), h('span', {}, title)),
     h('b.dash-tile-value', {}, value),
     sub ? h('small', {}, sub) : null);
 }
@@ -173,20 +179,22 @@ export function dashboard(go) {
       h('div.dash-week-head', {}, h('b', {}, 'Esta semana'), h('small.muted', {}, `${week.filter(d => d.done).length} de 7 días`)),
       h('div.dash-days', {}, week.map(d => h('div.dash-day', { class: [d.done ? 'done' : '', d.frozen ? 'frozen' : '', d.today ? 'today' : ''].join(' ') },
         h('span', {}, d.label), h('i', {}, d.done ? '✓' : d.frozen ? '🧊' : ''))))),
-    h('h2.dash-title', {}, 'Practicar'),
-    h('div.dash-grid', {},
-      tile({ icon: '🎧', title: 'Escuchar', value: `${Object.keys(s.escuchar?.done || {}).length}/${PIECES.length}`, sub: 'historias y diálogos', onclick: go.listen }),
-      tile({ icon: '💼', title: 'Simulacro', value: lastMock ? `${lastMock.overall}/100` : 'Entrevista', sub: lastMock ? `${mocks.length} ${mocks.length === 1 ? 'hecho' : 'hechos'} · con nota` : '15 min con nota', onclick: go.mock }),
-      tile({ icon: '📏', title: 'Su nivel', value: lastTest ? lastTest.label : 'Prueba', sub: testDue ? 'le toca este mes' : `próxima en ${daysUntilNext(tests, now.getTime())} días`, onclick: go.nivel, accent: testDue && !!lastTest, wide: true }),
-      tile({ icon: '📇', title: 'Mil palabras', value: `${deck.learned}/${deck.total}`, sub: deck.toStudy ? `${deck.toStudy} para hoy` : 'al día', onclick: go.mil, accent: deck.toStudy > 0 }),
-      tile({ icon: '🧠', title: 'Repaso', value: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'Al día', sub: due ? 'Le toca hoy' : 'Nada pendiente', onclick: go.review, accent: due > 0 }),
-      tile({ icon: '🧱', title: 'Gramática', value: lesson ? lesson.title : '¡Todo aprobado!', sub: `${passed}/${G.LESSONS.length} lecciones`, onclick: go.grammar }),
-      tile({ icon: '📚', title: 'Frases', value: `${learnedIds(s.vocab).size}/${PHRASES.length}`, sub: 'frases esenciales', onclick: go.essentials }),
-      tile({ icon: '🚀', title: 'Técnicas', value: techLabel(s), sub: 'dictado, sombra, un minuto sin parar, mis frases…', onclick: go.tecnicas, wide: true }),
-      tile({ icon: '🎓', title: 'Por nivel', value: `Nivel ${rankById(s.rank).code}`, sub: 'contenido de A1 a C2', onclick: go.levels }),
-      tile({ icon: '📒', title: 'Mis errores', value: errors ? `${errors} activos` : 'Ninguno', sub: 'su bitácora', onclick: go.errors }),
-      tile({ icon: '📖', title: 'Vocabulario', value: String(s.vocab.filter(v => !v.archived).length), sub: 'palabras guardadas', onclick: go.vocab }),
-      tile({ icon: '📊', title: 'Estadísticas', value: `${s.history.length}`, sub: 'charlas en total', onclick: go.stats })),
+    group('Escuchar y hablar', 'Oír mucho y responder en voz alta',
+      tile({ icon: '🎧', tint: 'blue', title: 'Escuchar', value: `${Object.keys(s.escuchar?.done || {}).length}/${PIECES.length}`, sub: 'historias y diálogos', onclick: go.listen }),
+      tile({ icon: '💼', tint: 'gold', title: 'Simulacro', value: lastMock ? `${lastMock.overall}/100` : 'Entrevista', sub: lastMock ? `${mocks.length} ${mocks.length === 1 ? 'hecho' : 'hechos'} · con nota` : '15 min con nota', onclick: go.mock }),
+      tile({ icon: '🚀', tint: 'red', title: 'Técnicas', value: techLabel(s), sub: 'dictado, sombra, un minuto sin parar, mis frases…', onclick: go.tecnicas, wide: true })),
+    group('Palabras y frases', 'Lo que se repasa cada día',
+      tile({ icon: '📇', tint: 'violet', title: 'Mil palabras', value: `${deck.learned}/${deck.total}`, sub: deck.toStudy ? `${deck.toStudy} para hoy` : 'al día', onclick: go.mil, accent: deck.toStudy > 0 }),
+      tile({ icon: '🧠', tint: 'violet', title: 'Repaso', value: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'Al día', sub: due ? 'Le toca hoy' : 'Nada pendiente', onclick: go.review, accent: due > 0 }),
+      tile({ icon: '📚', tint: 'green', title: 'Frases', value: `${learnedIds(s.vocab).size}/${PHRASES.length}`, sub: 'frases esenciales', onclick: go.essentials }),
+      tile({ icon: '📖', tint: 'green', title: 'Vocabulario', value: String(s.vocab.filter(v => !v.archived).length), sub: 'palabras guardadas', onclick: go.vocab })),
+    group('Gramática', 'Armar bien la frase, pieza por pieza',
+      tile({ icon: '🧱', tint: 'red', title: 'Gramática', value: lesson ? lesson.title : '¡Todo aprobado!', sub: `${passed}/${G.LESSONS.length} lecciones`, onclick: go.grammar }),
+      tile({ icon: '🎓', tint: 'blue', title: 'Por nivel', value: `Nivel ${rankById(s.rank).code}`, sub: 'contenido de A1 a C2', onclick: go.levels })),
+    group('Su progreso', 'Cómo va y qué le falta',
+      tile({ icon: '📏', tint: 'green', title: 'Su nivel', value: lastTest ? lastTest.label : 'Prueba', sub: testDue ? 'le toca este mes' : `próxima en ${daysUntilNext(tests, now.getTime())} días`, onclick: go.nivel, accent: testDue && !!lastTest, wide: true }),
+      tile({ icon: '📒', tint: 'gold', title: 'Mis errores', value: errors ? `${errors} activos` : 'Ninguno', sub: 'su bitácora', onclick: go.errors }),
+      tile({ icon: '📊', tint: 'blue', title: 'Estadísticas', value: `${s.history.length}`, sub: 'charlas en total', onclick: go.stats })),
     h('div.dash-footer', {},
       h('button.link', { onclick: go.map }, '🗺️ Mapa'),
       h('button.link', { onclick: go.settings }, '⚙️ Ajustes')),

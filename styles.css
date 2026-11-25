@@ -892,3 +892,61 @@ table.verb-forms th, table.verb-forms td { text-align: left; padding: 6px 4px; b
 .ch-val { fill: var(--text); font-size: 11px; font-weight: 700; }
 .ch-table { width: 100%; border-collapse: collapse; font-size: .9em; margin-top: 6px; }
 .ch-table th, .ch-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+
+/* ---------- v44: fichas de color para los íconos, portada por grupos y acabados ---------- */
+:root {
+  --t-red: #c3122b; --t-red-bg: #fdeef0;
+  --t-blue: #2f6fb5; --t-blue-bg: #e8f0fa;
+  --t-gold: #9a6a00; --t-gold-bg: #fdf3dc;
+  --t-green: #1d7f55; --t-green-bg: #e3f4ec;
+  --t-violet: #6b45c2; --t-violet-bg: #efeafb;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --t-red: #ff8594; --t-red-bg: rgba(232, 51, 74, .16);
+    --t-blue: #8dbbf0; --t-blue-bg: rgba(127, 178, 236, .15);
+    --t-gold: #f2c25a; --t-gold-bg: rgba(242, 194, 90, .14);
+    --t-green: #5fd4a0; --t-green-bg: rgba(67, 197, 140, .14);
+    --t-violet: #b79cff; --t-violet-bg: rgba(167, 139, 250, .16);
+  }
+}
+:root[data-theme="dark"] {
+  --t-red: #ff8594; --t-red-bg: rgba(232, 51, 74, .16);
+  --t-blue: #8dbbf0; --t-blue-bg: rgba(127, 178, 236, .15);
+  --t-gold: #f2c25a; --t-gold-bg: rgba(242, 194, 90, .14);
+  --t-green: #5fd4a0; --t-green-bg: rgba(67, 197, 140, .14);
+  --t-violet: #b79cff; --t-violet-bg: rgba(167, 139, 250, .16);
+}
+.tile-ic { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; flex: none; }
+.tile-ic .ic { width: 20px; height: 20px; color: inherit !important; }
+.tint-red { background: var(--t-red-bg); color: var(--t-red); }
+.tint-blue { background: var(--t-blue-bg); color: var(--t-blue); }
+.tint-gold { background: var(--t-gold-bg); color: var(--t-gold); }
+.tint-green { background: var(--t-green-bg); color: var(--t-green); }
+.tint-violet { background: var(--t-violet-bg); color: var(--t-violet); }
+.dash-group { margin-top: 6px; }
+.dash-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 18px 2px 10px; }
+.dash-group-head .dash-title { margin: 0; }
+.dash-group-head small { font-size: .78rem; text-align: right; }
+.dash-tile { gap: 6px; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+.dash-tile:active { transform: scale(.98); }
+@media (hover: hover) { .dash-tile:hover { box-shadow: var(--shadow); border-color: var(--line-strong); } }
+.dash-tile-top { gap: 8px; color: var(--text); font-size: .86rem; }
+.dash-tile-value { font-size: 1.08rem; margin-top: 2px; }
+.dash-tile.wide { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 12px; }
+.dash-tile.wide .dash-tile-top { flex: 1 1 100%; }
+/* tarjetas de Escuchar: ícono en ficha de color según el nivel */
+.listen-icon { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; flex: none; }
+.listen-icon .ic { width: 22px; height: 22px; color: inherit !important; }
+.listen-card { transition: border-color .12s, box-shadow .12s; box-shadow: var(--shadow-sm); }
+.listen-card.done .listen-score { color: var(--good); font-weight: 700; }
+.lvl-badge { display: inline-block; padding: 1px 7px; border-radius: var(--pill); font-size: .72rem; font-weight: 700; margin-right: 4px; }
+/* títulos de tarjetas: el ícono en el color de la marca */
+.card > b:first-child .ic, .card > .dash-week-head b .ic, .topbar h2 .ic { color: var(--brand); }
+/* nota grande del simulacro y de la prueba de nivel */
+.mock-score { background: linear-gradient(160deg, var(--brand-50), var(--surface) 70%); border-color: var(--brand-100); }
+.mock-big { background: var(--brand-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.option { transition: background .12s, border-color .12s, transform .1s; }
+.option:active { transform: scale(.985); }
+/* encabezado de cada técnica y de cada historia */
+.screen > .topbar + .muted { margin-top: -4px; }

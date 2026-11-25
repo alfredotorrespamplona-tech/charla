@@ -2296,11 +2296,11 @@ test('whisper: la IA sabe cuándo el texto es tal cual (con sus errores) y cuán
   assert.match(P.heardNote(false), /ignore recognition mistakes/);
 });
 
-test('escuchar: 16 historias propias con traducción y 3 preguntas bien armadas', async () => {
+test('escuchar: 24 historias propias con traducción y 3 preguntas bien armadas', async () => {
   const E = await import('../js/escuchar.js');
-  assert.equal(E.PIECES.length, 16);
-  assert.equal(new Set(E.PIECES.map(p => p.id)).size, 16);
-  for (const lv of E.LEVELS) assert.equal(E.PIECES.filter(p => p.level === lv.id).length, 4, lv.id);
+  assert.equal(E.PIECES.length, 24);
+  assert.equal(new Set(E.PIECES.map(p => p.id)).size, 24);
+  for (const lv of E.LEVELS) assert.equal(E.PIECES.filter(p => p.level === lv.id).length, 6, lv.id);
   for (const p of E.PIECES) {
     assert.ok(p.lines.length >= 7, p.id);
     for (const l of p.lines) assert.ok(l.en.trim() && l.es.trim(), p.id);
@@ -2461,4 +2461,24 @@ test('estado v43: escuchar, simulacros y pruebas se completan en respaldos viejo
   assert.equal(s.escuchar.today.count, 0);
   assert.equal(s.entrevista.mocks.length, 1);
   assert.deepEqual(s.nivel.tests, []);
+});
+
+test('v44: más contenido en el simulacro, la prueba de nivel y responder en el momento', async () => {
+  const E = await import('../js/entrevista.js');
+  for (const s of E.SLOTS) assert.ok(s.options.length >= 4, s.id);
+  const allQ = E.SLOTS.flatMap(s => s.options.map(o => o.en));
+  assert.equal(new Set(allQ).size, allQ.length, 'sin preguntas repetidas');
+  const N = await import('../js/nivel.js');
+  assert.ok(N.GRAMMAR.length >= 28 && N.LISTEN.length >= 16 && N.B2_WORDS.length >= 28);
+  assert.equal(new Set(N.GRAMMAR.map(g => g.id)).size, N.GRAMMAR.length);
+  assert.equal(new Set(N.B2_WORDS.map(w => w[0])).size, N.B2_WORDS.length, 'palabras B2 sin repetir');
+  assert.equal(new Set(N.B2_WORDS.map(w => w[1])).size, N.B2_WORDS.length, 'significados distintos (opciones sin repetir)');
+  for (const x of [...N.GRAMMAR, ...N.LISTEN]) assert.equal(new Set(x.options).size, 3, x.id || x.en);
+  const t = N.buildTest([], () => 0.99);
+  assert.equal(t.speak.length, 2);
+  assert.equal(t.speak[0].task, N.SPEAK[0].task, 'siempre empieza por su trabajo');
+  const X = await import('../js/tecnicas.js');
+  assert.ok(X.ANSWER_QUESTIONS.length >= 27);
+  const { iconName } = await import('../js/icons.js');
+  assert.deepEqual(['🧠', '📒', '📚', '🧱', '🐢', '🐇', '🗣'].map(iconName), ['brain', 'notebook', 'books', 'blocks', 'turtle', 'fast', 'speak']);
 });

@@ -448,6 +448,24 @@ No hace falta volver a instalar el APK.
   siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
   ejercicio del taller o no cierran la despedida.
 
+### Más iconos, mejor portada y más ejercicios (v44)
+- **Portada ordenada por grupos**: «Escuchar y hablar», «Palabras y frases», «Gramática» y «Su progreso», cada
+  uno con una línea que dice para qué sirve. Cada acceso lleva su icono dentro de una ficha de color (rojo, azul,
+  dorado, verde o violeta) que se ve bien en modo claro y oscuro. Las tarjetas responden al tocarlas.
+- **Iconos nuevos propios** (`js/icons.js`, dibujados en SVG, sin copiar los de otra app): cerebro, libreta,
+  libros, bloques, tortuga, liebre (rápido) y hablar. Toda la app usa iconos propios en lugar de emojis.
+- **Escuchar**: cada historia tiene su ficha de color según el nivel (A2 verde, B1 azul, B1 alto violeta, B2 dorado).
+- **Más contenido, todo escrito para la app**:
+  - Escuchar: de 16 a **24** historias y diálogos (6 por nivel): el supermercado, la familia, el hotel, la rutina,
+    una reunión, un ascenso, el clima y negociar con un proveedor.
+  - Responder en el momento: de 18 a **27** preguntas (debilidades, trabajar en equipo, presión, el fin de semana,
+    la comida, las noches, el celular, cómo estudia, dinero y felicidad), cada una con su respuesta modelo.
+  - Simulacro de entrevista: 2 preguntas más en cada una de las 8 partes (**33** en total), así cada
+    simulacro sale distinto.
+  - Prueba de nivel: escuchar **16**, armar la frase **28** (there is/are, plurales, going to, enough, make/do,
+    since, unless, told, used to, would rather) y palabras de trabajo B2 **28**. La segunda tarea de hablar
+    cambia cada mes entre 5 opciones; la primera siempre es contar su trabajo.
+
 ### Modo pro (v43)
 - **🎯 Su voz tal cual, con Whisper de Groq** (`js/whisper.js`). El reconocedor del teléfono «arregla» lo que uno
   dice mal («I goed» sale «I go») y la corrección nunca veía el error. Con clave de Groq, el micrófono de toda la app

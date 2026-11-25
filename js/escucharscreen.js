@@ -11,6 +11,8 @@ import { practicePronunciation } from './pronounce.js';
 import * as E from './escuchar.js';
 
 const MAX_MINE = 30;
+// Color de la ficha del ícono según el nivel (solo decora).
+const TINT = { A2: 'green', B1: 'blue', 'B1+': 'violet', B2: 'gold' };
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false));
 const topbar = (title, onBack) => h('div.topbar', {}, h('button.icon', { 'aria-label': 'Volver', onclick: onBack }, '←'), h('h2', {}, title));
 const data = () => store.get().escuchar;
@@ -44,7 +46,7 @@ export function escucharScreen({ home }) {
   const list = h('div.listen-list');
   const back = () => escucharScreen({ home });
   const card = p => h('button.listen-card', { class: (done[p.id] ?? -1) >= 2 / 3 ? 'done' : '', onclick: () => openPiece(p, back) },
-    h('span.listen-icon', {}, p.icon || '🎧'),
+    h('span.listen-icon', { class: 'tint-' + (TINT[p.level] || 'blue') }, p.icon || '🎧'),
     h('span.listen-text', {}, h('b', {}, p.titleEs), h('small', {}, `${E.KINDS[p.kind]} · ${p.level} · ${E.minutesOf(p)} min`)),
     h('span.listen-score', {}, done[p.id] != null ? `✓ ${pct(done[p.id])}` : '›'));
   const draw = () => {

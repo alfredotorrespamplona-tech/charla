@@ -12,35 +12,51 @@ export const SLOTS = [
   { id: 'abrir', name: 'Apertura', follow: true, options: [
     q('To start, can you tell me a little about yourself?', 'Para empezar, ¿me cuenta un poco sobre usted?', 'qyq', 'Sure. I\'m… and I\'ve worked as…'),
     q('Walk me through your background.', 'Cuénteme su trayectoria.', 'qyq', 'Sure. I started my career as…'),
+    q('How would your coworkers describe you?', '¿Cómo lo describirían sus compañeros?', 'qyq', 'I think my coworkers would describe me as…'),
+    q('What do you do in your current job?', '¿Qué hace en su trabajo actual?', 'qyq', 'In my current job, I…'),
   ] },
   { id: 'motivo', name: 'Motivación', options: [
     q('Why are you interested in this position?', '¿Por qué le interesa este puesto?', 'qyq', 'I\'m interested in this position because…'),
     q('What do you know about our company, and why do you want to work here?', '¿Qué sabe de nuestra empresa y por qué quiere trabajar aquí?', 'qyq', 'I know that your company… and I want to work here because…'),
+    q('Why are you looking for a new job?', '¿Por qué está buscando un trabajo nuevo?', 'qyq', 'I\'m looking for a new job because…'),
+    q('What attracted you to this role?', '¿Qué le atrajo de este puesto?', 'qyq', 'What attracted me to this role is…'),
   ] },
   { id: 'fortaleza', name: 'Fortalezas', options: [
     q('What would you say is your greatest strength?', '¿Cuál diría que es su mayor fortaleza?', 'qyq', 'I\'d say my greatest strength is…'),
     q('What is something you\'re working to improve?', '¿Qué es algo que está trabajando para mejorar?', 'psb', 'Something I\'m working to improve is…'),
+    q('What skills would you bring to our team?', '¿Qué habilidades traería a nuestro equipo?', 'qyq', 'I would bring…'),
+    q('What are you most proud of in your career?', '¿De qué está más orgulloso en su carrera?', 'psb', 'I\'m most proud of the time I…'),
   ] },
   { id: 'star', name: 'Una historia (STAR)', follow: true, options: [
     q('Tell me about a time you solved a difficult problem at work.', 'Cuénteme de una vez que resolvió un problema difícil en el trabajo.', 'psb', 'One time, at my last job, we had a problem with…'),
     q('Tell me about a time you made a mistake. What did you do?', 'Cuénteme de una vez que cometió un error. ¿Qué hizo?', 'psb', 'One time I made a mistake when…'),
     q('Describe a situation where you had to meet a tight deadline.', 'Describa una situación en la que tuvo que cumplir un plazo muy corto.', 'psb', 'Once, I had to finish… in only…'),
+    q('Tell me about a time you helped a difficult customer.', 'Cuénteme de una vez que ayudó a un cliente difícil.', 'psb', 'Once, a customer was very upset because…'),
+    q('Tell me about a time you had to learn something quickly.', 'Cuénteme de una vez que tuvo que aprender algo rápido.', 'psb', 'Once, I had to learn… in only…'),
   ] },
   { id: 'equipo', name: 'Trabajo en equipo', options: [
     q('How do you handle disagreements with a coworker?', '¿Cómo maneja los desacuerdos con un compañero?', 'psb', 'When I disagree with a coworker, I…'),
     q('What role do you usually take in a team?', '¿Qué papel suele tomar en un equipo?', 'qyq', 'In a team, I usually…'),
+    q('Tell me about a time you worked with someone very different from you.', 'Cuénteme de una vez que trabajó con alguien muy distinto a usted.', 'psb', 'Once, I worked with someone who…'),
+    q('How do you give feedback to a coworker?', '¿Cómo le da comentarios a un compañero?', 'psb', 'When I give feedback, first I…'),
   ] },
   { id: 'situacion', name: 'Situación', options: [
     q('What would you do if a customer was very angry with you?', '¿Qué haría si un cliente estuviera muy enojado con usted?', 'psb', 'If a customer was very angry, first I would…'),
     q('What would you do if you had too many tasks and not enough time?', '¿Qué haría si tuviera demasiadas tareas y poco tiempo?', 'psb', 'If I had too many tasks, I would…'),
+    q('What would you do if you disagreed with your manager?', '¿Qué haría si no estuviera de acuerdo con su jefe?', 'psb', 'If I disagreed with my manager, I would…'),
+    q('What would you do if you made a mistake that nobody noticed?', '¿Qué haría si cometiera un error que nadie notó?', 'psb', 'If I made a mistake, I would…'),
   ] },
   { id: 'futuro', name: 'Futuro', options: [
     q('Where do you see yourself in five years?', '¿Dónde se ve en cinco años?', 'qyq', 'In five years, I see myself…'),
     q('What are your career goals?', '¿Cuáles son sus metas profesionales?', 'qyq', 'My main career goal is…'),
+    q('How do you keep learning in your field?', '¿Cómo sigue aprendiendo en su área?', 'qyq', 'I keep learning by…'),
+    q('What kind of manager helps you do your best work?', '¿Qué tipo de jefe le ayuda a dar lo mejor?', 'qyq', 'I do my best work with a manager who…'),
   ] },
   { id: 'cierre', name: 'Cierre', follow: true, options: [
     q('Why should we hire you?', '¿Por qué deberíamos contratarle?', 'qyq', 'You should hire me because…'),
     q('Is there anything else you\'d like us to know about you?', '¿Hay algo más que quiera que sepamos de usted?', 'qyq', 'Yes. I\'d like you to know that…'),
+    q('What makes you different from other candidates?', '¿Qué lo hace diferente de los otros candidatos?', 'qyq', 'What makes me different is…'),
+    q('What salary are you expecting?', '¿Qué sueldo espera?', 'qyq', 'Based on my experience, I\'m expecting…'),
   ] },
 ];
 export const LAST_QUESTION = q('Do you have any questions for us?', '¿Tiene alguna pregunta para nosotros?', 'qyq', 'Yes, I\'d like to know…');

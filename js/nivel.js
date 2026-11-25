@@ -28,6 +28,12 @@ export const LISTEN = [
   LI('B1+', 'The meeting has been put off until next week.', ['La reunión se aplazó hasta la próxima semana.', 'La reunión se canceló para siempre.', 'La reunión se adelantó a esta semana.']),
   LI('B2', 'I wouldn\'t have taken the job if I\'d known about the hours.', ['No habría aceptado el trabajo si hubiera sabido del horario.', 'No acepté el trabajo porque ya conocía el horario.', 'Aceptaría el trabajo si supiera el horario.']),
   LI('B2', 'Hardly anyone showed up to the training.', ['Casi nadie fue a la capacitación.', 'Fue difícil llegar a la capacitación.', 'Todos llegaron temprano a la capacitación.']),
+  LI('A2', 'What time does the store close on Sundays?', ['¿A qué hora cierra la tienda los domingos?', '¿La tienda abre los domingos?', '¿A qué hora abre la tienda hoy?']),
+  LI('A2', 'My brother is taller than me, but I\'m older.', ['Mi hermano es más alto que yo, pero yo soy mayor.', 'Mi hermano es mayor y más alto que yo.', 'Soy más alto que mi hermano, pero él es mayor.']),
+  LI('B1', 'I\'ll call you as soon as I get home.', ['Lo llamo apenas llegue a casa.', 'Lo llamé cuando llegué a casa.', 'Llámeme cuando llegue a casa.']),
+  LI('B1', 'I\'m not used to working at night.', ['No estoy acostumbrado a trabajar de noche.', 'Antes trabajaba de noche.', 'No uso la noche para trabajar.']),
+  LI('B1+', 'You\'d better leave now, or you\'ll miss the bus.', ['Más vale que salga ya, o va a perder el bus.', 'Es mejor que salga mañana en bus.', 'Salió tarde y perdió el bus.']),
+  LI('B2', 'Had I known it would rain, I\'d have brought an umbrella.', ['Si hubiera sabido que iba a llover, habría traído un paraguas.', 'Sabía que iba a llover y traje paraguas.', 'Si llueve, traigo un paraguas.']),
   LI('B2', 'It\'s not that I don\'t like it; it\'s just that it\'s too expensive.', ['No es que no me guste; es que es demasiado caro.', 'No me gusta porque es caro.', 'Me gusta aunque sea caro.']),
 ];
 
@@ -51,6 +57,16 @@ export const GRAMMAR = [
   GR('g-wish', 'B2', ['I wish I had more time.', 'I wish I have more time.', 'I wish I would have more time.'], 'Desear algo distinto a lo que es (I wish I had…)'),
   GR('g-despite', 'B2', ['Despite the rain, we finished the project.', 'Despite of the rain, we finished the project.', 'Although the rain, we finished the project.'], 'Unir ideas opuestas (despite, although, however)'),
   GR('g-should', 'B2', ['You should have told me earlier.', 'You should told me earlier.', 'You should have tell me earlier.'], 'Lo que se debió hacer (should have told)'),
+  GR('g-there', 'A2', ['There are two banks near my house.', 'There is two banks near my house.', 'Have two banks near my house.'], 'Decir lo que hay (there is / there are)'),
+  GR('g-plural', 'A2', ['I have three brothers.', 'I have three brother.', 'I have three brothers olds.'], 'El plural con -s (three brothers)'),
+  GR('g-going', 'B1', ['I\'m going to call him tomorrow.', 'I going to call him tomorrow.', 'I\'m going call him tomorrow.'], 'Planes (I\'m going to…)'),
+  GR('g-enough', 'B1', ['I don\'t have enough time.', 'I don\'t have time enough.', 'I not have enough time.'], 'Decir que algo alcanza o no (enough time)'),
+  GR('g-make', 'B1', ['I made a mistake in the report.', 'I did a mistake in the report.', 'I make a mistake in the report yesterday.'], 'Make o do (make a mistake, do homework)'),
+  GR('g-since2', 'B1+', ['How long have you lived here?', 'How long do you live here?', 'How long are you living here?'], 'Preguntar cuánto tiempo lleva (How long have you…?)'),
+  GR('g-unless', 'B1+', ['I won\'t go unless you come with me.', 'I won\'t go unless you don\'t come with me.', 'I don\'t go unless you will come with me.'], 'A menos que (unless)'),
+  GR('g-told', 'B1+', ['He told me that he was tired.', 'He said me that he was tired.', 'He told that he is tired to me.'], 'Contar lo que otro dijo (told me / said that)'),
+  GR('g-used2', 'B2', ['I\'m used to getting up early.', 'I\'m used to get up early.', 'I use to getting up early.'], 'Estar acostumbrado (I\'m used to getting up…)'),
+  GR('g-would-rather', 'B2', ['I\'d rather stay home tonight.', 'I\'d rather to stay home tonight.', 'I\'d rather staying home tonight.'], 'Preferir (I\'d rather + verbo)'),
   GR('g-forward', 'B2', ['I look forward to hearing from you.', 'I look forward to hear from you.', 'I look forward hearing from you.'], 'Frases fijas de correo formal (look forward to hearing)'),
 ];
 
@@ -59,9 +75,17 @@ export const B2_WORDS = [
   ['achieve', 'lograr'], ['reliable', 'confiable'], ['deadline', 'fecha límite'], ['outcome', 'resultado'], ['negotiate', 'negociar'],
   ['approach', 'enfoque'], ['ensure', 'asegurarse de'], ['requirement', 'requisito'], ['budget', 'presupuesto'], ['overcome', 'superar'],
   ['accurate', 'preciso'], ['hire', 'contratar'], ['assess', 'evaluar'], ['weakness', 'debilidad'], ['delay', 'retraso'], ['purpose', 'propósito'],
+  ['commitment', 'compromiso'], ['workload', 'carga de trabajo'], ['raise', 'aumento de sueldo'], ['schedule', 'horario'], ['complaint', 'queja'], ['meanwhile', 'mientras tanto'],
+  ['launch', 'lanzar'], ['shortage', 'escasez'], ['resign', 'renunciar'], ['shift', 'turno'], ['deliver', 'entregar'], ['promote', 'ascender'],
 ];
 
 // Hablar: dos tareas cortas (unos 45 segundos cada una).
+export const SPEAK_MORE = [
+  { task: 'What did you do last weekend? Give some details.', es: '¿Qué hizo el fin de semana pasado? Dé detalles.' },
+  { task: 'What would you do if you won a lot of money?', es: '¿Qué haría si se ganara mucho dinero?' },
+  { task: 'Do you think it is better to work from home or at the office? Why?', es: '¿Cree que es mejor trabajar desde casa o en la oficina? ¿Por qué?' },
+  { task: 'Tell me about a person who helped you in your career.', es: 'Hábleme de una persona que le ayudó en su carrera.' },
+];
 export const SPEAK = [
   { task: 'Describe your job, or the job you want, and why you like it.', es: 'Describa su trabajo (o el que quiere) y por qué le gusta.' },
   { task: 'Tell me about a problem you had and how you solved it.', es: 'Cuénteme un problema que tuvo y cómo lo resolvió.' },
@@ -92,7 +116,9 @@ export function buildTest(milRows = [], rnd = Math.random) {
   });
   const b2 = B2_WORDS.map(([w, es]) => [0, w, es]);
   const vocab = [...vocabFrom(range(301, 600), 'A2', 2), ...vocabFrom(range(601, 1000), 'B1', 2), ...vocabFrom(b2, 'B2', 3)];
-  return { listen, vocab, grammar, speak: SPEAK.map(x => ({ ...x })) };
+  // Hablar: siempre su trabajo, y una segunda tarea que cambia de un mes a otro.
+  const second = [SPEAK[1], ...SPEAK_MORE];
+  return { listen, vocab, grammar, speak: [{ ...SPEAK[0] }, { ...second[Math.floor(rnd() * second.length)] }] };
 }
 
 // Nota (0..100) de una parte de opciones: aciertos pesados por nivel. picks[i] = índice elegido.
