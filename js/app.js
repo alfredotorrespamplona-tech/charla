@@ -39,6 +39,10 @@ import { customTopicsCard } from './customtopics.js';
 import { statsScreen, calendarView } from './stats.js';
 import * as recap from './recap.js';
 import { vocabScreen as openVocab, rememberSuggestions, pendingSuggestions } from './vocab.js';
+import { whisperStatus, canRecord } from './whisper.js';
+import { escucharScreen } from './escucharscreen.js';
+import { entrevistaScreen } from './entrevistascreen.js';
+import { nivelScreen } from './nivelscreen.js';
 import { setPeopleNav, characterSheet, contactsScreen, relationLine, levelFraction, nextDiscovery } from './people.js';
 setPeopleNav({ home, chooseMission, isOpen: p => coins.isPlaceOpen(store.get(), p) });
 import { NATURAL_VOICES, loadNatural, disableNatural, naturalStatus, onNaturalStatus, unlockAudio } from './natural-voice.js';
@@ -97,6 +101,9 @@ export function cover() {
     mil: () => milScreen({ home: cover }),
     levels: () => levelScreen(undefined, cover),
     tecnicas: () => techniques(cover),
+    listen: () => escucharScreen({ home: cover }),
+    mock: () => entrevistaScreen({ home: cover }),
+    nivel: () => nivelScreen({ home: cover }),
   });
 }
 
@@ -110,7 +117,7 @@ function levelScreen(rank, back = home) {
 
 // Técnicas avanzadas. El simulacro con imprevisto se charla en su lugar (aeropuerto, entrevista…) con su personaje.
 function techniques(back = home) {
-  tecnicasScreen({ home: back, startSim: (placeId, mission, onBack) => {
+  tecnicasScreen({ home: back, mock: () => entrevistaScreen({ home: () => techniques(back) }), startSim: (placeId, mission, onBack) => {
     const place = PLACES.find(p => p.id === placeId) || PLACES[0];
     const character = CHARACTERS[place.characters[0]];
     startConversation({ place, character, mission, onExit: onBack, onFinish: session => summary(session) });
@@ -840,6 +847,7 @@ function settings({ back = home } = {}) {
   const pauseSel = h('select', { 'aria-label': 'Pausa para enviar' }, SEND_PAUSES.map(ms => h('option', { value: ms, selected: ms === sendPauseMs() },
     `${(ms / 1000).toLocaleString('es')} s${ms === 2000 ? ' (rápido)' : ms === 3000 ? ' (normal)' : ms === 6000 ? ' (para pensar con calma)' : ''}`)));
   const haptics = h('input', { type: 'checkbox', checked: s.settings.haptics !== false });
+  const whisper = h('input', { type: 'checkbox', checked: s.settings.whisper !== false, disabled: canRecord ? null : true });
   const solo = h('input', { type: 'checkbox', checked: s.settings.oneCharacter !== false });
   const comedy = h('input', { type: 'checkbox', checked: !!s.settings.comedy });
   const u = s.usage || { input: 0, output: 0, calls: 0 };
@@ -867,6 +875,8 @@ function settings({ back = home } = {}) {
     h('div.row', {},
       h('button.small', { onclick: () => { store.update(saveVoice); speak("Hi! I'm so glad to meet you. How was your day?", { character: { voice: { gender: 'female' } } }); } }, '🔊 Probar voz'),
       h('button.small', { onclick: () => practicePronunciation('Hello, how are you today?', { onResult: refreshCheck }) }, '🎤 Probar micrófono')),
+    h('label.check', {}, whisper, ' 🎯 Pasar su voz a texto con Whisper de Groq (gratis): escribe lo que dijo de verdad, con errores incluidos'),
+    h('p.muted', {}, whisperStatus(s) + ' El reconocedor del teléfono a veces arregla solo lo que dijo mal, y entonces la corrección no ve el error. Con Whisper el texto aparece al terminar de hablar (un segundo después).'),
     h('label.check', {}, auto, ' 🎙 Manos libres: escuchar solo cuando termina el personaje y enviar tras una pausa'),
     h('label', {}, 'Cuando deja de hablar, enviar tras un silencio de'), pauseSel,
     h('p.muted', {}, 'Antes de su primera palabra tiene 20 segundos para pensar. Si le corta las frases mientras piensa, súbalo. Para enviar sin esperar, toque el micrófono.'),
@@ -889,6 +899,7 @@ function settings({ back = home } = {}) {
           st.settings.autoListen = auto.checked;
           st.settings.sendPauseMs = +pauseSel.value;
           st.settings.haptics = haptics.checked;
+          st.settings.whisper = whisper.checked;
           st.settings.comedy = comedy.checked;
           st.settings.oneCharacter = solo.checked;
           plan.apply(st);
@@ -922,7 +933,7 @@ function aiStatus(s) {
   const until = groqBlockedUntil(s);
   const calls = n => `${n} ${n === 1 ? 'llamada' : 'llamadas'}`;
   return h('div.card', {},
-    h('p', {}, `Hoy: Groq ${calls(g.calls)} (${g.tokens.toLocaleString('es')} tokens, gratis) · DeepSeek ${calls(k.calls)} (${k.tokens.toLocaleString('es')} tokens)`),
+    h('p', {}, `Hoy: Groq ${calls(g.calls)} (${g.tokens.toLocaleString('es')} tokens, gratis) · DeepSeek ${calls(k.calls)} (${k.tokens.toLocaleString('es')} tokens)${d?.whisper ? ` · voz a texto con Whisper: ${d.whisper} ${d.whisper === 1 ? 'vez' : 'veces'}` : ''}`),
     until ? h('p.warn', {}, `⏸ Groq llegó a su límite gratis. Vuelve a las ${hourText(until)}; mientras tanto se usa DeepSeek.`) : null);
 }
 

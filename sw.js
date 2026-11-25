@@ -1,10 +1,10 @@
 // Guarda la app en el teléfono para que abra rápido y sin conexión (la IA sigue necesitando internet).
 // Cambie CACHE cada vez que publique una versión nueva para que los teléfonos la descarguen.
-const CACHE = 'charla-v42';
+const CACHE = 'charla-v43';
 const FILES = ['./', 'index.html', 'styles.css', 'manifest.json', 'icon.svg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png',
   'js/app.js', 'js/avatar.js', 'js/conversation.js', 'js/data.js', 'js/hints.js', 'js/lessons.js', 'js/topics.js', 'js/coins.js', 'js/people.js', 'js/vocab.js', 'js/stats.js', 'js/customtopics.js', 'js/inbox.js', 'js/icons.js', 'js/srs.js', 'js/phrases.js', 'js/cerebro.js', 'js/essentials.js', 'js/llm.js', 'js/natural-voice.js', 'js/natural-worker.js', 'js/prompts.js',
-  'js/pronounce.js', 'js/review.js', 'js/scoring.js', 'js/speech.js', 'js/store.js', 'js/transcript.js', 'js/ui.js', 'js/words.js', 'js/recap.js', 'js/seasons.js', 'js/tutorial.js', 'js/drills.js', 'js/workshop.js', 'js/budget.js', 'js/safety.js', 'js/bitacora.js', 'js/grammar.js', 'js/grammarscreen.js', 'js/dashboard.js', 'js/mil.js', 'js/milwords.js', 'js/milscreen.js', 'js/lipsync.js', 'js/cast.js', 'js/version.js', 'js/update.js', 'js/levelscreen.js', 'js/temario.js', 'js/temario-a.js', 'js/temario-b.js', 'js/temario-c.js', 'js/temarioscreen.js', 'js/tecnicas.js', 'js/tecnicasscreen.js',
+  'js/pronounce.js', 'js/review.js', 'js/scoring.js', 'js/speech.js', 'js/store.js', 'js/transcript.js', 'js/ui.js', 'js/words.js', 'js/recap.js', 'js/seasons.js', 'js/tutorial.js', 'js/drills.js', 'js/workshop.js', 'js/budget.js', 'js/safety.js', 'js/bitacora.js', 'js/grammar.js', 'js/grammarscreen.js', 'js/dashboard.js', 'js/mil.js', 'js/milwords.js', 'js/milscreen.js', 'js/lipsync.js', 'js/cast.js', 'js/version.js', 'js/update.js', 'js/levelscreen.js', 'js/temario.js', 'js/temario-a.js', 'js/temario-b.js', 'js/temario-c.js', 'js/temarioscreen.js', 'js/tecnicas.js', 'js/tecnicasscreen.js', 'js/whisper.js', 'js/escuchar.js', 'js/escucharscreen.js', 'js/chart.js', 'js/entrevista.js', 'js/entrevistascreen.js', 'js/nivel.js', 'js/nivelscreen.js',
   'vendor/kokoro/kokoro.web.js'];
 
 self.addEventListener('install', e => {

@@ -2232,3 +2232,233 @@ test('gramática: los títulos y las ideas de las lecciones van sin jerga gramat
   for (const l of G.LESSONS) assert.doesNotMatch(`${l.title} ${l.idea}`, JERGA, l.id);
   for (const p of G.spanishPieces('Si hubiera llegado antes, habría conocido a tu hermana y estaría trabajando.')) assert.doesNotMatch(`${p.piece} ${p.idea}`, JERGA);
 });
+
+// ---------------- v43: voz con Whisper, escuchar, simulacro y prueba de nivel ----------------
+test('whisper: se usa solo con clave real de Groq, grabadora y sin pausa; si no, el teléfono', async () => {
+  const W = await import('../js/whisper.js');
+  const st = (settings, groqPause = {}) => ({ settings: { groqKey: '', ...settings }, groqPause });
+  const now = 1_000_000;
+  assert.equal(W.whisperOn(st({ groqKey: 'gsk_x' }), now, true), true);
+  assert.equal(W.whisperOn(st({ groqKey: 'gsk_x' }), now, false), false, 'sin grabadora');
+  assert.equal(W.whisperOn(st({ groqKey: '' }), now, true), false, 'sin clave');
+  assert.equal(W.whisperOn(st({ groqKey: 'demo' }), now, true), false, 'modo demo');
+  assert.equal(W.whisperOn(st({ groqKey: 'gsk_x', whisper: false }), now, true), false, 'apagado en Ajustes');
+  assert.equal(W.whisperOn(st({ groqKey: 'gsk_x' }, { whisper: now + 5000 }), now, true), false, 'Groq en pausa');
+  assert.equal(W.whisperOn(st({ groqKey: 'gsk_x' }, { whisper: now - 5000 }), now, true), true, 'la pausa ya pasó');
+  assert.match(W.whisperStatus(st({ groqKey: 'gsk_x' }), now, true), /tal cual/);
+  // En node no hay MediaRecorder: el micrófono sigue siendo el del teléfono.
+  assert.equal(W.canRecord, false);
+});
+
+test('whisper: limpia el texto, quita las frases fantasma y mide el volumen', async () => {
+  const W = await import('../js/whisper.js');
+  assert.equal(W.cleanTranscript('  I goed   to the store. '), 'I goed to the store.');
+  assert.equal(W.cleanTranscript('Thank you.', 800), '', 'audio casi vacío');
+  assert.equal(W.cleanTranscript('Thank you.', 4000), 'Thank you.', 'si habló de verdad, cuenta');
+  assert.equal(W.rms(new Float32Array([0, 0, 0])), 0);
+  assert.ok(Math.abs(W.rms(new Float32Array([0.5, -0.5])) - 0.5) < 1e-9);
+  assert.equal(W.speechThreshold(0), 0.012);
+  assert.equal(W.speechThreshold(0.02), 0.06);
+  assert.equal(W.speechThreshold(0.3), 0.06, 'si ya estaba hablando al empezar, el umbral no sube tanto');
+  assert.deepEqual(W.pickMime(t => t === 'audio/mp4'), { type: 'audio/mp4', ext: 'm4a' });
+  assert.equal(W.pickMime(t => t.startsWith('audio/webm')).type, 'audio/webm;codecs=opus');
+});
+
+test('whisper: manda el audio a Groq tal cual y, si llega al límite, pasa al teléfono un rato', async () => {
+  const W = await import('../js/whisper.js');
+  store.update(s => { s.settings.groqKey = 'gsk_test'; });
+  let sent = null;
+  const ok = async (url, init) => { sent = { url, init }; return { ok: true, json: async () => ({ text: ' I goed to the store. ' }) }; };
+  const text = await W.transcribe(new Blob(['x'], { type: 'audio/webm' }), { fetchFn: ok, st: store.get() });
+  assert.equal(text, ' I goed to the store. ');
+  assert.match(sent.url, /\/audio\/transcriptions$/);
+  assert.equal(sent.init.headers.Authorization, 'Bearer gsk_test');
+  assert.equal(sent.init.body.get('model'), W.WHISPER_MODELS[0]);
+  assert.equal(sent.init.body.get('language'), 'en');
+  assert.equal(sent.init.body.get('prompt'), W.VERBATIM_PROMPT);
+  assert.equal(store.get().usageDay.whisper, 1);
+  // Modelo que ya no existe: prueba el siguiente.
+  const models = [];
+  const gone = async (url, init) => { models.push(init.body.get('model')); return models.length === 1
+    ? { ok: false, status: 404, text: async () => 'model not found' } : { ok: true, json: async () => ({ text: 'hi' }) }; };
+  assert.equal(await W.transcribe(new Blob(['x']), { fetchFn: gone, st: store.get() }), 'hi');
+  assert.deepEqual(models, W.WHISPER_MODELS);
+  // Límite: avisa y deja a Whisper en pausa (el próximo turno usa el teléfono).
+  const limit = async () => ({ ok: false, status: 429, headers: { get: () => '120' }, text: async () => '' });
+  await assert.rejects(W.transcribe(new Blob(['x']), { fetchFn: limit, st: store.get() }), /límite de voz a texto/);
+  assert.ok(store.get().groqPause.whisper > Date.now() + 100000);
+  assert.equal(W.whisperOn(store.get(), Date.now(), true), false);
+});
+
+test('whisper: la IA sabe cuándo el texto es tal cual (con sus errores) y cuándo es del teléfono', async () => {
+  const P = await import('../js/prompts.js');
+  assert.match(P.heardNote(true), /word-for-word.*correct them/);
+  assert.match(P.heardNote(false), /ignore recognition mistakes/);
+});
+
+test('escuchar: 16 historias propias con traducción y 3 preguntas bien armadas', async () => {
+  const E = await import('../js/escuchar.js');
+  assert.equal(E.PIECES.length, 16);
+  assert.equal(new Set(E.PIECES.map(p => p.id)).size, 16);
+  for (const lv of E.LEVELS) assert.equal(E.PIECES.filter(p => p.level === lv.id).length, 4, lv.id);
+  for (const p of E.PIECES) {
+    assert.ok(p.lines.length >= 7, p.id);
+    for (const l of p.lines) assert.ok(l.en.trim() && l.es.trim(), p.id);
+    assert.equal(p.questions.length, 3, p.id);
+    for (const q of p.questions) { assert.equal(q.options.length, 3); assert.ok(q.answer >= 0 && q.answer < 3); }
+    assert.ok(new Set(p.questions.map(q => q.answer)).size >= 2, `${p.id}: la correcta no siempre en el mismo lugar`);
+    if (p.kind === 'dialogo') for (const l of p.lines) assert.ok(p.voices[l.who], `${p.id}: voz de ${l.who}`);
+  }
+});
+
+test('escuchar: su nivel, la siguiente historia, la nota y las palabras tocables', async () => {
+  const E = await import('../js/escuchar.js');
+  assert.equal(E.levelForRank(2), 'A2');
+  assert.equal(E.levelForRank(3), 'B1');
+  const b1Done = Object.fromEntries(E.PIECES.filter(p => p.level === 'B1').map(p => [p.id, 1]));
+  assert.equal(E.levelForRank(3, b1Done), 'B1+');
+  assert.equal(E.levelForRank(4), 'B2');
+  assert.equal(E.nextPiece(3).level, 'B1');
+  assert.equal(E.nextPiece(3, b1Done).level, 'B1+');
+  const p = E.PIECES[0];
+  assert.equal(E.quizScore(p, p.questions.map(q => q.answer)), 1);
+  assert.equal(E.quizScore(p, [p.questions[0].answer, -1, -1]), 1 / 3);
+  const tk = E.tappable("Hi! I'm Leo.");
+  assert.deepEqual(tk.filter(t => t.w).map(t => t.w), ['Hi', "I'm", 'Leo']);
+  assert.equal(tk.map(t => t.t).join(''), "Hi! I'm Leo.");
+});
+
+test('escuchar: una historia de la IA se valida y queda igual que las propias', async () => {
+  const E = await import('../js/escuchar.js');
+  const LLM = await import('../js/llm.js');
+  store.update(s => { s.settings.groqKey = 'demo'; });
+  const P = await import('../js/prompts.js');
+  const raw = await LLM.chatJson('story', P.storyMessages({ topic: 'new job', kind: 'dialogo', level: 'B1' }));
+  const piece = E.validPiece(raw, 'B1', 123);
+  assert.equal(piece.kind, 'dialogo');
+  assert.equal(piece.questions.length, 3);
+  assert.ok(piece.voices.Nina && piece.voices.Eva);
+  assert.equal(piece.id, 'mine-' + (123).toString(36));
+  assert.equal(E.validPiece({ lines: [{ en: 'Hi', es: 'Hola' }] }), null, 'muy corta');
+  assert.equal(E.validPiece(null), null);
+});
+
+test('simulacro: 9 preguntas de principio a fin, una de cada parte', async () => {
+  const E = await import('../js/entrevista.js');
+  const qs = E.pickQuestions(() => 0);
+  assert.equal(qs.length, 9);
+  assert.deepEqual(qs.map(q => q.slot), [...E.SLOTS.map(s => s.id), 'preguntas']);
+  for (const q of qs) assert.ok(q.en.endsWith('?') || q.en.endsWith('.'), q.en);
+  for (const s of E.SLOTS) for (const o of s.options) assert.ok(o.es && o.start && ['qyq', 'psb', 'w5'].includes(o.frame), o.en);
+  assert.ok(qs.filter(q => q.follow).length >= 2);
+});
+
+test('simulacro: la nota del teléfono premia hablar seguido, variado y en orden', async () => {
+  const E = await import('../js/entrevista.js');
+  assert.equal(E.fluencyOf(0, 10000, 0), null);
+  assert.equal(E.fluencyOf(20, 0, 0), null, 'escrita');
+  assert.equal(E.fluencyOf(110, 60000, 0), 100);
+  assert.ok(E.fluencyOf(110, 60000, 8) < E.fluencyOf(110, 60000, 0), 'las muletillas restan');
+  assert.ok(E.fluencyOf(30, 60000, 0) < 50, 'muy lento');
+  const q = E.pickQuestions(() => 0);
+  const good = 'Sure. I\'m a sales assistant and I\'ve worked in retail for four years. That\'s why I know how to help customers. For example, last year I trained three new coworkers. Now I want to grow in a bigger company.';
+  const weak = 'um yes I work um in store';
+  const a = E.localScores([{ q: q[0], text: good, durationMs: 20000 }], new Set());
+  const b = E.localScores([{ q: q[0], text: weak, durationMs: 12000 }], new Set());
+  assert.ok(a.fluency > b.fluency && a.order > b.order, JSON.stringify([a.fluency, b.fluency, a.order, b.order]));
+  assert.equal(a.grammar, null, 'la gramática la ve la IA');
+  const blank = E.localScores([{ q: q[0], text: '', durationMs: 0 }]);
+  assert.equal(blank.answered, 0);
+  assert.equal(blank.fluency, 0);
+});
+
+test('simulacro: junta la nota del teléfono con la de la IA, el nivel y la gráfica', async () => {
+  const E = await import('../js/entrevista.js');
+  const local = { fluency: 60, vocabulary: 50, order: 80 };
+  assert.deepEqual(E.blendScores(local), { fluency: 60, grammar: null, vocabulary: 50, order: 80 });
+  assert.deepEqual(E.blendScores(local, { fluency: 80, grammar: 70, vocabulary: 60, order: 60 }), { fluency: 70, grammar: 70, vocabulary: 56, order: 68 });
+  assert.equal(E.overallOf({ fluency: 60, grammar: null, vocabulary: 50, order: 70 }), 60);
+  assert.equal(E.bandFor(30).label, 'A2');
+  assert.equal(E.bandFor(68).label, 'B1 alto');
+  assert.equal(E.bandFor(80).label, 'B2');
+  const m1 = E.mockRecord({ scores: { fluency: 50, grammar: 40, vocabulary: 50, order: 60 }, minutes: 12.4, at: day(2026, 11, 1).getTime() });
+  const m2 = E.mockRecord({ scores: { fluency: 60, grammar: 50, vocabulary: 50, order: 70 }, minutes: 14, at: day(2026, 11, 20).getTime() });
+  assert.equal(m1.overall, 50); assert.equal(m1.minutes, 12);
+  assert.deepEqual(E.deltaVsPrevious([m1, m2]), { fluency: 10, grammar: 10, vocabulary: 0, order: 10 });
+  assert.equal(E.deltaVsPrevious([m1]), null);
+  assert.deepEqual(E.chartPoints([m1, m2]).map(p => p.value), [50, 58]);
+  // demo: repregunta e informe con su forma
+  store.update(s => { s.settings.groqKey = 'demo'; });
+  const LLM = await import('../js/llm.js');
+  const P = await import('../js/prompts.js');
+  const rep = await LLM.chatJson('mockReport', P.mockReportMessages({ role: 'sales', rankId: 3, qa: [{ q: 'Tell me about yourself.', a: 'I am agree', spoken: true, seconds: 10, words: 3 }] }));
+  for (const k of ['fluency', 'grammar', 'vocabulary', 'order']) assert.equal(typeof rep.scores[k], 'number');
+  const sys = P.mockReportMessages({ role: 'sales', rankId: 3, qa: [] })[0].content;
+  const { COACH_RULES } = await import('../js/cerebro.js');
+  assert.ok(COACH_RULES.every(r => sys.includes(r)), 'informe con sus reglas completas');
+  assert.ok(P.knownErrors().every(e => sys.includes(e.id)), 'y con todos sus errores');
+});
+
+test('gráfica: los puntos quedan dentro del dibujo y en orden', async () => {
+  globalThis.document ??= { addEventListener() {} };
+  const { lineGeometry } = await import('../js/chart.js');
+  const pts = lineGeometry([{ label: 'a', value: 0 }, { label: 'b', value: 100 }, { label: 'c', value: 50 }]);
+  assert.ok(pts[0].x < pts[1].x && pts[1].x < pts[2].x);
+  assert.ok(pts[1].y < pts[2].y && pts[2].y < pts[0].y, 'más nota = más arriba');
+  assert.equal(lineGeometry([{ label: 'x', value: 150 }])[0].y, lineGeometry([{ label: 'x', value: 100 }])[0].y, 'no se sale');
+});
+
+test('prueba de nivel: arma 4 partes de fácil a difícil, con la correcta barajada', async () => {
+  const N = await import('../js/nivel.js');
+  const { MIL_WORDS } = await import('../js/milwords.js');
+  const t = N.buildTest(MIL_WORDS, () => 0.3);
+  assert.equal(t.listen.length, 5); assert.equal(t.vocab.length, 7); assert.equal(t.grammar.length, 8); assert.equal(t.speak.length, 2);
+  const order = ['A2', 'B1', 'B1+', 'B2'];
+  for (const part of [t.listen, t.grammar]) {
+    assert.deepEqual(part.map(x => order.indexOf(x.level)), [...part.map(x => order.indexOf(x.level))].sort((a, b) => a - b));
+    assert.ok(new Set(part.map(x => x.level)).size === 4, 'los 4 niveles');
+  }
+  for (const it of [...t.listen, ...t.vocab, ...t.grammar]) {
+    assert.equal(it.choices.length, 3);
+    assert.equal(it.choices.filter(c => c.ok).length, 1);
+    assert.equal(new Set(it.choices.map(c => c.text)).size, 3, 'sin opciones repetidas');
+  }
+  for (const g of N.GRAMMAR) assert.doesNotMatch(g.skill, /participio|condicional|subjuntivo|gerundio|infinitivo|pasiva/i, g.id);
+});
+
+test('prueba de nivel: la nota, el nivel, lo que le falta para B2 y cada cuánto toca', async () => {
+  const N = await import('../js/nivel.js');
+  const { MIL_WORDS } = await import('../js/milwords.js');
+  const t = N.buildTest(MIL_WORDS, () => 0.7);
+  const right = items => items.map(it => it.choices.findIndex(c => c.ok));
+  assert.equal(N.partScore(t.grammar, right(t.grammar)), 100);
+  assert.equal(N.partScore(t.grammar, t.grammar.map(() => -1)), 0);
+  // Acertar solo las fáciles vale menos que la mitad (las difíciles pesan más).
+  const easy = t.grammar.map((it, i) => (['A2', 'B1'].includes(it.level) ? right(t.grammar)[i] : -1));
+  assert.ok(N.partScore(t.grammar, easy) < 50);
+  assert.equal(N.totalScore({ listen: 80, vocab: 60, grammar: 70 }), Math.round((80 * 25 + 60 * 20 + 70 * 30) / 75), 'sin hablar, cuenta el resto');
+  const rec = N.testRecord({ parts: { listen: 80, vocab: 60, grammar: 70, speak: 60 }, at: 5 });
+  assert.equal(rec.score, 68); assert.equal(rec.label, 'B1 alto');
+  const picks = { listen: t.listen.map(() => -1), vocab: t.vocab.map(() => -1), grammar: easy };
+  const gaps = N.gapsFrom(t, picks);
+  assert.ok(gaps.some(g => /habría|would have|Imaginar|lleva tiempo|preguntó|sin decir quién|opuestas|debió|correo/.test(g.es)));
+  assert.ok(gaps.some(g => /Palabras de trabajo de nivel B2/.test(g.es)));
+  assert.equal(new Set(gaps.map(g => g.es)).size, gaps.length, 'sin repetir');
+  const DAY = 86400000;
+  assert.equal(N.isDue([]), true);
+  assert.equal(N.isDue([{ at: 0 }], 10 * DAY), false);
+  assert.equal(N.isDue([{ at: 0 }], 30 * DAY), true);
+  assert.equal(N.daysUntilNext([{ at: 0 }], 10 * DAY), 20);
+  const errs = N.frequentErrors([{ id: 'a', count: 1, status: 'activo' }, { id: 'b', count: 5, status: 'activo' }, { id: 'c', count: 9, status: 'resuelto' }]);
+  assert.deepEqual(errs.map(e => e.id), ['b', 'a']);
+});
+
+test('estado v43: escuchar, simulacros y pruebas se completan en respaldos viejos', () => {
+  store.importJson(JSON.stringify({ onboarded: true, settings: {}, escuchar: { done: { 'a2-cafe': 1 } }, entrevista: { mocks: [{ at: 1, scores: { fluency: 5 } }, { bad: true }] } }));
+  const s = store.get();
+  assert.equal(s.escuchar.done['a2-cafe'], 1);
+  assert.deepEqual(s.escuchar.mine, []);
+  assert.equal(s.escuchar.today.count, 0);
+  assert.equal(s.entrevista.mocks.length, 1);
+  assert.deepEqual(s.nivel.tests, []);
+});

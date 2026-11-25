@@ -94,7 +94,7 @@ const currentPool = () => X.sourcePool(tec().source || 'entrevista', store.get()
 // Pantalla principal
 // =====================================================================================
 // startSim(lugar, misión, volver): abre una charla (la pone app.js, que conoce lugares y personajes).
-export function tecnicasScreen({ home, startSim }) {
+export function tecnicasScreen({ home, startSim, mock }) {
   stopSpeaking();
   const s = store.get();
   const go = { home, startSim };
@@ -115,7 +115,8 @@ export function tecnicasScreen({ home, startSim }) {
         h('button.small', { onclick: () => islandScreen(X.islandById('entrevista'), go, self) }, '🏝 Mis respuestas con STAR'),
         h('button.small', { onclick: () => jamSetup(go, self, 'entrevista') }, '⏱ Un minuto: preguntas de entrevista'),
         h('button.small', { onclick: () => simScreen(go, self, 'interview') }, '🎲 Entrevista con imprevisto'),
-        h('button.small', { onclick: () => runResponder(answerSet('entrevista'), self) }, '🎯 Responder en el momento'))),
+        h('button.small', { onclick: () => runResponder(answerSet('entrevista'), self) }, '🎯 Responder en el momento'),
+        mock ? h('button.small', { onclick: mock }, '💼 Simulacro completo con nota') : null)),
     X.GROUPS.map(g => h('div', {},
       h('div.section-head', {}, h('h2', {}, g.name)),
       h('div.packs', {}, X.TECHNIQUES.filter(t => t.group === g.id).map(row))))));

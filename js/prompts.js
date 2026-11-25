@@ -1,6 +1,7 @@
 // Prompts propios, uno por cada "rol" que la app necesita (ver ANALISIS.md §4).
 import { COACH_RULES } from './cerebro.js';
 import { activeErrors } from './bitacora.js';
+import { whisperOn } from './whisper.js';
 import { seasonLine } from './seasons.js';
 import { rankById, facetForRank, relationshipStatus } from './data.js';
 import { AGE_GROUPS, GENDERS } from './lessons.js';
@@ -12,6 +13,10 @@ const coachRules = () => COACH_RULES.length
   ? `How this learner wants to be corrected (their own rules, follow them):\n${COACH_RULES.map(r => `- ${r}`).join('\n')}\n` : '';
 // Los errores activos del cerebro y de la bitácora del teléfono (los marcados como resueltos no cuentan).
 export const knownErrors = () => activeErrors().slice(0, 30);
+// Cómo llegó el texto de su voz: con Whisper (tal cual, con sus errores) o con el reconocedor del teléfono.
+export const heardNote = (on = whisperOn()) => on
+  ? 'You get a word-for-word transcript of their voice (Whisper): grammar mistakes in it are really theirs, so correct them; ignore missing punctuation and fillers.'
+  : 'You get the speech-recognition transcript: ignore recognition mistakes, missing punctuation and fillers.';
 const knownErrorsText = () => knownErrors().length
   ? `This learner's recurring errors from their error log (watch for them; explain them WITHOUT the grammar labels used here):\n${knownErrors().map(b => `- id ${b.id}: said ${b.wrong.map(w => `"${w}"`).join(' / ')} → correct ${b.right.map(w => `"${w}"`).join(' / ')}. Why: ${(b.why || '').slice(0, 240)}`).join('\n')}\n` : '';
 
@@ -107,7 +112,7 @@ export function analysisMessages({ characterLine, learnerLine, rankId, strictnes
   const rank = rankById(rankId);
   return [
     { role: 'system', content: `You are a friendly English coach for a ${LEARNER_LANG}-speaking learner (level ${rank.code}).
-Evaluate ONLY the learner's last utterance (transcribed from speech, so ignore capitalization and punctuation).
+Evaluate ONLY the learner's last utterance (transcribed from speech, so ignore capitalization and punctuation).${whisperOn() ? ' The transcript is word-for-word (Whisper): grammar mistakes in it are really the learner’s own.' : ''}
 Feedback strictness: ${strictness} (Relaxed = only mention errors that block understanding; Balanced = clear grammar/vocabulary errors; Strict = also unnatural phrasing).
 Judge against what is expected at ${rank.code}.
 Scenario: ${mission.name}.
@@ -340,7 +345,7 @@ ${coachRules()}Return ONLY JSON: {"items": [{"es": "...", "en": "..."}]}` },
 export function answerMessages({ question, frame, text, rankId }) {
   const rank = rankById(rankId);
   return [
-    { role: 'system', content: `The learner (native ${LEARNER_LANG}, level ${rank.code}) was asked "${question}" and answered on the spot, trying to start with the words of the question and to follow the structure "${frame}". You get the speech-recognition transcript: ignore recognition mistakes, missing punctuation and fillers.
+    { role: 'system', content: `The learner (native ${LEARNER_LANG}, level ${rank.code}) was asked "${question}" and answered on the spot, trying to start with the words of the question and to follow the structure "${frame}". ${heardNote()}
 Give short, encouraging feedback for a speaker, in plain ${LEARNER_LANG}, never using grammar labels:
 - "good": one sentence about what went well (communication first: was the answer clear and on topic?);
 - "fixes": up to 3 of the most useful corrections, each {"said": "what they said", "better": "how to say it", "why": "very short ${LEARNER_LANG} reason, starting from the meaning"};
@@ -351,11 +356,76 @@ ${coachRules()}${knownErrorsText()}Return ONLY JSON: {"good": "...", "fixes": [{
   ];
 }
 
+// ---- Escuchar: historia o diálogo nuevo, a su nivel (input comprensible) ----
+const LISTEN_LEVEL = {
+  A2: 'CEFR A2: short sentences (max 12 words), everyday words, present and simple past, no idioms.',
+  B1: 'CEFR B1: clear sentences (max 18 words), common work and travel vocabulary, past, future and present perfect.',
+  'B1+': 'CEFR B1 high: natural sentences, problems and solutions, opinions, a few common phrasal verbs.',
+  B2: 'CEFR B2: natural spoken English, linking words, conditionals (would / would have), some nuance.',
+};
+export function storyMessages({ topic, kind = 'dialogo', level = 'B1' }) {
+  return [
+    { role: 'system', content: `Write an ORIGINAL short ${kind === 'dialogo' ? 'dialogue between two people (give each a first name as "who")' : 'story told by a narrator ("who": "")'} in English for a ${LEARNER_LANG}-speaking learner to LISTEN to. Level: ${LISTEN_LEVEL[level] || LISTEN_LEVEL.B1}
+It must be easy enough to understand almost everything (comprehensible input), with useful phrases the learner can reuse at work or in daily life. 7 to 10 lines, one or two sentences per line.
+For every line give "es": a natural ${LEARNER_LANG} translation of exactly that line.
+Then 3 comprehension questions in ${LEARNER_LANG}, each with 3 short ${LEARNER_LANG} options and the index (0-2) of the right one; vary the position of the right answer.
+Return ONLY JSON: {"title": "English title", "titleEs": "título en español", "lines": [{"who": "", "en": "...", "es": "..."}], "questions": [{"q": "...", "options": ["...", "...", "..."], "answer": 0}]}` },
+    { role: 'user', content: `Topic: ${topic}` },
+  ];
+}
+
+// ---- Simulacro de entrevista: una repregunta corta, como haría una entrevistadora de verdad ----
+export function mockFollowMessages({ role, question, answer, rankId }) {
+  const rank = rankById(rankId);
+  return [
+    { role: 'system', content: `You are Laura, a friendly but professional job interviewer${role ? ` hiring for the "${role}" position` : ''}. The candidate (level ${rank.code} English) just answered your question "${question}".
+Ask ONE short, natural follow-up question about something specific they said (max 15 words, simple words for ${rank.code}). If the answer was empty or off topic, kindly ask them to give an example instead. Do not give feedback.
+Return ONLY JSON: {"follow": "the question", "es": "natural ${LEARNER_LANG} translation"}` },
+    { role: 'user', content: answer || '(no answer)' },
+  ];
+}
+
+// ---- Simulacro de entrevista: informe con nota por habilidad ----
+export function mockReportMessages({ role, qa, rankId }) {
+  const rank = rankById(rankId);
+  const lines = qa.map((x, i) => `Q${i + 1}: ${x.q}\nA${i + 1} (${x.spoken ? `${x.seconds}s spoken` : 'typed'}, ${x.words} words): ${x.a || '(no answer)'}`).join('\n\n');
+  return [
+    { role: 'system', content: `You are an English speaking examiner and job-interview coach. A native ${LEARNER_LANG} speaker (practising at level ${rank.code}) just did a full mock job interview in English${role ? ` for a "${role}" position` : ''}. ${heardNote()}
+Score the WHOLE interview from 0 to 100 on four skills, judged against what a confident B2 candidate would do (B2 = 75-85, solid B1 = 55-65, A2 = 30-40):
+- "fluency": keeps talking, answers have a natural length, few long pauses or fillers;
+- "grammar": correct sentences (verb forms, tenses, word order, articles); count real mistakes, ignore punctuation;
+- "vocabulary": range and precision of words and phrases, work vocabulary, not repeating the same words;
+- "order": answers that start by answering the question, have a clear structure (what, why, example; or problem, solution, result; STAR for stories) and end clearly.
+Then give feedback in plain ${LEARNER_LANG}, never using grammar labels (explain from the meaning):
+- "level": the CEFR level these answers show (e.g. "B1", "B1+", "B2");
+- "summary": 2 sentences: how the interview went overall, communication first;
+- "strengths": 2 or 3 short points;
+- "fixes": up to 6 of the most repeated or most important mistakes, each {"said": "what they said", "better": "correct version", "why": "very short reason"};
+- "answers": for each answer number "i" (1-based) a better version of THEIR answer, keeping their ideas, natural at about B2, 2 to 4 sentences ("better_en", "better_es") and one short tip;
+- "next": 3 concrete things to practise before the next interview.
+${coachRules()}${knownErrorsText()}Return ONLY JSON: {"scores": {"fluency": 0, "grammar": 0, "vocabulary": 0, "order": 0}, "level": "B1", "summary": "...", "strengths": ["..."], "fixes": [{"said": "...", "better": "...", "why": "..."}], "answers": [{"i": 1, "better_en": "...", "better_es": "...", "tip": "..."}], "next": ["..."]}` },
+    { role: 'user', content: lines },
+  ];
+}
+
+// ---- Prueba de nivel del mes: la parte hablada ----
+export function levelSpeakMessages({ items, rankId }) {
+  const rank = rankById(rankId);
+  return [
+    { role: 'system', content: `You are a CEFR speaking examiner. A native ${LEARNER_LANG} speaker answered short speaking tasks in English. ${heardNote()}
+Judge only what they said. Give "score" from 0 to 100 (A2 = 30-40, B1 = 50-60, B1 high = 65-72, B2 = 75-85, C1 = 90+), "level" (e.g. "B1", "B1+", "B2"),
+"gaps": the 3 most important things they still need to reach B2, in plain ${LEARNER_LANG} without grammar labels, each with a tiny English example ("es", "example"),
+and "fixes": up to 4 real mistakes {"said", "better", "why"} (why in ${LEARNER_LANG}, short). Their practice level is ${rank.code}.
+${coachRules()}${knownErrorsText()}Return ONLY JSON: {"score": 0, "level": "B1", "gaps": [{"es": "...", "example": "..."}], "fixes": [{"said": "...", "better": "...", "why": "..."}]}` },
+    { role: 'user', content: items.map((x, i) => `Task ${i + 1}: ${x.task}\nAnswer: ${x.text || '(no answer)'}`).join('\n\n') },
+  ];
+}
+
 // ---- Técnicas: «Un minuto sin parar» (JAM): qué decir mejor, en español primero ----
 export function jamMessages({ topic, text, rankId }) {
   const rank = rankById(rankId);
   return [
-    { role: 'system', content: `The learner (native ${LEARNER_LANG}, level ${rank.code}) spoke for one minute without stopping about: "${topic}". You get the speech-recognition transcript: ignore recognition mistakes, missing punctuation and fillers.
+    { role: 'system', content: `The learner (native ${LEARNER_LANG}, level ${rank.code}) spoke for one minute without stopping about: "${topic}". ${heardNote()}
 Give short, encouraging feedback for a speaker, in plain ${LEARNER_LANG}, never using grammar labels:
 - "good": one sentence about what went well;
 - "fixes": up to 3 of the most useful corrections, each {"said": "what they said", "better": "how to say it", "why": "very short ${LEARNER_LANG} reason, starting from the meaning"};

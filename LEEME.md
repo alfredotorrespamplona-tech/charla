@@ -448,6 +448,31 @@ No hace falta volver a instalar el APK.
   siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
   ejercicio del taller o no cierran la despedida.
 
+### Modo pro (v43)
+- **🎯 Su voz tal cual, con Whisper de Groq** (`js/whisper.js`). El reconocedor del teléfono «arregla» lo que uno
+  dice mal («I goed» sale «I go») y la corrección nunca veía el error. Con clave de Groq, el micrófono de toda la app
+  graba, detecta solo cuándo se calla y manda el audio a Groq (`whisper-large-v3-turbo`, gratis con la misma clave),
+  que escribe lo que dijo de verdad. El texto aparece un segundo después de terminar. Si no hay clave, está en modo
+  demo, se apaga en Ajustes o Groq llega a su límite, se usa el reconocedor del teléfono (vuelve solo). La IA sabe
+  cuándo el texto es tal cual: entonces corrige esos errores en vez de ignorarlos. Ajustes muestra cuántas veces se usó hoy.
+- **🎧 Escuchar** (portada y «Plan de hoy»; `js/escuchar.js`, `js/escucharscreen.js`): 16 historias y diálogos
+  propios (A2, B1, B1 alto, B2; trabajo, entrevistas, viajes, día a día). Primero se escucha sin texto, luego 3
+  preguntas, y al final el texto: cada palabra se toca para ver qué significa, cada frase tiene 🔊, 🐢, español,
+  repetir y ⭐ para llevarla al repaso. Tres velocidades. El tiempo escuchado suma a los minutos del día. Con IA
+  crea historias nuevas sobre lo que pida, a su nivel. La voz es la del teléfono: sin grabaciones de nadie.
+- **💼 Simulacro de entrevista con nota** (portada y Técnicas → Para su entrevista; `js/entrevista.js`,
+  `js/entrevistascreen.js`): Laura hace 9 preguntas de principio a fin (10 a 15 min), con hasta 3 repreguntas de la
+  IA. Nota de 0 a 100 en fluidez, gramática, vocabulario y orden: el teléfono mide palabras por minuto, muletillas,
+  variedad de palabras y la estructura de 3 partes; la IA califica todo, da su nivel, lo que hizo bien, lo que más
+  conviene corregir y cada respuesta mejorada (con 🔊 y ⭐). Gráfica de cómo mejora de un simulacro a otro y cambio
+  por habilidad frente al anterior. Sin IA no hay nota de gramática ni repreguntas.
+- **📏 Su nivel del mes** (portada; `js/nivel.js`, `js/nivelscreen.js`): unos 10 minutos en 4 partes: escuchar (5),
+  palabras (7, de las Mil palabras y de trabajo B2), armar bien la frase (8, de A2 a B2) y hablar (2). Las difíciles
+  pesan más. Dice «Está en B1 alto», cuántos puntos le faltan para B2, qué le falta (lo que falló y lo que ve la IA al
+  hablar), las frases que falló bien dichas y sus errores más repetidos, de más a menos veces. La portada avisa
+  cuando toca (cada 30 días) y hay gráfica de un mes a otro.
+- Gráficas propias sin librerías (`js/chart.js`): una sola línea, números en tinta de texto y «Ver como tabla».
+
 ### Armar frases para comunicar (v42)
 - Del cerebro (`wiki/metodologias/responder_en_el_momento.md`, síntesis de construccion_oraciones_rapidas,
   tecnicas_comunicacion_oral, metodo_5w y hacks_habla_articulada) más el método de Pablo Bolen.

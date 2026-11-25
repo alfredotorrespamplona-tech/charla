@@ -491,6 +491,27 @@ async function demo(task, messages) {
         { en: 'But sometimes I feel alone.', es: 'Pero a veces me siento solo.' },
         { en: 'So I go to the office once a week.', es: 'Así que voy a la oficina una vez por semana.' }],
       tip: 'Use «because» y «for example» para estirar cada idea.' };
+    case 'story': return { title: 'A new coworker', titleEs: '(demo) Una compañera nueva',
+      lines: [{ who: 'Nina', en: 'Hi, are you the new designer?', es: 'Hola, ¿eres la diseñadora nueva?' },
+        { who: 'Eva', en: 'Yes, I started today. I\'m Eva.', es: 'Sí, empecé hoy. Soy Eva.' },
+        { who: 'Nina', en: 'Nice to meet you. Do you need help with anything?', es: 'Mucho gusto. ¿Necesitas ayuda con algo?' },
+        { who: 'Eva', en: 'Actually, yes. Where can I get a coffee?', es: 'La verdad, sí. ¿Dónde puedo tomar un café?' },
+        { who: 'Nina', en: 'There\'s a kitchen on the second floor. I\'ll show you.', es: 'Hay una cocina en el segundo piso. Te muestro.' }],
+      questions: [{ q: '¿Qué busca Eva?', options: ['Un café', 'Su escritorio', 'El baño'], answer: 0 },
+        { q: '¿Dónde está la cocina?', options: ['En el primer piso', 'En el segundo piso', 'Afuera'], answer: 1 },
+        { q: '¿Cuándo empezó Eva?', options: ['Ayer', 'La semana pasada', 'Hoy'], answer: 2 }] };
+    case 'mockFollow': return { follow: 'Can you give me a specific example of that?', es: '(demo) ¿Me puede dar un ejemplo concreto de eso?' };
+    case 'mockReport': return { scores: { fluency: 62, grammar: 58, vocabulary: 60, order: 66 }, level: 'B1',
+      summary: '(demo) Se le entendió todo y respondió cada pregunta. Lo que más le sube la nota ahora es cuidar los verbos en pasado.',
+      strengths: ['Empieza respondiendo la pregunta', 'Da ejemplos de su trabajo'],
+      fixes: [{ said: 'I am agree', better: 'I agree', why: '«Estar de acuerdo» en inglés es un solo verbo: agree.' },
+        { said: 'I work there since 2020', better: 'I\'ve worked there since 2020', why: 'Si todavía sigue ahí, se dice «I\'ve worked».' }],
+      answers: [{ i: 1, better_en: 'Sure. I\'m a customer service agent with four years of experience.', better_es: 'Claro. Soy agente de servicio al cliente con cuatro años de experiencia.', tip: 'Termine con por qué le interesa el puesto.' }],
+      next: ['Prepare 2 historias STAR', 'Practique «I\'ve worked…»', 'Responda en 3 frases cortas'] };
+    case 'levelSpeak': return { score: 62, level: 'B1', gaps: [{ es: '(demo) Contar algo que empezó antes y sigue ahora', example: 'I\'ve lived here for two years.' },
+      { es: 'Unir ideas con «although», «however»', example: 'It was hard. However, I finished it.' },
+      { es: 'Hablar de lo que habría pasado', example: 'If I had known, I would have called.' }],
+      fixes: [{ said: 'I am agree', better: 'I agree', why: 'Es un solo verbo.' }] };
     case 'answer': return { good: '(demo) Respondió la pregunta y se le entendió la idea principal.',
       fixes: [{ said: 'I am agree', better: 'I agree', why: 'En inglés «estar de acuerdo» es un solo verbo: agree.' }],
       version: [{ en: 'After work, I usually go to the gym.', es: 'Después del trabajo, normalmente voy al gimnasio.' },

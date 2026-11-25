@@ -833,3 +833,62 @@ table.verb-forms th, table.verb-forms td { text-align: left; padding: 6px 4px; b
 .tec-star-part { display: grid; gap: 4px; margin: 8px 0; }
 .tec-mine { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .dash-tile.wide { grid-column: span 2; min-height: 0; }
+
+/* ---------- v43: Escuchar, simulacro de entrevista, prueba de nivel, gráficas ---------- */
+.listen-list { display: grid; gap: 8px; margin-top: 12px; }
+.listen-card { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); }
+.listen-card.done { border-color: var(--good); }
+.listen-icon { font-size: 1.3em; }
+.listen-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.listen-text small, .listen-score { color: var(--muted); font-size: .85em; }
+.listen-steps { margin: 6px 0 8px 18px; padding: 0; }
+.listen-player { display: grid; gap: 8px; margin: 10px 0; }
+.listen-q { margin: 10px 0; }
+.listen-options { display: grid; gap: 8px; }
+.listen-options .option { text-align: left; font-weight: 550; }
+.option.dim { opacity: .55; }
+.option.sel { background: var(--brand-50); border-color: var(--brand); }
+.listen-line { padding: 10px 0; border-bottom: 1px solid var(--line); transition: background .2s; }
+.listen-line.now { background: var(--brand-50); border-radius: var(--r-sm); }
+.listen-who { color: var(--muted); font-weight: 650; }
+.listen-en { font-size: 1.08em; line-height: 1.7; margin: 2px 0; }
+.listen-en button.word { all: unset; cursor: pointer; border-radius: 4px; padding: 0 1px; }
+.listen-en button.word:hover, .listen-en button.word:active, .listen-en button.word:focus-visible { background: var(--brand-50); outline: none; }
+.listen-es { color: var(--muted); margin: 2px 0 4px; }
+.listen-tools { gap: 4px; flex-wrap: wrap; }
+.mock-head { margin-bottom: 8px; }
+.mock-progress { height: 6px; border-radius: var(--pill); background: var(--line); overflow: hidden; margin-top: 4px; }
+.mock-progress span { display: block; height: 100%; background: var(--brand); border-radius: var(--pill); transition: width .3s; }
+.mock-q .big { margin: 6px 0; }
+.mock-help { background: var(--brand-50); padding: 8px 10px; border-radius: var(--r-sm); }
+.mock-answer { display: grid; gap: 8px; }
+.mock-said { background: var(--surface-2, var(--bg)); padding: 8px 10px; border-radius: var(--r-sm); margin: 4px 0; }
+.mock-score { text-align: center; }
+.mock-big { font-size: 2.6em; font-weight: 800; margin: 4px 0; }
+.mock-big small { font-size: .4em; color: var(--muted); font-weight: 600; }
+.mock-fix, .mock-qa, .level-err { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.mock-fix:last-child, .mock-qa:last-child, .level-err:last-child { border-bottom: 0; }
+.mock-better { margin-top: 4px; }
+.level-word { font-size: 1.6em; font-weight: 750; text-align: center; margin: 10px 0; }
+.level-body { display: grid; gap: 10px; }
+.level-body .listen-options { margin-top: 4px; }
+/* barras de habilidades */
+.skill-bars { display: grid; gap: 8px; margin: 8px 0; }
+.skill-row { display: grid; grid-template-columns: 7.5em 1fr 2.2em; align-items: center; gap: 8px; }
+.skill-track { height: 10px; border-radius: var(--pill); background: var(--line); overflow: hidden; }
+.skill-fill { display: block; height: 100%; border-radius: var(--pill); background: var(--ice); }
+.skill-val { text-align: right; font-variant-numeric: tabular-nums; }
+.skill-note { grid-column: 2 / 4; margin-top: -4px; }
+/* gráfica de línea */
+.ch-box { margin-top: 6px; }
+.ch { width: 100%; height: auto; display: block; overflow: visible; }
+.ch-grid { stroke: var(--line); stroke-width: 1; }
+.ch-base { stroke: var(--line-strong); stroke-width: 1; }
+.ch-axis { fill: var(--muted); font-size: 10px; }
+.ch-line { fill: none; stroke: var(--ice); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ch-dot { fill: var(--ice); stroke: var(--card); stroke-width: 2; }
+.ch-hit { fill: transparent; }
+.ch-pt:hover .ch-dot { r: 6; }
+.ch-val { fill: var(--text); font-size: 11px; font-weight: 700; }
+.ch-table { width: 100%; border-collapse: collapse; font-size: .9em; margin-top: 6px; }
+.ch-table th, .ch-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }

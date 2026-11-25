@@ -17,6 +17,23 @@ function normalizeTecnicas(t) {
   };
 }
 
+// Escuchar (v43): nota de cada historia, las creadas con IA, velocidad y tiempo escuchado.
+const emptyEscuchar = () => ({ done: {}, mine: [], rate: 0.9, level: '', seconds: 0, today: { date: '', count: 0, seconds: 0 } });
+// Simulacro de entrevista (v43): el puesto y el resultado de cada simulacro (para la gráfica).
+const emptyEntrevista = () => ({ role: '', mocks: [] });
+// Prueba de nivel del mes (v43).
+const emptyNivel = () => ({ tests: [] });
+const obj = x => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
+function normalizeExtras(out) {
+  const e = obj(out.escuchar), d = emptyEscuchar();
+  out.escuchar = { ...d, ...e, done: { ...obj(e.done) }, mine: Array.isArray(e.mine) ? e.mine.filter(p => p && p.id && Array.isArray(p.lines)) : [],
+    today: { ...d.today, ...obj(e.today) } };
+  const m = obj(out.entrevista);
+  out.entrevista = { role: String(m.role || ''), mocks: Array.isArray(m.mocks) ? m.mocks.filter(x => x && x.at && x.scores).slice(-40) : [] };
+  const n = obj(out.nivel);
+  out.nivel = { tests: Array.isArray(n.tests) ? n.tests.filter(x => x && x.at && typeof x.score === 'number').slice(-24) : [] };
+}
+
 const DEFAULT = {
   onboarded: false,
   name: '',
@@ -76,6 +93,9 @@ const DEFAULT = {
   history: [],             // resúmenes de sesiones
   rankProposal: null,      // { from, to, kind: 'up' | 'down' }
   bestScore: 0,
+  escuchar: emptyEscuchar(), // historias y diálogos para escuchar
+  entrevista: emptyEntrevista(), // simulacros de entrevista con nota
+  nivel: emptyNivel(),     // pruebas de nivel del mes
   mil: emptyMil(),         // mazo de mil palabras: avance de cada tarjeta (el mazo vive en IndexedDB)
 };
 
@@ -119,6 +139,7 @@ function merge(s) {
   if (!out.backup || typeof out.backup !== 'object') out.backup = { last: 0, snoozeUntil: 0 };
   out.tecnicas = normalizeTecnicas(out.tecnicas);
   out.mil = normalizeMil(out.mil);
+  normalizeExtras(out);
   return out;
 }
 

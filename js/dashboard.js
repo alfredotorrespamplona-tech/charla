@@ -1,5 +1,7 @@
 // Portada: lo primero que se ve al abrir la app. Resume el día (meta, racha, semana) y lleva
 // directo a lo que toca: seguir la charla, repasar, la lección de gramática o el mapa.
+import { PIECES } from './escuchar.js';
+import { isDue as isTestDue, daysUntilNext } from './nivel.js';
 import * as store from './store.js';
 import { h, mount } from './ui.js';
 import { CHARACTERS, rankById } from './data.js';
@@ -76,6 +78,9 @@ export function todayPlan(s = store.get(), now = new Date()) {
       detail: today.pct >= 1 ? `${today.min} min · meta cumplida` : `${today.min} de ${today.goal} min` },
     { key: 'mil', icon: '📇', title: 'Mil palabras', done: deck.toStudy === 0,
       detail: deck.toStudy === 0 ? `al día · sabe ${deck.learned}` : [deck.due && `${deck.due} ${deck.due === 1 ? 'repaso' : 'repasos'}`, deck.fresh && `${deck.fresh} ${deck.fresh === 1 ? 'nueva' : 'nuevas'}`].filter(Boolean).join(' + ') },
+    // Escuchar: lo primero que pide el cerebro (input comprensible), una historia al día.
+    { key: 'listen', icon: '🎧', title: 'Escuchar', done: (s.escuchar?.today?.date === iso ? s.escuchar.today.count : 0) > 0,
+      detail: (s.escuchar?.today?.date === iso ? s.escuchar.today.count : 0) > 0 ? `${s.escuchar.today.count} ${s.escuchar.today.count === 1 ? 'historia' : 'historias'} hoy` : 'una historia corta' },
     // El repaso de su vocabulario solo aparece cuando ya tiene palabras guardadas.
     s.vocab.some(srs.isActive) ? { key: 'review', icon: '🧠', title: 'Repaso', done: due === 0,
       detail: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'nada pendiente' } : null,
@@ -110,7 +115,7 @@ export function techLabel(s = store.get()) {
   return tried ? `${tried} probadas` : '11 técnicas';
 }
 
-// go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings, mil, tecnicas }
+// go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings, mil, tecnicas, listen, mock, nivel }
 export function dashboard(go) {
   const s = store.get();
   const now = new Date();
@@ -127,7 +132,12 @@ export function dashboard(go) {
   const plan = todayPlan(s, now);
   const mil = M.normalize(s.mil);
   const deck = M.quickCounts(mil, now.getTime(), store.todayIso(now));
-  const planGo = { talk: draft ? () => go.resume(draft) : go.map, mil: go.mil, review: go.review };
+  const planGo = { talk: draft ? () => go.resume(draft) : go.map, mil: go.mil, review: go.review, listen: go.listen };
+  const mocks = s.entrevista?.mocks || [];
+  const lastMock = mocks[mocks.length - 1];
+  const tests = s.nivel?.tests || [];
+  const lastTest = tests[tests.length - 1];
+  const testDue = isTestDue(tests, now.getTime());
   const wod = h('section.card.dash-wod.hidden');
   wordOfDay(wod, go);
 
@@ -165,6 +175,9 @@ export function dashboard(go) {
         h('span', {}, d.label), h('i', {}, d.done ? '✓' : d.frozen ? '🧊' : ''))))),
     h('h2.dash-title', {}, 'Practicar'),
     h('div.dash-grid', {},
+      tile({ icon: '🎧', title: 'Escuchar', value: `${Object.keys(s.escuchar?.done || {}).length}/${PIECES.length}`, sub: 'historias y diálogos', onclick: go.listen }),
+      tile({ icon: '💼', title: 'Simulacro', value: lastMock ? `${lastMock.overall}/100` : 'Entrevista', sub: lastMock ? `${mocks.length} ${mocks.length === 1 ? 'hecho' : 'hechos'} · con nota` : '15 min con nota', onclick: go.mock }),
+      tile({ icon: '📏', title: 'Su nivel', value: lastTest ? lastTest.label : 'Prueba', sub: testDue ? 'le toca este mes' : `próxima en ${daysUntilNext(tests, now.getTime())} días`, onclick: go.nivel, accent: testDue && !!lastTest, wide: true }),
       tile({ icon: '📇', title: 'Mil palabras', value: `${deck.learned}/${deck.total}`, sub: deck.toStudy ? `${deck.toStudy} para hoy` : 'al día', onclick: go.mil, accent: deck.toStudy > 0 }),
       tile({ icon: '🧠', title: 'Repaso', value: due ? `${due} ${due === 1 ? 'tarjeta' : 'tarjetas'}` : 'Al día', sub: due ? 'Le toca hoy' : 'Nada pendiente', onclick: go.review, accent: due > 0 }),
       tile({ icon: '🧱', title: 'Gramática', value: lesson ? lesson.title : '¡Todo aprobado!', sub: `${passed}/${G.LESSONS.length} lecciones`, onclick: go.grammar }),

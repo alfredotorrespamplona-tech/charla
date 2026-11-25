@@ -2,6 +2,7 @@
 import * as store from './store.js';
 import { naturalReady, speakNatural, stopNatural, naturalVoiceFor } from './natural-voice.js';
 import { lipTrack, lipClock, sampleAt, babble, measuredUnitMs, REST } from './lipsync.js';
+import { WhisperListener, whisperOn } from './whisper.js';
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 export const canListen = !!SR;
@@ -40,7 +41,7 @@ export function joinResults(parts, dedupe = IS_ANDROID) {
 const RESTART_MS = 120;
 const FATAL = ['not-allowed', 'service-not-allowed', 'audio-capture', 'network', 'language-not-supported'];
 
-export class Listener {
+class PhoneListener {
   constructor(Rec = SR) {
     this.Rec = Rec;
     this.rec = null;
@@ -150,6 +151,20 @@ export class Listener {
 
   stop() { this.end?.(); }
   abort() { this.cancel?.(); }
+}
+
+// El micrófono de toda la app. Con clave de Groq usa Whisper (escribe lo que dijo tal cual, con errores);
+// si no, el reconocedor del teléfono. Se decide en cada grabación (si Groq llega a su límite, sigue el teléfono).
+export class Listener {
+  constructor(Rec = SR) { this.Rec = Rec; this.phone = new PhoneListener(Rec); this.cur = null; }
+  get active() { return !!this.cur?.active; }
+  start(opts = {}) {
+    const whisper = this.Rec === SR && whisperOn();
+    this.cur = whisper ? new WhisperListener() : this.phone;
+    return this.cur.start(whisper ? { firstWordMs: WAIT_FIRST_WORD_MS, pauseMs: sendPauseMs(), ...opts } : opts);
+  }
+  stop() { this.cur?.stop(); }
+  abort() { this.cur?.abort(); }
 }
 
 // Pausa de silencio que da el turno por terminado (Ajustes → «Enviar tras una pausa de»).
