@@ -208,6 +208,7 @@ export function finishSession(session) {
   };
   store.update(st => {
     st.history.push(summary);
+    st.activity = store.logInto(st.activity, 'talk');
     if (st.history.length > 200) st.history.shift();
     st.history.slice(0, -TRANSCRIPTS_KEPT).forEach(x => { delete x.transcript; });
   });

@@ -37,7 +37,8 @@ export function entrevistaScreen({ home }) {
         ? 'Con IA, Laura le repregunta como en una entrevista de verdad y al final recibe su nota de fluidez, gramática, vocabulario y orden, con sus respuestas mejoradas.'
         : 'Sin clave de IA, el teléfono le pone nota de fluidez, vocabulario y orden. La gramática y las repreguntas necesitan IA (Ajustes).'),
       h('label', {}, 'Puesto al que aspira (en inglés, opcional)'), role,
-      h('button.primary.wide', { onclick: start }, '▶️ Empezar la entrevista')),
+      h('button.primary.wide', { onclick: start }, '▶️ Empezar la entrevista'),
+      h('button.wide', { onclick: async () => (await import('./ofertascreen.js')).ofertasScreen({ home: () => entrevistaScreen({ home }) }) }, '📄 Prepararse para una oferta concreta')),
     last ? h('div.card', {},
       h('div.dash-week-head', {}, h('b', {}, 'Su último simulacro'), h('small.muted', {}, new Date(last.at).toLocaleDateString('es', { day: 'numeric', month: 'long' }))),
       h('p.big', {}, `${last.overall} / 100 · ${E.bandFor(last.overall).label}`),
@@ -52,10 +53,11 @@ export function entrevistaScreen({ home }) {
 }
 
 // La entrevista en sí.
-function runMock({ home }) {
+// opts (v46): questions y role de una oferta; onReport({ qa, report }) para guardar sus respuestas mejoradas.
+export function runMock({ home, questions: given = null, role: givenRole = null, onReport = null }) {
   const s = store.get();
-  const role = s.entrevista.role;
-  const questions = E.pickQuestions();
+  const role = givenRole ?? s.entrevista.role;
+  const questions = given || E.pickQuestions();
   const qa = [];             // { q: {en, es, frame, start}, text, durationMs, follow }
   const listener = new Listener();
   const t0 = Date.now();
@@ -70,7 +72,7 @@ function runMock({ home }) {
     h('div.mock-progress', {}, h('span', { style: { width: `${Math.round(((i + 1) / total) * 100)}%` } })));
   const quit = () => {
     if (qa.length && !confirm('¿Salir de la entrevista? No se guardará la nota.')) return;
-    alive = false; clearInterval(tick); listener.abort(); stopSpeaking(); entrevistaScreen({ home });
+    alive = false; clearInterval(tick); listener.abort(); stopSpeaking(); if (given) home(); else entrevistaScreen({ home });
   };
 
   const ask = async (q, isFollow = false) => {
@@ -158,9 +160,11 @@ function runMock({ home }) {
     const keepQa = qa.map(x => ({ q: { en: x.q.en, es: x.q.es }, text: x.text, durationMs: x.durationMs, follow: x.follow }));
     if (saved) store.update(x => {
       x.entrevista.mocks = [...x.entrevista.mocks, mock].slice(-40);
+      x.activity = store.logInto(x.activity, 'mock');
       x.entrevista.last = { qa: keepQa, report, local: { fluency: local.fluency, vocabulary: local.vocabulary, order: local.order, spoken: local.spoken, answered: local.answered, avgWords: local.avgWords, fillers: local.fillers } };
     });
-    showReport({ home, qa: keepQa, report, local, mock, saved });
+    if (saved) onReport?.({ qa: keepQa, report });
+    showReport({ home, qa: keepQa, report, local, mock, saved, again: given ? () => runMock({ home, questions: given, role: givenRole, onReport }) : null });
   };
 
   mount(h('div.screen.mock-run', {}, topbar('💼 Entrevista', quit, '✕'), head, bubble, box));
@@ -171,7 +175,7 @@ function runMock({ home }) {
 }
 
 // Informe: nota general, nivel, habilidades, gráfica, correcciones y sus respuestas mejoradas.
-function showReport({ home, qa, report, local, mock, saved }) {
+function showReport({ home, qa, report, local, mock, saved, again = null }) {
   stopSpeaking();
   const mocks = store.get().entrevista.mocks;
   const delta = saved ? E.deltaVsPrevious(mocks) : null;
@@ -210,6 +214,6 @@ function showReport({ home, qa, report, local, mock, saved }) {
           b ? h('div.mock-better', {}, h('p', {}, '✨ ', b.better_en, ' ', listen(b.better_en), ' ', star(b.better_en, b.better_es)), h('small.muted', {}, b.better_es), b.tip ? h('p.muted', {}, '💡 ', b.tip) : null) : null);
       })),
     report?.next?.length ? h('div.card', {}, h('b', {}, '🎯 Para el próximo simulacro'), h('ol', {}, report.next.map(t => h('li', {}, t)))) : null,
-    h('button.primary.wide', { onclick: () => runMock({ home }) }, '🔁 Otro simulacro'),
+    h('button.primary.wide', { onclick: () => (again ? again() : runMock({ home })) }, '🔁 Otro simulacro'),
     h('button.secondary.wide', { onclick: () => entrevistaScreen({ home }) }, 'Listo')));
 }

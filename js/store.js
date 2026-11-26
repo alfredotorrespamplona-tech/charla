@@ -42,6 +42,13 @@ function normalizeExtras(out) {
     pairs: { ...obj(p.pairs) },
     clips: Array.isArray(p.clips) ? p.clips.filter(x => x && x.id && x.topic && x.at).slice(-120) : [],
   };
+  // v46: registro de actividad por día (para el plan de hoy y el resumen de la semana), el plan elegido hoy y
+  // las ofertas de trabajo preparadas.
+  const act = obj(out.activity);
+  out.activity = Object.fromEntries(Object.keys(act).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort().slice(-70).map(k => [k, { ...obj(act[k]) }]));
+  const c = obj(out.coach);
+  out.coach = { date: String(c.date || ''), tasks: Array.isArray(c.tasks) ? c.tasks.filter(t => t && t.key) : [] };
+  out.ofertas = Array.isArray(out.ofertas) ? out.ofertas.filter(o => o && o.id && Array.isArray(o.questions)).map(o => ({ ...o, answers: { ...obj(o.answers) } })).slice(0, 10) : [];
 }
 
 const DEFAULT = {
@@ -107,6 +114,9 @@ const DEFAULT = {
   entrevista: emptyEntrevista(), // simulacros de entrevista con nota
   nivel: emptyNivel(),     // pruebas de nivel del mes
   practica: emptyPractica(), // diario, sonidos parecidos y grabaciones (v45)
+  activity: {},            // v46: { 'AAAA-MM-DD': { talk, listen, diary, record, sounds, tecnica, mock, offer, words, errors, test } }
+  coach: { date: '', tasks: [] }, // v46: las tareas del plan de hoy (se eligen una vez al día)
+  ofertas: [],             // v46: ofertas de trabajo preparadas (preguntas, palabras, respuestas)
   mil: emptyMil(),         // mazo de mil palabras: avance de cada tarjeta (el mazo vive en IndexedDB)
 };
 
@@ -214,3 +224,14 @@ export function todayIso(d = new Date()) {
   const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
   return z.toISOString().slice(0, 10);
 }
+
+// Registro de actividad por día (v46): { 'AAAA-MM-DD': { tipo: veces } }, los últimos 70 días. Lo usan el plan de
+// hoy y el resumen de la semana (coach.js).
+export function logInto(activity, kind, n = 1, iso = todayIso()) {
+  const out = { ...(activity || {}) };
+  out[iso] = { ...(out[iso] || {}), [kind]: ((out[iso] || {})[kind] || 0) + n };
+  const keys = Object.keys(out).sort();
+  for (const k of keys.slice(0, Math.max(0, keys.length - 70))) delete out[k];
+  return out;
+}
+export function logActivity(kind, n = 1) { update(s => { s.activity = logInto(s.activity, kind, n); }); }

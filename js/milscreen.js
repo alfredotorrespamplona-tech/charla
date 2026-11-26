@@ -206,6 +206,7 @@ function study(ctx) {
     const next = M.grade(prev, key);
     undo = { card, prev, dayBefore, queue: queue.slice(), stats: { ...stats } };
     let reachedStreak = false;
+    store.logActivity('words');
     updateMil(x => {
       x.cards[card.id] = next;
       const d = M.today(x, iso);

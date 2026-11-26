@@ -43,7 +43,8 @@ import { whisperStatus, canRecord } from './whisper.js';
 import { escucharScreen } from './escucharscreen.js';
 import { entrevistaScreen } from './entrevistascreen.js';
 import { nivelScreen } from './nivelscreen.js';
-import { diarioScreen, grabarseScreen, paresScreen } from './practicascreen.js';
+import { diarioScreen, grabarseScreen, paresScreen, errorDrill } from './practicascreen.js';
+import { ofertasScreen, offerScreen, guionScreen } from './ofertascreen.js';
 import { setPeopleNav, characterSheet, contactsScreen, relationLine, levelFraction, nextDiscovery } from './people.js';
 setPeopleNav({ home, chooseMission, isOpen: p => coins.isPlaceOpen(store.get(), p) });
 import { NATURAL_VOICES, loadNatural, disableNatural, naturalStatus, onNaturalStatus, unlockAudio } from './natural-voice.js';
@@ -108,6 +109,21 @@ export function cover() {
     diario: () => diarioScreen({ home: cover }),
     grabarse: () => grabarseScreen({ home: cover }),
     sonidos: () => paresScreen({ home: cover }),
+    ofertas: () => ofertasScreen({ home: cover }),
+    // Las tareas del plan de hoy (coach.js) abren su pantalla.
+    coach: (key, arg) => ({
+      guion: () => guionScreen(arg, cover),
+      offer: () => offerScreen(arg, cover),
+      sounds: () => paresScreen({ home: cover, group: arg }),
+      record: () => grabarseScreen({ home: cover }),
+      diary: () => diarioScreen({ home: cover }),
+      talk: home,
+      mock: () => entrevistaScreen({ home: cover }),
+      errors: () => errorDrill({ back: cover, review: () => startReview({ home: cover }) }),
+      error: () => errorDrill({ back: cover, id: arg }),
+      nivel: () => nivelScreen({ home: cover }),
+      listen2: () => escucharScreen({ home: cover }),
+    }[key] || cover)(),
   });
 }
 

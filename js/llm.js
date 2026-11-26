@@ -491,6 +491,20 @@ async function demo(task, messages) {
         { en: 'But sometimes I feel alone.', es: 'Pero a veces me siento solo.' },
         { en: 'So I go to the office once a week.', es: 'Así que voy a la oficina una vez por semana.' }],
       tip: 'Use «because» y «for example» para estirar cada idea.' };
+    case 'offer': {
+      const oq = (q, es, frame, start, model, why = '(demo) Quieren ver si sabe hacerlo.') => ({ q, es, why, frame, start, start_es: '(demo) Empiece así.', model, model_es: '(demo) Traducción del ejemplo.' });
+      return { role: 'Customer Service Agent', company: 'Demo Corp', summary_es: '(demo) Buscan a alguien que atienda clientes por teléfono y correo. Destaque su paciencia y su experiencia resolviendo problemas.',
+        questions: [
+          oq('Tell me about yourself.', 'Hábleme de usted.', 'qyq', 'Sure. I\'m…', "Sure. I'm a customer service agent with three years of experience. I like helping people. Now I want to grow in a bigger team."),
+          oq('Why do you want to work in customer service?', '¿Por qué quiere trabajar en servicio al cliente?', 'qyq', 'I want to work in customer service because…', 'I want to work in customer service because I enjoy solving problems. It matters because customers come back. Next, I want to learn your tools.'),
+          oq('How do you handle an angry customer?', '¿Cómo maneja a un cliente enojado?', 'psb', 'When a customer is angry, I…', 'When a customer is angry, I listen first. Then I find a solution. As a result, the customer feels heard.'),
+          oq('Tell me about a time you solved a difficult problem.', 'Cuénteme de una vez que resolvió un problema difícil.', 'psb', 'One time, a customer…', 'One time, a customer lost a package. I checked the system and sent a new one. In the end, he placed another order.'),
+          oq('How do you organize your work when you have many tickets?', '¿Cómo organiza su trabajo cuando tiene muchos casos?', 'w5', 'When I have many tickets, I…', 'When I have many tickets, I start with the urgent ones. I check my list every hour. That way, nothing gets lost.'),
+          oq('Why should we hire you?', '¿Por qué deberíamos contratarle?', 'qyq', 'You should hire me because…', 'You should hire me because I am patient and organized. That matters in this job. I am ready to start soon.'),
+        ],
+        words: [{ en: 'ticket', es: 'caso (de un cliente)', example: 'I closed thirty tickets yesterday.' }, { en: 'follow up', es: 'hacer seguimiento', example: 'I always follow up with the customer.' }, { en: 'refund', es: 'reembolso', example: 'I processed the refund the same day.' }],
+        ask: [{ en: 'What does a typical day look like in this role?', es: '(demo) ¿Cómo es un día normal en este puesto?' }, { en: 'How do you measure success in this team?', es: '(demo) ¿Cómo miden el éxito en este equipo?' }] };
+    }
     case 'diary': return { good: '(demo) Contó su día en orden y se entiende todo.',
       fixes: [{ said: 'Yesterday I go', better: 'Yesterday I went', why: 'Ayer ya pasó, así que va en pasado: go → went.' },
         { said: 'I am agree', better: 'I agree', why: 'En inglés «estar de acuerdo» es un solo verbo: agree.' }],

@@ -145,6 +145,7 @@ export async function review({ home, only = null, extra = false, onDone = null }
       const x = st.vocab.find(y => y.id === v.id);
       if (!x) return;
       x.lastReviewed = Date.now();
+      st.activity = store.logInto(st.activity, 'words');
       if (!card.retry) {
         Object.assign(x, srs.schedule(x, outcome === 'self' ? 'right' : outcome));
         scheduled.push({ text: x.text, due: x.due });

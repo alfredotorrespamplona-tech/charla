@@ -157,7 +157,7 @@ const MAP = {
   '🌳': 'tree', '🎄': 'tree', '🌱': 'leaf', '💐': 'leaf', '🧘': 'leaf', '🏝': 'leaf', '🐕': 'paw', '🐶': 'paw', '🐾': 'paw',
   '🩺': 'health', '🤒': 'health', '💊': 'health', '👛': 'wallet', '💰': 'wallet', '💾': 'archive', '💳': 'card', '🏦': 'landmark', '🏛': 'landmark',
   '📏': 'ruler', '⚖': 'scale', '🛒': 'cart', '🛍': 'bag', '🏬': 'bag', '🔍': 'search', '🔎': 'search', '🎫': 'ticket',
-  '📍': 'pin', '🌧': 'cloud', '🌦': 'cloud', '📤': 'share', '🐢': 'turtle', '👂': 'ear', '🎮': 'gamepad', '🏙': 'building',
+  '📍': 'pin', '🌧': 'cloud', '🌦': 'cloud', '📤': 'share', '🐢': 'turtle', '👂': 'ear', '📄': 'doc', '🎮': 'gamepad', '🏙': 'building',
   '💈': 'scissors', '✂': 'scissors',
   '🎧': 'headphones', '🚀': 'rocket', '⏱': 'stopwatch', '🐇': 'fast', '🙈': 'eye-off', '😄': 'smile', '😠': 'frown', '↗': 'rise', '↘': 'fall', '👍': 'smile', '⏩': 'play',
   '➕': 'plus', '📇': 'cards', '📂': 'archive', '🖼': 'image', '🆕': 'sparkles',

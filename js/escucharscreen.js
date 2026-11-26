@@ -26,6 +26,7 @@ function recordListen(piece, score, seconds) {
     if (score != null) e.done[piece.id] = Math.max(e.done[piece.id] ?? 0, Math.round(score * 100) / 100);
     if (e.today?.date !== today) e.today = { date: today, count: 0, seconds: 0 };
     if (score != null) e.today.count += 1;
+    if (score != null) s.activity = store.logInto(s.activity, 'listen');
     e.today.seconds += seconds;
     e.seconds = (e.seconds || 0) + seconds;
     if (seconds > 0) {

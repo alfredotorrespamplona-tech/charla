@@ -454,6 +454,23 @@ ${coachRules()}${knownErrorsText()}Return ONLY JSON: {"good": "...", "fixes": [{
   ];
 }
 
+// ---- Preparar una oferta de trabajo concreta (v46) ----
+// Recibe el aviso completo, tal cual lo pegó.
+export function offerMessages({ ad, role = '', rankId }) {
+  const rank = rankById(rankId);
+  return [
+    { role: 'system', content: `You are a job-interview coach. A native ${LEARNER_LANG} speaker (English level ${rank.code}) has an interview in English for the job ad below${role ? ` (the position: "${role}")` : ''}. Prepare them for THIS job, using what the ad asks for (tasks, skills, tools, values).
+Return:
+- "role": the position in English, short; "company": the company name if it appears, else "";
+- "summary_es": 2 sentences in ${LEARNER_LANG}: what they are looking for and what to highlight;
+- "questions": 10 questions this interviewer will very likely ask, from the opening to the closing, including at least 3 specific to the tasks or skills in the ad and 2 behavioural ("Tell me about a time…"). Each: {"q": "the question in natural spoken English", "es": "${LEARNER_LANG} translation", "why": "very short ${LEARNER_LANG} note on what they want to hear", "frame": "qyq" (what / so what / now what: to present or give an opinion) or "psb" (problem / solution / benefit: stories and how they solved something) or "w5" (who, what, when, where, why: routines and facts), "start": "how to begin the answer reusing the words of the question, ending with …", "start_es": "${LEARNER_LANG}", "model": "a model answer at about ${rank.code === 'B2' || rank.code.startsWith('C') ? 'B2' : 'B1-B2'} level, 3 or 4 short sentences, first person, following the frame and starting with the start; generic enough that they can replace the details with their own story", "model_es": "${LEARNER_LANG}"};
+- "words": 12 to 15 words or short phrases from this job or the ad that they should be able to say, each {"en": "...", "es": "${LEARNER_LANG}", "example": "short English sentence using it, about the job"};
+- "ask": 3 good questions they can ask the interviewer about this job, each {"en": "...", "es": "${LEARNER_LANG}"}.
+Never use grammar labels in ${LEARNER_LANG}. Return ONLY JSON: {"role": "...", "company": "...", "summary_es": "...", "questions": [{"q": "...", "es": "...", "why": "...", "frame": "qyq", "start": "...", "start_es": "...", "model": "...", "model_es": "..."}], "words": [{"en": "...", "es": "...", "example": "..."}], "ask": [{"en": "...", "es": "..."}]}` },
+    { role: 'user', content: ad },
+  ];
+}
+
 // ---- Repaso personalizado (tarjetas con {{gap}}) ----
 export function reviewMessages(items, rankId) {
   const rank = rankById(rankId);

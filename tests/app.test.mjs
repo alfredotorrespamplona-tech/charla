@@ -2612,3 +2612,159 @@ test('v45 grabadora: puede devolver el audio y grabar sin pasar a texto', async 
   assert.match(src, /if \(!transcribeAudio\) return resolve\(\{ text: '', durationMs: speechMs, \.\.\.kept \}\)/);
   assert.match(src, /if \(keepAudio\) resolve\(\{ text: '', durationMs: speechMs, error: e\.message, \.\.\.kept \}\)/, 'si Groq falla, la grabación no se pierde');
 });
+
+test('v46 actividad: se registra por día, guarda 70 días y sabe cuántos días pasaron', async () => {
+  const C = await import('../js/coach.js');
+  let a = {};
+  for (let i = 0; i < 80; i++) a = C.logInto(a, 'diary', 1, `2026-0${1 + Math.floor(i / 28)}-${String(1 + (i % 28)).padStart(2, '0')}`);
+  assert.equal(Object.keys(a).length, 70, 'solo los últimos 70 días');
+  a = C.logInto(C.logInto({}, 'talk', 1, '2026-11-25'), 'talk', 2, '2026-11-25');
+  assert.deepEqual(a, { '2026-11-25': { talk: 3 } });
+  const now = new Date(2026, 10, 25, 10);
+  store.update(s => { s.activity = { '2026-11-22': { diary: 1 }, '2026-11-25': { sounds: 4 } }; });
+  assert.equal(C.daysSince(store.get(), 'diary', now), 3);
+  assert.equal(C.daysSince(store.get(), ['record', 'sounds'], now), 0);
+  assert.equal(C.daysSince(store.get(), 'mock', now), Infinity);
+  assert.ok(C.doneToday(store.get(), 'sounds', now));
+  store.logActivity('words');
+  assert.equal(store.get().activity[store.todayIso()].words, 1);
+});
+
+test('v46 plan de hoy: foco por día de la semana, la entrevista cercana primero y su error más repetido', async () => {
+  const C = await import('../js/coach.js');
+  const s0 = () => structuredClone(store.get());
+  const monday = new Date(2026, 10, 23, 9), tuesday = new Date(2026, 10, 24, 9), thursday = new Date(2026, 10, 26, 9);
+  assert.equal(monday.getDay(), 1);
+  // Lunes: pronunciar; sin datos de sonidos y sin grabarse nunca → grabarse.
+  let t = C.pickToday(s0(), monday, {});
+  assert.equal(t[0].key, 'record');
+  assert.equal(t[0].why, 'foco');
+  // Con un grupo de sonidos flojo, el lunes va a ese grupo.
+  store.update(s => { s.practica.pairs = { 'th-t': { hear: [1, 5], say: [0, 0] } }; });
+  t = C.pickToday(s0(), monday, {});
+  assert.deepEqual([t[0].key, t[0].arg], ['sounds', 'th-t']);
+  // Martes: escribir.
+  assert.equal(C.pickToday(s0(), tuesday, {})[0].key, 'diary');
+  // Su error más repetido entra como segunda tarea.
+  const errors = [{ id: 'e1', count: 1, wrong: ['a'], right: ['b'] }, { id: 'e2', count: 4, wrong: ['I am agree'], right: ['I agree'] }];
+  t = C.pickToday(s0(), tuesday, { errors });
+  assert.deepEqual(t.map(x => x.key), ['diary', 'error']);
+  assert.equal(t[1].arg, 'e2');
+  // Entrevista en 2 días: lo primero es repasar su guion; el jueves, preparar la oferta.
+  store.update(s => { s.ofertas = [{ id: 'of-1', role: 'Agent', date: '2026-11-25', questions: [], words: [], ask: [], answers: {} }]; });
+  t = C.pickToday(s0(), new Date(2026, 10, 23, 9), { errors });
+  assert.deepEqual(t.map(x => x.key), ['guion', 'sounds']);
+  store.update(s => { s.ofertas[0].date = '2026-12-20'; });
+  assert.equal(C.pickToday(s0(), thursday, {})[0].key, 'offer', 'el jueves (entrevista) prepara su oferta');
+  // Se elige una sola vez al día: hacer una tarea la marca, no la cambia.
+  store.update(s => { s.coach = { date: '', tasks: [] }; });
+  const first = C.todayTasks(tuesday, { errors });
+  store.logActivity('diary');
+  assert.deepEqual(C.todayTasks(tuesday, { errors }), first);
+  const d = C.describe(first[0], store.get(), tuesday);
+  assert.equal(d.title, 'Diario');
+  assert.match(d.detail, /martes/);
+  const e = C.describe(first[1], store.get(), tuesday, { errors });
+  assert.match(e.detail, /I am agree.*I agree.*4 veces/);
+});
+
+test('v46 resumen de la semana: cuenta por habilidad, compara con la anterior y dice qué falta', async () => {
+  const C = await import('../js/coach.js');
+  const now = new Date(2026, 10, 26, 20);   // jueves; la semana empieza el lunes 23
+  const act = { '2026-11-23': { listen: 2, talk: 1 }, '2026-11-24': { listen: 1, diary: 1 }, '2026-11-17': { listen: 1 }, '2026-11-22': { talk: 5 } };
+  const w = C.weekSummary(act, now);
+  const row = id => w.rows.find(r => r.id === id);
+  assert.deepEqual([row('escuchar').now, row('escuchar').before], [3, 1]);
+  assert.deepEqual([row('hablar').now, row('hablar').before], [1, 5], 'el domingo 22 es de la semana anterior');
+  assert.match(w.text, /mejoró en escuchar \(3 veces, antes 1\)/);
+  assert.match(w.text, /Le falta entrevista, pronunciar y palabras\./);
+  assert.match(C.weekSummary({}, now).text, /todavía no hay práctica/);
+  // Domingo: el foco es lo que menos practicó.
+  const sunday = new Date(2026, 10, 29, 9);
+  store.update(s => { s.activity = { '2026-11-24': { diary: 3, talk: 2, mock: 3, words: 2, sounds: 1 } }; });
+  assert.equal(C.pickToday(structuredClone(store.get()), sunday, {})[0].key, 'record', 'lo que menos practicó: pronunciar (escuchar ya va todos los días en el plan)');
+});
+
+test('v46 oferta: la IA recibe el aviso completo y lo que devuelve se revisa', async () => {
+  const O = await import('../js/oferta.js');
+  const P = await import('../js/prompts.js');
+  const ad = 'We are hiring a Customer Service Agent. '.repeat(400);
+  const m = P.offerMessages({ ad, role: 'Agent', rankId: 3 });
+  assert.equal(m[1].content, ad, 'el aviso va entero');
+  assert.match(m[0].content, /"questions"/);
+  const q = (x, extra = {}) => ({ q: x, es: 'es', start: 'I…', model: 'I do it.', model_es: 'Lo hago.', frame: 'psb', ...extra });
+  const o = O.cleanOffer({ role: 'Agent', company: 'ACME', summary_es: 'Buscan…',
+    questions: [q('Tell me about yourself.'), q('tell me about yourself'), q('Why us?', { frame: 'raro' }), q('Sin ejemplo', { model: '' }), q('A?'), q('B?')],
+    words: [{ en: 'ticket', es: 'caso' }, { en: 'sin traducción' }], ask: [{ en: 'What next?', es: '¿Qué sigue?' }] }, { ad, date: '2026-12-01', at: 1000 });
+  assert.deepEqual(o.questions.map(x => x.id), ['oq-1', 'oq-2', 'oq-3', 'oq-4']);
+  assert.equal(o.questions[1].frame, 'qyq', 'estructura desconocida → la de siempre');
+  assert.ok(O.isUsable(o));
+  assert.equal(o.words.length, 1);
+  assert.equal(o.ad.length, O.MAX_AD);
+  assert.equal(O.cleanOffer({}, { date: 'mañana' }).date, '');
+  // Respuestas: la suya se queda con la mejor nota; la mejorada de la IA reemplaza a la anterior.
+  let x = O.withAnswer(o, 'oq-1', { said: 'I am agent', score: 0.6 });
+  x = O.withAnswer(x, 'oq-1', { said: 'peor', score: 0.2 });
+  assert.equal(x.answers['oq-1'].said, 'I am agent');
+  x = O.withAnswer(x, 'oq-2', { en: 'Better answer.', es: 'Mejor.', from: 'responder' });
+  const sc = O.script(x, [{ island: 'entrevista', en: 'I led a team.', es: 'Dirigí un equipo.' }, { island: 'dia', en: 'x', es: 'y' }]);
+  assert.deepEqual(sc.items.map(i => i.kind), ['suya', 'mejorada', 'ejemplo', 'ejemplo']);
+  assert.equal(sc.ready, 2);
+  assert.equal(sc.stories.length, 1);
+  const text = O.scriptText(x, sc);
+  assert.match(text, /MI GUION · Agent · ACME · 2026-12-01/);
+  assert.match(text, /\[ejemplo: cámbielo por su historia\]/);
+  assert.match(text, /MIS PREGUNTAS PARA ELLOS/);
+  assert.equal(sc.items[0].qEs, 'es', 'bajo la pregunta va la traducción de la pregunta, no la de la respuesta');
+  assert.match(text, /A: Better answer\.\n   \(Mejor\.\)/);
+  // Simulacro de la oferta: sus preguntas y al final «¿tiene preguntas?».
+  const mq = O.mockQuestions(x);
+  assert.equal(mq.length, 5);
+  assert.equal(mq[0].en, 'Tell me about yourself.');
+  assert.equal(mq[mq.length - 1].slot, 'preguntas');
+  assert.equal(O.questionByText(x, 'tell me about yourself')?.id, 'oq-1');
+  assert.equal(O.daysLeft({ date: '2026-12-01' }, new Date(2026, 10, 25, 22)), 6);
+  assert.equal(O.daysText(1), 'es mañana');
+});
+
+test('v46 oferta: modo demo, se guarda en la copia y la portada la muestra', async () => {
+  const O = await import('../js/oferta.js');
+  const P = await import('../js/prompts.js');
+  const { chatJson } = await import('../js/llm.js');
+  store.update(s => { s.settings.groqKey = 'demo'; });
+  const o = O.cleanOffer(await chatJson('offer', P.offerMessages({ ad: 'Customer service agent wanted…', rankId: 3 })), { date: '2026-12-01' });
+  assert.ok(O.isUsable(o) && o.words.length && o.ask.length);
+  store.update(s => { s.ofertas = [o, { id: 'roto' }]; s.coach = { date: '2026-11-25', tasks: [{ key: 'diary', arg: '' }, {}] }; });
+  const backup = store.exportJson();
+  store.reset();
+  assert.deepEqual([store.get().ofertas, store.get().activity, store.get().coach], [[], {}, { date: '', tasks: [] }]);
+  store.importJson(backup);
+  assert.equal(store.get().ofertas.length, 1, 'lo roto se descarta');
+  assert.equal(store.get().coach.tasks.length, 1);
+  const D = await import('../js/dashboard.js');
+  const lab = D.offerLabel(store.get(), new Date(2026, 10, 29, 9));
+  assert.deepEqual(lab, { value: 'Customer Service Agent', sub: 'entrevista es en 2 días' });
+});
+
+test('v46 días sin hacer algo: también mira lo que hizo antes de v46', async () => {
+  const C = await import('../js/coach.js');
+  const now = new Date(2026, 10, 25, 10);
+  store.update(s => { s.practica.diary = [{ at: new Date(2026, 10, 20, 22).getTime(), text: 'hola' }]; s.entrevista.mocks = [{ at: new Date(2026, 10, 24, 9).getTime(), scores: {} }]; });
+  assert.equal(C.daysSince(store.get(), 'diary', now), 5);
+  assert.equal(C.daysSince(store.get(), ['mock', 'offer'], now), 1);
+  assert.equal(C.daysSince(store.get(), 'record', now), Infinity);
+  const d = C.describe({ key: 'diary', why: 'datos' }, store.get(), now);
+  assert.equal(d.detail, 'Hace 5 días que no escribe');
+  assert.equal(C.describe({ key: 'diary', why: 'datos' }, { activity: {} }, now).detail, 'Todavía no ha escrito: empiece hoy');
+});
+
+test('v46 plan de hoy: una oferta guardada hoy con entrevista cercana entra al plan el mismo día', async () => {
+  const C = await import('../js/coach.js');
+  const now = new Date(2026, 10, 24, 9);
+  const first = C.todayTasks(now, {});
+  assert.equal(first[0].key, 'diary');
+  store.update(s => { s.ofertas = [{ id: 'of-9', role: 'Agent', date: '2026-11-28', questions: [], words: [], ask: [], answers: {} }]; });
+  const after = C.todayTasks(now, {});
+  assert.deepEqual(after.map(t => t.key), ['offer', ...first.map(t => t.key)].slice(0, 3));
+  assert.deepEqual(C.todayTasks(now, {}), after, 'no se repite');
+});

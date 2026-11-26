@@ -142,7 +142,7 @@ async function runTest({ home }) {
         : N.localSpeakScore(answered, new Set(MIL_WORDS.map(r => r[1].toLowerCase())));
     }
     const rec = N.testRecord({ parts, aiLevel: ai?.level || '' });
-    store.update(s => { s.nivel.tests = [...s.nivel.tests, rec].slice(-24); });
+    store.update(s => { s.nivel.tests = [...s.nivel.tests, rec].slice(-24); s.activity = store.logInto(s.activity, 'test'); });
     showResult({ home, rec, gaps: [...(ai?.gaps || []).map(g => ({ es: g.es, example: g.example })), ...N.gapsFrom(test, picks)], fixes: ai?.fixes || [], test, picks });
   };
 

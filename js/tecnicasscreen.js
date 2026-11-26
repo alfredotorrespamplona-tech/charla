@@ -34,6 +34,7 @@ function record(id, score = null) {
   store.update(s => {
     const t = s.tecnicas;
     t.done[id] = (t.done[id] || 0) + 1;
+    s.activity = store.logInto(s.activity, 'tecnica');
     if (score != null) t.best[id] = Math.max(t.best[id] || 0, Math.round(score * 100) / 100);
   });
 }
@@ -1171,7 +1172,7 @@ function simScreen(go, back, place = null) {
 // Responder en el momento (robar palabras de la pregunta + estructura de 3 partes + corto y claro)
 // =====================================================================================
 const answerSet = group => X.answerSet(group);
-const ANSWER_ISLAND = { entrevista: 'entrevista', vida: 'dia', opinion: 'opiniones' };
+const ANSWER_ISLAND = { entrevista: 'entrevista', oferta: 'entrevista', vida: 'dia', opinion: 'opiniones' };
 
 // Las 3 estructuras y las frases para ganar tiempo (también se abren desde la charla).
 export function framesGuide(open = false) {
@@ -1183,7 +1184,8 @@ export function framesGuide(open = false) {
     X.STARTERS.map(g => h('p', {}, h('b', {}, g.es), h('br'), g.list.map(([en, es]) => [listen(en), ' ', en, ' ', h('small.muted', {}, `(${es})`), h('br')]))));
 }
 
-function runResponder(items, back) {
+// opts (v46, para las ofertas): title, again (otra ronda), onAnswer(item, texto, revisión), onVersion(item, versión de la IA).
+export function runResponder(items, back, { title = '🎯 Responder en el momento', again = null, onAnswer = null, onVersion = null } = {}) {
   stopSpeaking();
   const screen = h('div.screen.drill.tecnica.tec-answer', {});
   const listener = new Listener();
@@ -1196,7 +1198,7 @@ function runResponder(items, back) {
     const item = items[i];
     const frame = X.FRAMES[item.frame];
     fill(screen,
-      topbar('🎯 Responder en el momento', leave, '✕'),
+      topbar(title, leave, '✕'),
       progressBar(i / items.length),
       h('p.muted.drill-step', {}, `${i + 1} de ${items.length}`),
       h('div.card.tec-topic', {}, h('small.muted', {}, 'Le preguntan'),
@@ -1218,11 +1220,12 @@ function runResponder(items, back) {
     const frame = X.FRAMES[item.frame];
     const c = X.answerCheck(item, text);
     if (text && (!best[i] || c.score >= best[i].score)) best[i] = { ...c, text };
+    if (text) onAnswer?.(item, text, c);
     if (text) buzz(c.score >= 0.8 ? 'good' : 'tap');
     const last = i + 1 >= items.length;
     const ai = h('div');
     fill(screen,
-      topbar('🎯 Responder en el momento', leave, '✕'),
+      topbar(title, leave, '✕'),
       progressBar((i + 1) / items.length),
       h('div.card.tec-topic', {}, h('small.muted', {}, 'Le preguntaron'), h('b', {}, item.q)),
       text ? h('div.card', {},
@@ -1253,6 +1256,7 @@ function runResponder(items, back) {
     try {
       const r = await chatJson('answer', P.answerMessages({ question: item.q, frame: X.FRAMES[item.frame].name, text, rankId: store.get().rank }), { temperature: 0.4, maxTokens: 700 });
       const version = (Array.isArray(r.version) ? r.version : []).filter(v => v?.en).map(v => ({ en: String(v.en), es: String(v.es || '') }));
+      if (version.length) onVersion?.(item, version);
       btn.remove();
       fill(box,
         r.good ? h('p.good', {}, '👍 ', r.good) : null,
@@ -1279,13 +1283,13 @@ function runResponder(items, back) {
     const score = tried.length ? tried.reduce((a, b) => a + b.score, 0) / items.length : 0;
     record('responder', tried.length ? score : null);
     fill(screen,
-      topbar('🎯 Responder en el momento', back),
+      topbar(title, back),
       h('div.card.center', {},
         h('div.big-score', {}, tried.length ? pct(score) : '—'),
         h('p', {}, tried.length === items.length && score >= 0.8 ? '🌟 ¡Respuestas claras y ordenadas!' : 'Repita las que le costaron: la segunda vez sale más fácil.')),
       h('div.card', {}, items.map((it, k) => h('p', {}, h('b', {}, it.q), h('br'),
         h('small.muted', {}, best[k] ? `${Math.round(best[k].score * 5)}/5 · ${best[k].tip}` : 'Sin responder')))),
-      h('button.primary.wide', { onclick: () => runResponder(X.answerSet(items[0].group), back) }, 'Otra ronda'),
+      h('button.primary.wide', { onclick: () => (again ? again() : runResponder(X.answerSet(items[0].group), back)) }, 'Otra ronda'),
       h('button.wide', { onclick: back }, 'Volver'));
   }
 

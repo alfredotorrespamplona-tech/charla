@@ -13,6 +13,8 @@ import { activeErrors } from './bitacora.js';
 import { practiceDays } from './stats.js';
 import * as M from './mil.js';
 import { speak } from './speech.js';
+import * as C from './coach.js';
+import { daysLeft, daysText } from './oferta.js';
 
 // ¿Tiene alguna clave de IA? (Groq o DeepSeek). Igual que hasAI de llm.js, sin cargar ese módulo.
 const hasAI = st => !!((st.groqKey || '').trim() || (st.apiKey || '').trim());
@@ -138,7 +140,17 @@ export function pairsLabel(s = store.get()) {
   return n ? `${Math.round((ok / n) * 100)} % bien` : '13 grupos de sonidos';
 }
 
-// go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings, mil, tecnicas, listen, mock, nivel }
+// Su oferta de trabajo (v46): la más próxima, o cuántas tiene.
+export function offerLabel(s = store.get(), now = new Date()) {
+  const list = s.ofertas || [];
+  if (!list.length) return { value: 'Pegue el aviso', sub: 'preguntas de ese trabajo y su guion' };
+  const next = C.upcomingOffer(s, now);
+  const o = next ? next.offer : list[0];
+  const n = daysLeft(o, now);
+  return { value: o.role || 'Su oferta', sub: n != null && n >= 0 ? `entrevista ${daysText(n)}` : `${list.length} ${list.length === 1 ? 'oferta' : 'ofertas'} · su guion` };
+}
+
+// go = { map, resume, review, grammar, essentials, vocab, errors, stats, settings, mil, tecnicas, listen, mock, nivel, coach, ofertas }
 export function dashboard(go) {
   const s = store.get();
   const now = new Date();
@@ -153,6 +165,15 @@ export function dashboard(go) {
   const week = weekStrip(s, now);
   const doneGoal = today.pct >= 1;
   const plan = todayPlan(s, now);
+  // Plan de hoy (v46): primero lo que eligió el entrenador para hoy (foco del día y lo que piden sus datos);
+  // después lo de todos los días (escuchar y palabras). La charla ya está en el botón grande de arriba.
+  const errorsNow = activeErrors(s);
+  const tasks = C.todayTasks(now, { errors: errorsNow, testDue: isTestDue(s.nivel?.tests || [], now.getTime()) })
+    .map(t => ({ ...C.describe(t, store.get(), now, { errors: errorsNow }), key: t.key, arg: t.arg, coach: true }));
+  const base = plan.items.filter(it => it.key !== 'talk' && !(it.key === 'listen' && tasks.some(t => t.key === 'listen2')));
+  const rows = [...tasks, ...base];
+  const rowsDone = rows.filter(r => r.done).length;
+  const weekSum = C.weekSummary(store.get().activity, now);
   const mil = M.normalize(s.mil);
   const deck = M.quickCounts(mil, now.getTime(), store.todayIso(now));
   const planGo = { talk: draft ? () => go.resume(draft) : go.map, mil: go.mil, review: go.review, listen: go.listen };
@@ -186,8 +207,9 @@ export function dashboard(go) {
     cta,
     draft ? h('button.secondary.wide.dash-map', { onclick: go.map }, '🗺️ Ir al mapa de la ciudad') : null,
     h('section.card.dash-plan', {},
-      h('div.dash-week-head', {}, h('b', {}, 'Plan de hoy'), h('small.muted', {}, plan.done === plan.items.length ? '¡Todo listo! 🎉' : `${plan.done} de ${plan.items.length} listo`)),
-      plan.items.map(it => h('button.dash-plan-row', { class: it.done ? 'done' : '', onclick: planGo[it.key] },
+      h('div.dash-week-head', {}, h('b', {}, 'Plan de hoy'), h('small.muted', {}, rowsDone === rows.length ? '¡Todo listo! 🎉' : `${rowsDone} de ${rows.length} listo`)),
+      h('small.muted.dash-focus', {}, `Foco de hoy: ${C.focusName(now).toLowerCase()} · el plan cambia según sus errores y lo que deja de hacer`),
+      rows.map(it => h('button.dash-plan-row', { class: [it.done ? 'done' : '', it.coach ? 'coach' : ''].join(' '), onclick: it.coach ? () => go.coach?.(it.key, it.arg) : planGo[it.key] },
         h('span.dash-check', {}, it.done ? '✓' : ''),
         h('span.dash-plan-text', {}, h('b', {}, `${it.icon} ${it.title}`), h('small', {}, it.detail)),
         h('span.dash-go', {}, it.done ? '' : '›')))),
@@ -195,11 +217,16 @@ export function dashboard(go) {
     h('section.card.dash-week', {},
       h('div.dash-week-head', {}, h('b', {}, 'Esta semana'), h('small.muted', {}, `${week.filter(d => d.done).length} de 7 días`)),
       h('div.dash-days', {}, week.map(d => h('div.dash-day', { class: [d.done ? 'done' : '', d.frozen ? 'frozen' : '', d.today ? 'today' : ''].join(' ') },
-        h('span', {}, d.label), h('i', {}, d.done ? '✓' : d.frozen ? '🧊' : ''))))),
+        h('span', {}, d.label), h('i', {}, d.done ? '✓' : d.frozen ? '🧊' : '')))),
+      h('p.dash-week-text', {}, weekSum.text),
+      weekSum.total ? h('div.dash-skills', {}, weekSum.rows.map(r => h('div.dash-skill', { class: r.now ? '' : 'zero' },
+        h('span', {}, `${r.icon} ${r.name}`), h('b', {}, String(r.now)),
+        h('small', {}, r.now > r.before ? `▲ ${r.now - r.before}` : r.now < r.before ? `▼ ${r.before - r.now}` : '=')))) : null),
     group('Escuchar y hablar', 'Oír mucho y responder en voz alta',
       tile({ icon: '🎧', tint: 'blue', title: 'Escuchar', value: `${Object.keys(s.escuchar?.done || {}).length}/${PIECES.length}`, sub: 'historias y diálogos', onclick: go.listen }),
       tile({ icon: '💼', tint: 'gold', title: 'Simulacro', value: lastMock ? `${lastMock.overall}/100` : 'Entrevista', sub: lastMock ? `${mocks.length} ${mocks.length === 1 ? 'hecho' : 'hechos'} · con nota` : '15 min con nota', onclick: go.mock }),
-      tile({ icon: '🚀', tint: 'red', title: 'Técnicas', value: techLabel(s), sub: 'dictado, sombra, un minuto sin parar, mis frases…', onclick: go.tecnicas, wide: true })),
+      tile({ icon: '📄', tint: 'green', title: 'Su oferta', ...offerLabel(s, now), onclick: go.ofertas }),
+      tile({ icon: '🚀', tint: 'red', title: 'Técnicas', value: techLabel(s), sub: 'dictado, sombra, un minuto…', onclick: go.tecnicas })),
     group('Oírse, escribir y pronunciar', 'Pulir lo que dice: grabarse, escribir y separar sonidos',
       tile({ icon: '🎙', tint: 'red', title: 'Grabarse', value: clipsLabel(s), sub: 'oírse y comparar', onclick: go.grabarse }),
       tile({ icon: '✍', tint: 'green', title: 'Diario', value: diaryLabel(s, now), sub: 'escribir y corregir', onclick: go.diario }),

@@ -12,7 +12,7 @@ import { speak, stopSpeaking, Listener, canListen } from './speech.js';
 import { WhisperListener, whisperOn, canRecord } from './whisper.js';
 import { wordStates, tokens } from './pronounce.js';
 import { addVocab } from './words.js';
-import { addFromAnalyses } from './bitacora.js';
+import { addFromAnalyses, activeErrors, setStatus } from './bitacora.js';
 import { putClip, getClip, deleteClips } from './audiostore.js';
 import * as R from './practica.js';
 
@@ -115,6 +115,7 @@ export function diarioScreen({ home }) {
       x.practica.diary.unshift(entry);
       x.practica.diary = x.practica.diary.slice(0, R.DIARY_KEEP);
       x.practica.draft = { text: '', start: '' };
+      x.activity = store.logInto(x.activity, 'diary');
     });
     addDailySeconds(minutes * 60);
     const added = review?.fixes.length ? addFromAnalyses(R.diaryAnalyses(review.fixes)) : 0;
@@ -263,7 +264,7 @@ function recTopicScreen(t, back) {
     const stats = R.clipStats(r.text, r.speechMs);
     let saved = true;
     try { await putClip(id, r.audio); } catch { saved = false; }
-    store.update(x => { x.practica.clips.push({ id, topic: topic.id, at, ms: r.recordedMs || 0, text: r.text || '', stats, self: {} }); });
+    store.update(x => { x.practica.clips.push({ id, topic: topic.id, at, ms: r.recordedMs || 0, text: r.text || '', stats, self: {} }); x.activity = store.logInto(x.activity, 'record'); });
     addDailySeconds((r.recordedMs || 0) / 1000);
     store.persistStorage?.();
     const drop = R.clipsToDrop(data().clips, topic.id);
@@ -319,8 +320,9 @@ function changeText(ch) {
 // =====================================================================================
 const canSay = () => canListen || whisperOn();
 
-export function paresScreen({ home }) {
+export function paresScreen({ home, group = '' }) {
   stopSpeaking();
+  if (group && R.pairGroupById(group)) { groupScreen(R.pairGroupById(group), () => paresScreen({ home })); return; }
   const self = () => paresScreen({ home });
   const stats = data().pairs;
   const weak = R.weakGroups(stats);
@@ -368,7 +370,7 @@ function groupScreen(g, back) {
 }
 
 function savePair(item, mode, ok) {
-  store.update(x => { x.practica.pairs = R.addPairResult(x.practica.pairs, item.group, mode, ok); });
+  store.update(x => { x.practica.pairs = R.addPairResult(x.practica.pairs, item.group, mode, ok); x.activity = store.logInto(x.activity, 'sounds'); });
 }
 
 function pairFinal(title, items, results, back, again) {
@@ -470,5 +472,81 @@ function runSay(items, back, title) {
       h('button.link', { onclick: () => { if (!done) { results.push(false); savePair(it, 'say', false); } i++; show(); } }, 'Saltar'));
   };
   mount(h('div.screen.practica', {}, topbar(`🎤 ${title}`, () => { listener.abort(); stopSpeaking(); back(); }), progress, body));
+  show();
+}
+
+// =====================================================================================
+// 🎯 Sus errores repetidos (v46, desde el plan de hoy): decir bien lo que suele decir mal
+// =====================================================================================
+export const ERROR_REPS = 2;   // veces que hay que decirla bien para pasar a la siguiente
+
+// Los errores activos que más se repiten (o uno en particular).
+export function errorsToPractice(id = '', n = 3) {
+  const list = activeErrors().slice().sort((a, b) => (b.count || 1) - (a.count || 1));
+  const one = id ? list.find(e => e.id === id) : null;
+  return one ? [one, ...list.filter(e => e.id !== id)].slice(0, n) : list.slice(0, n);
+}
+
+export function errorDrill({ back, id = '', review = null }) {
+  stopSpeaking();
+  const list = errorsToPractice(id);
+  const listener = new Listener();
+  const leave = () => { listener.abort(); stopSpeaking(); back(); };
+  if (!list.length) {
+    mount(h('div.screen.practica', {}, topbar('🎯 Sus errores', leave),
+      h('div.card', {}, h('p', {}, 'No tiene errores activos. ¡Muy bien!'), h('p.muted', {}, 'Los errores de sus charlas, del diario y de sus grabaciones aparecen aquí cuando los guarda.')),
+      review ? h('button.primary.wide', { onclick: review }, '🧠 Seguir con el repaso') : null));
+    return;
+  }
+  let i = 0;
+  const body = h('div', {});
+  const show = () => {
+    if (i >= list.length) {
+      store.logActivity('errors');
+      fill(body,
+        h('div.card', {}, h('h3', {}, '✅ Listo'), h('p.muted', {}, 'Decir bien la frase varias veces, en voz alta, es lo que cambia el hábito. Mañana vuelva a decirlas una vez.'),
+          list.map(e => h('div.row', {}, h('span', {}, `✓ ${e.right[0]}`), h('button.tiny', { onclick: ev => { setStatus(e, 'resuelto'); ev.currentTarget.replaceWith(h('small.good', {}, 'resuelto')); } }, 'Ya no me pasa')))),
+        review ? h('button.primary.wide', { onclick: review }, '🧠 Seguir con el repaso') : null,
+        h('button.wide', { onclick: leave }, 'Volver'));
+      return;
+    }
+    const e = list[i];
+    const target = e.right[0];
+    let good = 0;
+    const heard = h('p.muted', {}, '');
+    const count = h('p.err-reps', {}, '');
+    const drawCount = () => setText(count, `${'●'.repeat(good)}${'○'.repeat(Math.max(0, ERROR_REPS - good))}  ${good >= ERROR_REPS ? '¡Bien!' : `Dígala bien ${ERROR_REPS - good} ${ERROR_REPS - good === 1 ? 'vez' : 'veces'} más`}`);
+    const next = h('button.primary.wide', { hidden: true, onclick: () => { i++; show(); } }, i + 1 < list.length ? 'Siguiente error' : 'Terminar');
+    const judge = text => {
+      const { score } = wordStates(target, text);
+      fill(heard, h('span', {}, 'Se entendió: '), colored(target, text));
+      if (score >= 80) { good++; buzz('good'); } else buzz('bad');
+      drawCount();
+      if (good >= ERROR_REPS) next.hidden = false;
+    };
+    const typed = h('input', { placeholder: 'O escríbala bien…', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'send' });
+    typed.addEventListener('keydown', ev => { if (ev.key === 'Enter' && typed.value.trim()) { judge(typed.value); typed.value = ''; } });
+    const mic = h('button.primary', { disabled: canListen || whisperOn() ? null : true, onclick: async () => {
+      if (listener.active) { listener.stop(); return; }
+      stopSpeaking();
+      setText(mic, '⏹ Listo'); mic.classList.add('recording');
+      setText(heard, 'Escuchando…');
+      try {
+        const r = await listener.start({ lang: store.get().settings.targetLang, onInterim: t => setText(heard, t || 'Escuchando…') });
+        if (mic.isConnected) { if (r.text) judge(r.text); else setText(heard, 'No se oyó nada. Intente otra vez.'); }
+      } catch (err) { setText(heard, err.message); }
+      finally { setText(mic, '🎤 Decirla bien'); mic.classList.remove('recording'); }
+    } }, '🎤 Decirla bien');
+    fill(body,
+      h('small.muted', {}, `${i + 1} de ${list.length}${e.count > 1 ? ` · le pasó ${e.count} veces` : ''}`),
+      h('div.card', {},
+        h('div.err-line.bad', {}, '✗ ', e.wrong[0]),
+        h('div.err-line.good', {}, '✓ ', target, ' ', h('button.tiny', { 'aria-label': 'Escuchar', onclick: () => say(target) }, '🔊'), h('button.tiny', { 'aria-label': 'Despacio', onclick: () => say(target, 0.65) }, '🐢')),
+        e.why ? h('p.muted', {}, e.why) : null),
+      count, h('div.row', {}, mic), typed, heard, next);
+    drawCount();
+    setTimeout(() => say(target), 250);
+  };
+  mount(h('div.screen.practica', {}, topbar('🎯 Sus errores', leave), body));
   show();
 }

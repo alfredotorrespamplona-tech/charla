@@ -448,6 +448,25 @@ No hace falta volver a instalar el APK.
   siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
   ejercicio del taller o no cierran la despedida.
 
+### Plan de hoy que se arma solo y su oferta de trabajo (v46)
+- **Plan de hoy inteligente** (`js/coach.js`): cada día elige 1 o 2 tareas, una sola vez al día (al hacerlas se marcan, no
+  desaparecen). Cada día de la semana tiene un foco: lunes pronunciar, martes escribir, miércoles hablar, jueves entrevista,
+  viernes palabras, sábado escuchar; el domingo, lo que menos practicó en la semana. Después mira sus datos: su error más
+  repetido, la prueba de nivel del mes, y si dejó de escribir (4 días), de pronunciar (5) o de hacer simulacros (7). Si tiene
+  una entrevista en 7 días o menos, va primero: prepararla, o repasar su guion si es en 2 días o menos (aunque la guarde ese mismo día).
+  Debajo siguen escuchar, Mil palabras y el repaso. Cada pantalla anota lo que hizo en `activity` (70 días, va en la copia);
+  lo de antes de v46 se toma de su diario, sus grabaciones y sus simulacros.
+- **Resumen de la semana** (en «Esta semana»): cuántas veces practicó cada habilidad de lunes a domingo, comparado con la
+  semana anterior (▲▼), y una frase: en qué mejoró y qué le falta.
+- **Practicar un error** (`errorDrill` en `js/practicascreen.js`): decir bien la frase 2 veces (nota 80 o más) o marcar «Ya no me pasa».
+- **📄 Su oferta de trabajo** (`js/oferta.js`, `js/ofertascreen.js`): pega el aviso completo (hasta 12.000 letras, va entero a la IA)
+  y la fecha. La IA arma 10 preguntas probables de ese puesto, cada una con cómo empezar, la estructura (Qué · Y qué · Ahora qué,
+  Problema · Solución · Beneficio o 5 preguntas) y un ejemplo con traducción; 12 a 15 palabras del puesto (se llevan al repaso)
+  y 3 preguntas para hacerles a ellos. Se practican con «Responder en el momento» (se guarda su mejor respuesta y la versión
+  mejorada de la IA) y con un **simulacro solo de esa oferta**. Guarda hasta 10 ofertas.
+- **Mi guion**: para la noche antes. Por pregunta muestra su respuesta mejorada, o la suya, o el ejemplo marcado «cámbielo por
+  su historia»; más sus historias de la isla Entrevista, las palabras y sus preguntas para ellos. Se copia, se comparte o se imprime.
+
 ### Oírse, escribir y pronunciar claro (v45)
 Tres técnicas del cerebro que faltaban (`js/practica.js` el contenido, `js/practicascreen.js` las pantallas). Están en la
 portada, en el grupo nuevo «Oírse, escribir y pronunciar», y en Técnicas (ahora son 14).
