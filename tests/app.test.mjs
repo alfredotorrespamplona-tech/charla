@@ -2844,3 +2844,16 @@ test('v46.1 grabadora: lo que se graba no se bota (Listo, medidor en cero, silen
   assert.equal(r.text, 'I goed to the store yesterday.');
   assert.ok(r.whisper);
 });
+
+test('v48 computadora: el menú lateral tiene cada sección una vez y cada una abre una pantalla de la portada', async () => {
+  const N = await import('../js/sidenav.js');
+  assert.equal(new Set(N.SIDE_KEYS).size, N.SIDE_KEYS.length, 'sin repetidos');
+  assert.ok(N.SIDE_KEYS.length >= 18);
+  const fs = await import('node:fs');
+  const app = fs.readFileSync(join(ROOT, 'js', 'app.js'), 'utf8');
+  const body = app.slice(app.indexOf('function routes()'), app.indexOf('export function cover()'));
+  for (const key of N.SIDE_KEYS) assert.match(body, new RegExp(`\\n    ${key}: `), `routes() abre «${key}»`);
+  const css = fs.readFileSync(join(ROOT, 'styles.css'), 'utf8');
+  assert.match(css, /\.side-nav \{ display: none; \}/, 'en el teléfono no se ve');
+  assert.match(css, /body:has\(#app > \.convo\) \.side-nav/, 'se esconde durante una charla');
+});

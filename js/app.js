@@ -7,12 +7,13 @@ import { applyCast, castNames, roleLine } from './cast.js';
 import { checkForUpdate } from './update.js';
 import { levelStudy, levelContent } from './levelscreen.js';
 import { shortVersion } from './version.js';
+import { buildSideNav, markNav, SIDE_KEYS } from './sidenav.js';
 import { startConversation } from './conversation.js';
 import { chatJson, testConnection, hasAI, GROQ_MODELS, groqBlockedUntil, hourText } from './llm.js';
 import * as P from './prompts.js';
 import * as scoring from './scoring.js';
 import { addVocab, tierBadge, practiceVocab } from './words.js';
-import { speak, rankedVoices, voiceLabel, canListen, onVoicesChanged, checkVoice, IS_ANDROID, SEND_PAUSES, sendPauseMs } from './speech.js';
+import { speak, stopSpeaking, rankedVoices, voiceLabel, canListen, onVoicesChanged, checkVoice, IS_ANDROID, SEND_PAUSES, sendPauseMs } from './speech.js';
 import { dashboard } from './dashboard.js';
 import { milScreen, milOf } from './milscreen.js';
 import { quickCounts } from './mil.js';
@@ -88,9 +89,10 @@ function onboarding() {
 }
 
 // ---------------- Portada ----------------
-export function cover() {
-  if (!store.get().onboarded) return onboarding();
-  dashboard({
+// Las pantallas que abren la portada y el menú lateral de la computadora (sidenav.js). Las del menú quedan marcadas.
+function routes() {
+  const r = {
+    cover: () => cover(),
     map: home,
     resume: resumeDraft,
     review: () => startReview({ home: cover }),
@@ -124,8 +126,18 @@ export function cover() {
       nivel: () => nivelScreen({ home: cover }),
       listen2: () => escucharScreen({ home: cover }),
     }[key] || cover)(),
-  });
+  };
+  for (const key of SIDE_KEYS) { const open = r[key]; if (open) r[key] = (...a) => { markNav(key); return open(...a); }; }
+  return r;
 }
+
+export function cover() {
+  if (!store.get().onboarded) return onboarding();
+  ensureNav();
+  markNav('cover');
+  dashboard(routes());
+}
+const ensureNav = () => buildSideNav(routes(), { before: () => stopSpeaking(), version: shortVersion() });
 
 // Contenido de cada nivel (A1…C2). Los temas se charlan en la cafetería (con «una sola compañera», con Amy).
 function levelScreen(rank, back = home) {
@@ -1027,8 +1039,9 @@ export function boot() {
   try { localStorage.removeItem(AWAY_KEY); } catch {}
   const recent = away && Date.now() - away.at < RETURN_WINDOW_MS;
   const s = store.get();
+  if (s.onboarded) ensureNav();
   if (recent && away.screen === 'convo' && s.onboarded && s.draft) return resumeDraft(s.draft);
-  if (recent && away.screen === 'home' && s.onboarded) return home();
+  if (recent && away.screen === 'home' && s.onboarded) { markNav('map'); return home(); }
   if (recent && away.screen === 'mil' && s.onboarded) return milScreen({ home: cover });
   cover();
 }

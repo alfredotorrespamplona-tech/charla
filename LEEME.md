@@ -448,6 +448,14 @@ No hace falta volver a instalar el APK.
   siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
   ejercicio del taller o no cierran la despedida.
 
+### Versión para computadora (v48)
+- En pantallas de 1024 px o más: **menú lateral fijo** (`js/sidenav.js`) con todas las secciones de la portada, marcando la
+  abierta; se esconde durante una charla, un simulacro y la bienvenida. Las pantallas se ensanchan a 880 px y la portada a
+  1180 px: saludo y números en una franja, el plan de hoy a la izquierda, la palabra del día y la semana a la derecha, y las
+  tarjetas de a 4. Entre 720 y 1023 px (tableta) la app se ensancha a 720 px. En el teléfono no cambia nada.
+- Las rutas de la portada y del menú son las mismas (`routes()` en `js/app.js`).
+- Para instalarla en la computadora: Chrome o Edge → ícono de instalar en la barra de direcciones.
+
 ### Arreglo de la voz con Whisper (v47)
 - «Aparece grabando pero no sale el texto»: la grabadora de Whisper (`js/whisper.js`) botaba el audio si el medidor de
   volumen no notaba su voz (voz bajita, o el medidor en cero en algunos Android). Ahora: el medidor se crea en el mismo
