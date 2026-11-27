@@ -1012,3 +1012,7 @@ button.recording { background: var(--brand-700, var(--brand)); color: #fff; }
 .guion-answer { margin: 2px 0; line-height: 1.55; }
 .err-reps { font-size: 1.05rem; letter-spacing: 2px; margin: 8px 0; }
 @media print { .topbar, .no-print, .tiny, button { display: none !important; } .screen { padding: 0; } .card { break-inside: avoid; box-shadow: none; } body { background: #fff; color: #000; } }
+
+/* v46.1: lo que dijo, a la vista */
+.said-card { border-left: 3px solid var(--brand); }
+.said-card p { margin: 4px 0 0; font-size: 1.05rem; }

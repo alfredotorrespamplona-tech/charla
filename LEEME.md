@@ -448,6 +448,13 @@ No hace falta volver a instalar el APK.
   siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
   ejercicio del taller o no cierran la despedida.
 
+### Arreglo de la voz con Whisper (v47)
+- «Aparece grabando pero no sale el texto»: la grabadora de Whisper (`js/whisper.js`) botaba el audio si el medidor de
+  volumen no notaba su voz (voz bajita, o el medidor en cero en algunos Android). Ahora: el medidor se crea en el mismo
+  toque (si no, Android lo deja en pausa); si mide cero, graba hasta que toque ⏹; al tocar ⏹ siempre se pasa a texto;
+  y el umbral de voz bajó a 0,008. El silencio de verdad sigue sin mandarse a Groq.
+- En «Responder en el momento» lo que dijo sale a la vista («🗣 Usted dijo»), no escondido en «Lo que se le entendió».
+
 ### Plan de hoy que se arma solo y su oferta de trabajo (v46)
 - **Plan de hoy inteligente** (`js/coach.js`): cada día elige 1 o 2 tareas, una sola vez al día (al hacerlas se marcan, no
   desaparecen). Cada día de la semana tiene un foco: lunes pronunciar, martes escribir, miércoles hablar, jueves entrevista,

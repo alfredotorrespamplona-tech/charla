@@ -2257,7 +2257,7 @@ test('whisper: limpia el texto, quita las frases fantasma y mide el volumen', as
   assert.equal(W.cleanTranscript('Thank you.', 4000), 'Thank you.', 'si habló de verdad, cuenta');
   assert.equal(W.rms(new Float32Array([0, 0, 0])), 0);
   assert.ok(Math.abs(W.rms(new Float32Array([0.5, -0.5])) - 0.5) < 1e-9);
-  assert.equal(W.speechThreshold(0), 0.012);
+  assert.equal(W.speechThreshold(0), 0.008);
   assert.equal(W.speechThreshold(0.02), 0.06);
   assert.equal(W.speechThreshold(0.3), 0.06, 'si ya estaba hablando al empezar, el umbral no sube tanto');
   assert.deepEqual(W.pickMime(t => t === 'audio/mp4'), { type: 'audio/mp4', ext: 'm4a' });
@@ -2609,8 +2609,8 @@ test('v45 grabarse: temas propios, se guardan la primera y las últimas 4, y se 
 test('v45 grabadora: puede devolver el audio y grabar sin pasar a texto', async () => {
   const src = (await import('node:fs')).readFileSync(join(ROOT, 'js', 'whisper.js'), 'utf8');
   assert.match(src, /keepAudio = false, transcribeAudio = true, maxMs = MAX_MS/);
-  assert.match(src, /if \(!transcribeAudio\) return resolve\(\{ text: '', durationMs: speechMs, \.\.\.kept \}\)/);
-  assert.match(src, /if \(keepAudio\) resolve\(\{ text: '', durationMs: speechMs, error: e\.message, \.\.\.kept \}\)/, 'si Groq falla, la grabación no se pierde');
+  assert.match(src, /if \(!transcribeAudio\) return resolve\(\{ text: '', durationMs: plan\.durationMs, \.\.\.kept \}\)/);
+  assert.match(src, /if \(keepAudio\) resolve\(\{ text: '', durationMs: plan\.durationMs, error: e\.message, \.\.\.kept \}\)/, 'si Groq falla, la grabación no se pierde');
 });
 
 test('v46 actividad: se registra por día, guarda 70 días y sabe cuántos días pasaron', async () => {
@@ -2767,4 +2767,80 @@ test('v46 plan de hoy: una oferta guardada hoy con entrevista cercana entra al p
   const after = C.todayTasks(now, {});
   assert.deepEqual(after.map(t => t.key), ['offer', ...first.map(t => t.key)].slice(0, 3));
   assert.deepEqual(C.todayTasks(now, {}), after, 'no se repite');
+});
+
+// v46.1: «aparece grabando pero no sale el texto». Micrófono falso para probar la grabadora de Whisper.
+function fakeMic(levelAt) {
+  const t0 = performance.now();
+  class Rec {
+    constructor() { this.state = 'inactive'; }
+    start() { this.state = 'recording'; this.iv = setInterval(() => this.ondataavailable?.({ data: new Blob(['x']) }), 20); }
+    stop() { clearInterval(this.iv); this.ondataavailable?.({ data: new Blob(['x']) }); this.state = 'inactive'; setTimeout(() => this.onstop?.(), 5); }
+  }
+  class AC {
+    constructor() { this.state = 'running'; }
+    resume() { return Promise.resolve(); }
+    close() {}
+    createAnalyser() { return { fftSize: 0, getFloatTimeDomainData: buf => buf.fill(levelAt(performance.now() - t0)) }; }
+    createMediaStreamSource() { return { connect() {} }; }
+  }
+  const sent = [];
+  return {
+    sent,
+    deps: {
+      getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }),
+      MediaRecorder: Rec, AudioContext: AC, isTypeSupported: () => true, tickMs: 10,
+      transcribe: async blob => { sent.push(blob.size); return 'I goed to the store yesterday.'; },
+    },
+  };
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+test('v46.1 grabadora: lo que se graba no se bota (Listo, medidor en cero, silencio de verdad)', async () => {
+  const W = await import('../js/whisper.js');
+  // Reglas: con voz notada se manda; sin notarla, solo si tocó Listo, el medidor no oye o hubo algo de sonido.
+  assert.equal(W.afterRecording({ chunks: 3, heard: true, speechMs: 2000 }).send, true);
+  assert.equal(W.afterRecording({ chunks: 3, manual: true, recordedMs: 4000 }).send, true, 'tocó Listo: se pasa a texto');
+  assert.equal(W.afterRecording({ chunks: 3, deaf: true, recordedMs: 4000 }).send, true);
+  assert.equal(W.afterRecording({ chunks: 3, maxLevel: 0.001, recordedMs: 20000 }).send, false, 'silencio de verdad: no gasta Groq');
+  assert.equal(W.afterRecording({ chunks: 3, manual: true, recordedMs: 200 }).send, false, 'un toque sin querer');
+  assert.equal(W.afterRecording({ chunks: 3, heard: true, aborted: true }).send, false);
+  assert.equal(W.afterRecording({ chunks: 3, manual: true, recordedMs: 4000 }).ghostMs, 1000, 'las frases fantasma se quitan igual');
+
+  // 1) Voz bajita que el medidor no alcanza a notar, y toca «Listo»: antes salía vacío.
+  let mic = fakeMic(() => 0.004);
+  let L = new W.WhisperListener(mic.deps);
+  let p = L.start({ firstWordMs: 5000, pauseMs: 200 });
+  await wait(700); L.stop();
+  let r = await p;
+  assert.equal(r.text, 'I goed to the store yesterday.');
+  assert.ok(r.durationMs >= 600);
+  assert.equal(mic.sent.length, 1);
+
+  // 2) Medidor que mide cero (Android): avisa que toque Listo, no se corta solo y al tocar Listo sale el texto.
+  mic = fakeMic(() => 0);
+  L = new W.WhisperListener(mic.deps);
+  const msgs = [];
+  p = L.start({ firstWordMs: 300, pauseMs: 200, onInterim: m => msgs.push(m) });
+  await wait(W.DEAF_MS + 300);
+  assert.ok(L.active, 'no se cortó a los 300 ms aunque el medidor no oyó nada');
+  const last = msgs.at(-1);
+  L.stop();
+  assert.match(last, /toque ⏹ \(o el micrófono\) cuando termine/);
+  r = await p;
+  assert.equal(r.text, 'I goed to the store yesterday.');
+
+  // 3) Silencio de verdad (algo de ruido, nada de voz) y nadie toca: no se manda a Groq.
+  mic = fakeMic(() => 0.001);
+  L = new W.WhisperListener(mic.deps);
+  r = await L.start({ firstWordMs: 300, pauseMs: 200 });
+  assert.deepEqual(r, { text: '', durationMs: 0 });
+  assert.equal(mic.sent.length, 0);
+
+  // 4) Lo normal: habla (volumen alto), se calla y se pasa a texto solo.
+  mic = fakeMic(ms => (ms > 50 && ms < 400 ? 0.1 : 0.001));
+  L = new W.WhisperListener(mic.deps);
+  r = await L.start({ firstWordMs: 5000, pauseMs: 200 });
+  assert.equal(r.text, 'I goed to the store yesterday.');
+  assert.ok(r.whisper);
 });

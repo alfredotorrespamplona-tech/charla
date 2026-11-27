@@ -39,7 +39,8 @@ export function whisperStatus(st = store.get(), now = Date.now(), recordable = c
 }
 
 // El audio más cómodo que sepa grabar este navegador (Groq acepta webm, mp4, ogg…).
-export function pickMime(isOk = t => globalThis.MediaRecorder?.isTypeSupported?.(t)) {
+export function pickMime(isOk) {
+  isOk = isOk || (t => globalThis.MediaRecorder?.isTypeSupported?.(t));
   for (const [type, ext] of [['audio/webm;codecs=opus', 'webm'], ['audio/webm', 'webm'], ['audio/mp4', 'm4a'], ['audio/ogg;codecs=opus', 'ogg']])
     if (isOk(type)) return { type, ext };
   return { type: '', ext: 'webm' };
@@ -63,7 +64,7 @@ export function rms(buf) {
 // Umbral de voz según el ruido del lugar. El ruido de un cuarto no pasa de ~0.02: si mide más es que ya estaba
 // hablando, así que el umbral nunca sube tanto como para no oír su voz.
 export const NOISE_CAP = 0.02;
-export const speechThreshold = floor => Math.max(0.012, Math.min(floor, NOISE_CAP) * 3);
+export const speechThreshold = floor => Math.max(0.008, Math.min(floor, NOISE_CAP) * 3);   // 0,008: con la supresión de ruido de Android la voz llega bajita
 
 const BARS = '▁▂▃▄▅▆▇';
 const meter = level => BARS[Math.min(BARS.length - 1, Math.floor(level * 60))];
@@ -119,36 +120,66 @@ export async function transcribe(blob, { lang = 'en-US', ext = 'webm', fetchFn =
 // Mientras graba, onInterim muestra el tiempo y el volumen (el texto llega al terminar).
 // «Grabarse y compararse» (v45) pide además el audio: keepAudio devuelve { audio, recordedMs }, y con
 // transcribeAudio: false solo graba (sin clave de Groq no hay texto, pero se puede oír igual).
+// v46.1: lo grabado no se bota. Si toca «Listo» se pasa a texto aunque el medidor no haya notado su voz,
+// y si el medidor no oye nada (en algunos Android queda en cero) graba hasta que toque «Listo».
+export const DEAF_MS = 1500;          // si en 1,5 s el medidor no marcó nada de nada, no sirve: se ignora
+export const DEAF_LEVEL = 0.0005;
+export const HEARD_LEVEL = 0.003;     // algo de sonido hubo (para no mandar a Groq un audio mudo)
+
+// Qué hacer con lo grabado al terminar. heard = el medidor notó su voz; manual = tocó «Listo».
+export function afterRecording({ aborted = false, chunks = 0, heard = false, manual = false, deaf = false, maxLevel = 0, recordedMs = 0, speechMs = 0 } = {}) {
+  if (aborted || !chunks) return { send: false };
+  if (heard) return { send: true, durationMs: speechMs, ghostMs: speechMs };
+  // No notó su voz: si tocó «Listo», si el medidor está sordo o si hubo algo de sonido, se manda igual
+  // (Whisper dirá si había palabras; las frases fantasma de un audio vacío se quitan).
+  if (recordedMs >= 600 && (manual || deaf || maxLevel >= HEARD_LEVEL)) return { send: true, durationMs: recordedMs, ghostMs: 1000 };
+  return { send: false };
+}
+
 export class WhisperListener {
-  constructor() { this.active = false; this.end = null; this.cancel = null; }
+  // deps (para las pruebas): getUserMedia, MediaRecorder, AudioContext, transcribe, isTypeSupported, tickMs.
+  constructor(deps = {}) {
+    this.deps = deps;
+    this.active = false; this.end = null; this.cancel = null;
+  }
 
   start({ lang = 'en-US', onInterim, firstWordMs = 20000, pauseMs = 3000, keepAudio = false, transcribeAudio = true, maxMs = MAX_MS } = {}) {
+    const d = this.deps;
+    const getUserMedia = d.getUserMedia || (c => nav.mediaDevices.getUserMedia(c));
+    const Recorder = d.MediaRecorder || globalThis.MediaRecorder;
+    const AC = 'AudioContext' in d ? d.AudioContext : (globalThis.AudioContext || globalThis.webkitAudioContext);
+    const toText = d.transcribe || transcribe;
+    const tick = d.tickMs || TICK_MS;
     return new Promise((resolve, reject) => {
-      let stream = null, ctx = null, rec = null, timer = null, done = false, aborted = false;
-      let floor = 0, calib = 0, calibN = 0, run = 0, firstSpeechAt = 0, lastSpeechAt = 0;
+      let stream = null, ctx = null, rec = null, timer = null, done = false, aborted = false, manual = false, deaf = false;
+      let floor = 0, calib = 0, calibN = 0, run = 0, firstSpeechAt = 0, lastSpeechAt = 0, maxLevel = 0;
       const chunks = [];
       const startedAt = performance.now();
-      const mime = pickMime();
+      const mime = pickMime(d.isTypeSupported);
+      // El medidor de volumen se crea ya, en el mismo toque: si se crea después, Android lo deja en pausa y mide cero.
+      try { if (AC) { ctx = new AC(); ctx.resume?.()?.catch?.(() => {}); } } catch { ctx = null; }
       const release = () => {
         clearInterval(timer);
         try { stream?.getTracks().forEach(t => t.stop()); } catch {}
-        try { ctx?.close(); } catch {}
+        try { ctx?.close?.(); } catch {}
         this.active = false; this.end = null; this.cancel = null;
       };
       const fail = err => { if (done) return; done = true; release(); reject(err); };
       const finish = async () => {
         release();
+        const recordedMs = Math.round(performance.now() - startedAt);
         const speechMs = firstSpeechAt ? Math.max(500, lastSpeechAt - firstSpeechAt + 600) : 0;
-        if (aborted || !firstSpeechAt || !chunks.length) return resolve({ text: '', durationMs: 0 });
+        const plan = afterRecording({ aborted, chunks: chunks.length, heard: !!firstSpeechAt, manual, deaf, maxLevel, recordedMs, speechMs });
+        if (!plan.send) return resolve({ text: '', durationMs: 0 });
         const blob = new Blob(chunks, { type: mime.type || 'audio/webm' });
-        const kept = keepAudio ? { audio: blob, recordedMs: Math.round(performance.now() - startedAt), speechMs } : {};
-        if (!transcribeAudio) return resolve({ text: '', durationMs: speechMs, ...kept });
+        const kept = keepAudio ? { audio: blob, recordedMs, speechMs: plan.durationMs } : {};
+        if (!transcribeAudio) return resolve({ text: '', durationMs: plan.durationMs, ...kept });
         onInterim?.('⏳ Pasando su voz a texto…');
         try {
-          const text = cleanTranscript(await transcribe(blob, { lang, ext: mime.ext }), speechMs);
-          resolve({ text, durationMs: text ? speechMs : 0, whisper: true, ...kept });
+          const text = cleanTranscript(await toText(blob, { lang, ext: mime.ext }), plan.ghostMs);
+          resolve({ text, durationMs: text ? plan.durationMs : 0, whisper: true, ...kept });
         } catch (e) {
-          if (keepAudio) resolve({ text: '', durationMs: speechMs, error: e.message, ...kept });   // la grabación no se pierde
+          if (keepAudio) resolve({ text: '', durationMs: plan.durationMs, error: e.message, ...kept });   // la grabación no se pierde
           else reject(e);
         }
       };
@@ -159,40 +190,50 @@ export class WhisperListener {
         if (rec && rec.state !== 'inactive') { rec.onstop = finish; try { rec.stop(); } catch { finish(); } }
         else finish();
       };
-      this.end = () => close();
+      this.end = () => { manual = true; close(); };
       this.cancel = () => { aborted = true; close(); };
       this.active = true;
 
-      nav.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).then(s => {
+      getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).then(s => {
         stream = s;
         if (done) { release(); return; }
-        rec = new MediaRecorder(s, mime.type ? { mimeType: mime.type } : undefined);
+        rec = new Recorder(s, mime.type ? { mimeType: mime.type } : undefined);
         rec.ondataavailable = e => { if (e.data?.size) chunks.push(e.data); };
         rec.start(250);
-        const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
         let an = null, buf = null;
-        if (AC) {
-          ctx = new AC();
-          an = ctx.createAnalyser();
-          an.fftSize = 1024;
-          buf = new Float32Array(an.fftSize);
-          ctx.createMediaStreamSource(s).connect(an);
+        if (ctx) {
+          try {
+            if (ctx.state === 'suspended') ctx.resume?.()?.catch?.(() => {});
+            an = ctx.createAnalyser();
+            an.fftSize = 1024;
+            buf = new Float32Array(an.fftSize);
+            ctx.createMediaStreamSource(s).connect(an);
+          } catch { an = null; }
         }
+        if (!an) deaf = true;
         timer = setInterval(() => {
           const now = performance.now(), el = now - startedAt;
-          let level = 0.05;
+          let level = 0;
           if (an) { an.getFloatTimeDomainData(buf); level = rms(buf); }
+          if (level > maxLevel) maxLevel = level;
+          // Medidor en cero todo el rato: no oye (pasa en algunos Android). Se graba hasta que toque «Listo».
+          if (an && !deaf && !firstSpeechAt && el > DEAF_MS && maxLevel < DEAF_LEVEL) deaf = true;
+          if (deaf) {
+            onInterim?.(`🎤 Grabando ${clock(el)}  ·  hable y toque ⏹ (o el micrófono) cuando termine`);
+            if (el > maxMs) close();
+            return;
+          }
           // Los primeros instantes miden el ruido del lugar (solo lo que suena a ruido, no su voz).
-          if (an && el < CALIBRATE_MS && level < NOISE_CAP) { calib += level; calibN++; floor = calib / calibN; }
-          if (!an || level > speechThreshold(floor)) {
-            if (++run >= SPEECH_FRAMES && !firstSpeechAt) firstSpeechAt = now - SPEECH_FRAMES * TICK_MS;
+          if (el < CALIBRATE_MS && level < NOISE_CAP) { calib += level; calibN++; floor = calib / calibN; }
+          if (level > speechThreshold(floor)) {
+            if (++run >= SPEECH_FRAMES && !firstSpeechAt) firstSpeechAt = now - SPEECH_FRAMES * tick;
             if (run >= SPEECH_FRAMES || firstSpeechAt) lastSpeechAt = now;
           } else run = 0;
-          onInterim?.(`🎤 Grabando ${clock(el)} ${meter(level)}  ·  ${firstSpeechAt ? 'al callarse se pasa a texto (o toque el micrófono)' : 'hable cuando quiera'}`);
+          onInterim?.(`🎤 Grabando ${clock(el)} ${meter(level)}  ·  ${firstSpeechAt ? 'al callarse se pasa a texto (o toque ⏹)' : 'hable cuando quiera y toque ⏹ al terminar'}`);
           if (el > maxMs) close();
           else if (firstSpeechAt && now - lastSpeechAt > pauseMs) close();
-          else if (!firstSpeechAt && el > firstWordMs) close();
-        }, TICK_MS);
+          else if (!firstSpeechAt && el > firstWordMs) { if (maxLevel < DEAF_LEVEL) deaf = true; else close(); }
+        }, tick);
       }).catch(e => fail(new Error(e?.name === 'NotAllowedError' ? 'Permiso de micrófono denegado. Actívelo en el candado de la barra de dirección.'
         : e?.name === 'NotFoundError' ? 'No se encontró micrófono, o lo está usando otra app.' : 'No se pudo abrir el micrófono: ' + (e?.message || e))));
     });

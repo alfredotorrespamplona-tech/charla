@@ -606,7 +606,7 @@ function runJam(topic, back) {
         r.mic ? h('p.muted', {}, `${r.stats.words} palabras · ${r.stats.pauses} ${r.stats.pauses === 1 ? 'pausa' : 'pausas'} de más de 3 s${r.stats.fillers ? ` · ${r.stats.fillers} ${r.stats.fillers === 1 ? 'muletilla' : 'muletillas'}` : ''}`) : null,
         n > 0 && r.mic && rounds[0].mic ? h('p', { class: r.stats.wpm >= rounds[0].stats.wpm ? 'good' : 'muted' },
           r.stats.wpm >= rounds[0].stats.wpm ? `Más fluido que en la ronda 1 (${rounds[0].stats.wpm}).` : `En la ronda 1 fueron ${rounds[0].stats.wpm}: con las notas ordene y estire las ideas.`) : null),
-      r.text ? h('details.card', {}, h('summary', {}, 'Lo que se le entendió'), h('p.muted', {}, r.text)) : null,
+      r.text ? h('div.card.said-card', {}, h('small.muted', {}, '🗣 Lo que se le entendió'), h('p', {}, r.text)) : null,
       n === 0 ? h('p', {}, 'Ahora anote 3 o 4 ideas clave de lo que dijo (o quiso decir). Con eso hará la ronda 2.') : null,
       !last ? h('button.primary.wide', { onclick: () => round(n + 1, !r.mic) }, `Seguir: ${X.JAM_ROUNDS[n + 1].name}`) : h('button.primary.wide', { onclick: () => finish() }, 'Ver resultado'),
       h('button.wide', { onclick: () => round(n, !r.mic) }, 'Repetir esta ronda'));
@@ -1228,6 +1228,8 @@ export function runResponder(items, back, { title = '🎯 Responder en el moment
       topbar(title, leave, '✕'),
       progressBar((i + 1) / items.length),
       h('div.card.tec-topic', {}, h('small.muted', {}, 'Le preguntaron'), h('b', {}, item.q)),
+      // Lo que dijo, a la vista (antes quedaba escondido en «Lo que se le entendió» y parecía que no salía nada).
+      text ? h('div.card.said-card', {}, h('small.muted', {}, '🗣 Usted dijo'), h('p', {}, `«${text}»`)) : null,
       text ? h('div.card', {},
         h('div.big-score', {}, `${Math.round(c.score * 5)}/5`),
         h('p', {}, check(c.stole), 'Empezó con las palabras de la pregunta'),
@@ -1235,7 +1237,6 @@ export function runResponder(items, back, { title = '🎯 Responder en el moment
         h('p', {}, check(c.short), `Corta y clara (${c.words} palabras)`),
         c.fillers ? h('p.muted', {}, `${c.fillers} ${c.fillers === 1 ? 'muletilla' : 'muletillas'} (um, eh…): en su lugar use una frase para pensar.`) : null,
         h('p', { class: c.score >= 0.8 ? 'good' : '' }, '💡 ', c.tip),
-        h('details', {}, h('summary', {}, 'Lo que se le entendió'), h('p.muted', {}, text)),
         h('small.muted', {}, 'Revisión del teléfono, sin IA: mira la forma de la respuesta, no la gramática.')) : null,
       h('div.card', {}, h('b', {}, 'Una forma de decirlo'),
         h('p', {}, listen(item.model), ' ', item.model, h('br'), h('small.muted', {}, item.modelEs)),
