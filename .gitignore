@@ -29,3 +29,6 @@ android/*.keystore
 *.apk
 *.aab
 *.idsig
+
+# Netlify (sitio conectado a esta carpeta)
+.netlify/

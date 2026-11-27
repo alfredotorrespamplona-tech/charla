@@ -392,12 +392,11 @@ node --test
 ```
 
 ## Ponerla en el celular (gratis)
-Está publicada en **https://alfredotorrespamplona-tech.github.io/charla/** (GitHub Pages; repositorio
-https://github.com/alfredotorrespamplona-tech/charla). Hay dos formas de tenerla en el teléfono:
+Está publicada en **https://charla-ingles.netlify.app** (Netlify, desde v49; antes estaba en GitHub Pages).
+El código se guarda en GitHub como respaldo (repositorio privado). Hay dos formas de tenerla en el teléfono:
 
 **A. Como app de Android (APK)**
-1. En el teléfono abra https://github.com/alfredotorrespamplona-tech/charla/releases y descargue
-   `Charla.apk` de la última versión.
+1. En el teléfono abra https://charla-ingles.netlify.app/Charla.apk y descárguelo.
 2. Ábralo. Android le pedirá permitir «instalar apps de origen desconocido» para Chrome (o el
    administrador de archivos): acéptelo solo para esto.
 3. La app abre la página publicada con el motor de Chrome, a pantalla completa: micrófono, voz y
@@ -414,7 +413,7 @@ No hace falta volver a instalar el APK.
 
 ### Cómo está hecho el APK
 - `android/` es una *Trusted Web Activity* generada con Bubblewrap (`android/twa-manifest.json`):
-  una app mínima que abre la página en Chrome. No es una copia de la app: el contenido viene de Pages.
+  una app mínima que abre la página en Chrome. No es una copia de la app: el contenido viene de Netlify.
 - Compilarlo otra vez (Java 17 y el SDK de Android ya están en este PC), desde `charla/android`:
   ```powershell
   $env:JAVA_HOME = "C:\Program Files\Java\jdk-17"; .\gradlew.bat assembleDebug
@@ -422,9 +421,18 @@ No hace falta volver a instalar el APK.
   Queda en `android/app/build/outputs/apk/debug/app-debug.apk`.
 - Está firmado con la llave de depuración de este PC (`%USERPROFILE%\.android\debug.keystore`). Sirve
   para instalarlo usted, no para la Play Store. Si compila en otro PC o crea una llave propia, cambie la
-  huella en `android/assetlinks.json` y en el repositorio `alfredotorrespamplona-tech.github.io`
-  (archivo `.well-known/assetlinks.json`), que es lo que le dice a Android que la app y la página son
-  del mismo dueño.
+  huella en `android/assetlinks.json` y en `.well-known/assetlinks.json` (se publica en Netlify), que es
+  lo que le dice a Android que la app y la página son del mismo dueño.
+- Después de compilar, copie el APK a `charla/Charla.apk`: `herramientas/netlify.ps1` lo publica para descargarlo.
+
+### Publicar (Netlify)
+- `herramientas\publicar.ps1` (pruebas → versión → revisión de claves → commit) llama a `herramientas\netlify.ps1`,
+  que arma una carpeta solo con la app (sin pruebas, herramientas ni `android/`) y la sube al sitio `charla-ingles`
+  (la carpeta está conectada en `.netlify/state.json`, fuera de git). Después guarda el código en GitHub si hay remoto.
+- La primera vez en un PC nuevo: `npx netlify-cli login` y `npx netlify-cli link` (desde `charla`).
+- El sitio tiene apagado el candado de Netlify (inicio de sesión del equipo): la página es pública para quien tenga el link.
+- Al cambiar de dirección, el avance guardado en el teléfono no pasa solo (se guarda por dirección): se lleva con
+  Ajustes → copia de seguridad (exportar en la vieja, importar en la nueva).
 
 ## La IA: Groq primero, DeepSeek de respaldo (v39)
 - **Ajustes → 🤖 Inteligencia artificial** tiene dos claves: **Groq** (gratis, se saca en console.groq.com) y

@@ -9,7 +9,8 @@
 #   3. Sube el número de CACHE en sw.js para que los teléfonos descarguen la versión nueva.
 #   4. Revisa que ningún archivo tenga una clave de IA (sk-... de DeepSeek o gsk_... de Groq).
 #   5. Guarda la versión en git (commit).
-#   6. La sube a GitHub solo si el repositorio ya está conectado (git remote); si no, lo avisa.
+#   6. La publica en Netlify (herramientas\netlify.ps1): https://charla-ingles.netlify.app
+#   7. Guarda una copia del código en GitHub (repositorio privado) si está conectado.
 param(
   [string]$Cerebro = 'C:\Users\leoab\Documents\ingles cerebro',
   [string]$Mensaje = '',
@@ -78,15 +79,16 @@ git add -A
 git commit -m $Mensaje
 if ($LASTEXITCODE -ne 0) { Stop-Publicar 'git commit fallo.' }
 
-# 6. Subir
+# 6. Publicar en Netlify (la página que abren el teléfono y la computadora)
+powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'netlify.ps1')
+if ($LASTEXITCODE -ne 0) { Stop-Publicar 'No se pudo publicar en Netlify (la version quedo guardada en este PC).' }
+
+# 7. Copia del código en GitHub (privado)
 $remoto = git remote
-if (-not $remoto) {
-  Write-Host ''
-  Write-Host 'Version guardada en este PC. GitHub todavia no esta conectado, asi que no se subio.' -ForegroundColor Yellow
-  exit 0
+if ($remoto) {
+  Write-Paso 'Guardando copia del codigo en GitHub'
+  git push
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Aviso: git push fallo; la app ya esta publicada en Netlify.' -ForegroundColor Yellow }
 }
-Write-Paso 'Subiendo a GitHub'
-git push
-if ($LASTEXITCODE -ne 0) { Stop-Publicar 'git push fallo (revise la conexion o el inicio de sesion de GitHub).' }
 Write-Host ''
-Write-Host 'Listo. GitHub Pages tarda 1 o 2 minutos; luego abra la app en el telefono y se actualiza sola.' -ForegroundColor Green
+Write-Host 'Listo: https://charla-ingles.netlify.app (abra la app y se actualiza sola).' -ForegroundColor Green
