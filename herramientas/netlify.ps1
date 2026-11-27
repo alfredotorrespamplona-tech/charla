@@ -40,7 +40,7 @@ if (-not (Test-Path '.netlify\state.json')) {
 
 Write-Host ''
 Write-Host '== Subiendo a Netlify' -ForegroundColor Cyan
-npx -y netlify-cli@17 deploy --prod --dir $out --message (git log -1 --format=%s)
+npx -y netlify-cli@17 deploy --prod --dir $out --functions netlify/functions --message (git log -1 --format=%s)
 if ($LASTEXITCODE -ne 0) { Write-Host 'ALTO: Netlify no acepto la subida.' -ForegroundColor Red; exit 1 }
 Write-Host ''
 Write-Host 'Listo en Netlify: abra la app y se actualiza sola.' -ForegroundColor Green

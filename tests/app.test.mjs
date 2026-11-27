@@ -2857,3 +2857,108 @@ test('v48 computadora: el menú lateral tiene cada sección una vez y cada una a
   assert.match(css, /\.side-nav \{ display: none; \}/, 'en el teléfono no se ve');
   assert.match(css, /body:has\(#app > \.convo\) \.side-nav/, 'se esconde durante una charla');
 });
+
+// v50: sincronizar teléfono y computadora. Un «servidor» en memoria con la misma lógica que la función de Netlify.
+async function fakeCloud() {
+  const core = await import('../netlify/sync-core.mjs');
+  const blobs = new Map();
+  const store = { get: async k => (blobs.has(k) ? structuredClone(blobs.get(k)) : null), set: async (k, v) => { blobs.set(k, structuredClone(v)); }, del: async k => { blobs.delete(k); } };
+  const fetchFn = async (url, opts) => core.handle(new Request('https://charla.test' + url, opts), store);
+  return { core, blobs, store, fetchFn };
+}
+
+test('v50 nube: código válido, guarda bajo un hash, no pisa cambios ajenos y nunca guarda claves', async () => {
+  const { core, blobs, store } = await fakeCloud();
+  const req = (code, body, method = 'POST') => new Request('https://x/api/sync', { method, headers: { 'x-sync-code': code }, body: method === 'POST' ? JSON.stringify(body) : undefined });
+  const code = 'ABCD-EFGH-JKLM-NPQR';
+  assert.equal((await core.handle(req('abc', { op: 'get' }), store)).status, 400, 'código mal formado');
+  assert.equal((await core.handle(req('ABCD-EFGH-JKLM-NPQ0', { op: 'get' }), store)).status, 400, 'sin 0 ni O');
+  assert.equal((await core.handle(new Request('https://x/api/sync'), store)).status, 405);
+  let r = await (await core.handle(req(code, { op: 'get' }), store)).json();
+  assert.deepEqual([r.rev, r.data], [0, null]);
+  const data = { settings: { groqKey: 'gsk_prueba', apiKey: 'sk-prueba', targetLang: 'en-US' }, points: 5 };
+  r = await (await core.handle(req(code, { op: 'put', base: 0, data, device: 'teléfono' }), store)).json();
+  assert.equal(r.rev, 1);
+  const [key] = blobs.keys();
+  assert.match(key, /^[0-9a-f]{64}$/, 'se guarda bajo el SHA-256, no el código');
+  assert.ok(!key.includes('ABCD'));
+  assert.deepEqual([blobs.get(key).data.settings.groqKey, blobs.get(key).data.settings.apiKey], ['', ''], 'nunca claves en la nube');
+  const stale = await core.handle(req(code, { op: 'put', base: 0, data }), store);
+  assert.equal(stale.status, 409, 'otro aparato ya guardó: no se pisa');
+  assert.equal((await core.handle(req(code, { op: 'put', base: 0, force: true, data }), store)).status, 200, 'con force (eligió este aparato) sí');
+  assert.equal((await core.handle(req(code, { op: 'put', base: 2, data: { nada: 1 } }), store)).status, 400, 'solo avances de Charla');
+  await core.handle(req(code, { op: 'delete' }), store);
+  assert.equal(blobs.size, 0);
+});
+
+test('v50 código: 16 letras y números sin los que se confunden; se acepta escrito de cualquier forma', async () => {
+  const S = await import('../js/sync.js');
+  const { core } = await fakeCloud();
+  for (let i = 0; i < 50; i++) assert.match(S.newCode(), core.CODE_RE);
+  assert.equal(S.normalizeCode(' abcd efgh-jklm npqr '), 'ABCD-EFGH-JKLM-NPQR');
+  assert.equal(S.normalizeCode('ABCD-EFGH-JKLM-NPQ1'), '', 'el 1 no existe en los códigos');
+  assert.equal(S.normalizeCode('ABCD-EFGH-JKLM'), '');
+  assert.equal(S.deviceName('Mozilla/5.0 (Linux; Android 14) Mobile'), 'teléfono');
+  assert.equal(S.deviceName('Mozilla/5.0 (Windows NT 10.0; Win64; x64)'), 'computadora');
+});
+
+test('v50 sincronizar: crear en un aparato, unir el otro, subir, traer y elegir cuando cambiaron los dos', async () => {
+  const S = await import('../js/sync.js');
+  const { fetchFn, blobs } = await fakeCloud();
+  S._setFetch(fetchFn);
+  S.leave();
+  // Aparato A (teléfono): tiene su avance y su clave.
+  store.update(s => { s.name = 'Leo'; s.points = 40; s.settings.groqKey = 'gsk_telefono'; s.settings.voiceURI = 'voz-telefono'; });
+  const code = await S.create();
+  assert.ok(S.isOn());
+  const saved = [...blobs.values()][0];
+  assert.equal(saved.data.name, 'Leo');
+  assert.ok(!('groqKey' in saved.data.settings) || saved.data.settings.groqKey === '', 'la clave no sube');
+  assert.ok(!('voiceURI' in saved.data.settings), 'la voz es de cada aparato');
+  const metaA = S.meta();
+
+  // Aparato B (computadora): empieza vacío, con su propia clave y voz.
+  store.reset(); S.leave();
+  store.update(s => { s.settings.groqKey = 'gsk_compu'; s.settings.voiceURI = 'voz-compu'; });
+  await assert.rejects(S.join('ABCD-EFGH-JKLM-NPQR'), /no tiene nada guardado/);
+  await S.join(code.toLowerCase().replace(/-/g, ' '));
+  assert.deepEqual([store.get().name, store.get().points, store.get().settings.groqKey, store.get().settings.voiceURI], ['Leo', 40, 'gsk_compu', 'voz-compu']);
+  // B practica: se marca y se sube.
+  let saves = 0; const off = store.onSave(() => saves++);
+  store.update(s => { s.points = 55; });
+  off();
+  assert.equal(saves, 1, 'cada guardado avisa');
+  S.markChanged(60000);
+  assert.equal(S.meta().dirty, true);
+  assert.equal(await S.syncNow(), 'subido');
+  assert.equal(S.meta().dirty, false);
+  assert.equal(await S.syncNow(), 'al día');
+
+  // Vuelve A: trae lo de B (si se puede cambiar ahora), conservando su clave.
+  store.reset(); store.update(s => { s.name = 'Leo'; s.points = 40; s.settings.groqKey = 'gsk_telefono'; });
+  localStorage.setItem('charla.sync', JSON.stringify(metaA));
+  assert.equal(await S.syncNow({ canApply: () => false }), 'pendiente', 'a mitad de una charla no se cambia nada');
+  assert.equal(await S.syncNow({ canApply: true }), 'bajado');
+  assert.deepEqual([store.get().points, store.get().settings.groqKey], [55, 'gsk_telefono']);
+  const metaA2 = S.meta();
+
+  // Los dos cambian sin sincronizar: B sube primero; A tiene que elegir.
+  store.update(s => { s.points = 70; });
+  const bRev = metaA2.rev;
+  await fetchFn('/api/sync', { method: 'POST', headers: { 'x-sync-code': code }, body: JSON.stringify({ op: 'put', base: bRev, data: { ...store.syncSnapshot(), points: 99 }, device: 'computadora' }) });
+  localStorage.setItem('charla.sync', JSON.stringify({ ...metaA2, dirty: true }));
+  assert.equal(await S.syncNow({ canApply: true }), 'conflicto', 'sin preguntar, no se pierde nada');
+  let asked = null;
+  assert.equal(await S.syncNow({ canApply: true, onConflict: async info => { asked = info; return 'theirs'; } }), 'bajado');
+  assert.equal(asked.device, 'computadora');
+  assert.equal(store.get().points, 99);
+  store.update(s => { s.points = 120; });
+  localStorage.setItem('charla.sync', JSON.stringify({ ...S.meta(), rev: 1, dirty: true }));
+  assert.equal(await S.syncNow({ canApply: true, onConflict: async () => 'mine' }), 'subido');
+  assert.equal([...blobs.values()][0].data.points, 120);
+  assert.match(S.statusText(), /Encendida/);
+  S.leave();
+  assert.equal(S.isOn(), false);
+  assert.match(S.statusText(), /Apagada/);
+  S._setFetch((...a) => globalThis.fetch(...a));
+});

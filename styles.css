@@ -1064,3 +1064,6 @@ button.recording { background: var(--brand-700, var(--brand)); color: #fff; }
   #app { max-width: 720px; }
   #app:has(> .dashboard) .dash-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* v50: código de sincronización */
+.sync-code { font: 700 1.25rem/1.3 ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: .06em; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px dashed var(--line-strong, var(--line)); text-align: center; user-select: all; }

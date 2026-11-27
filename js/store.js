@@ -164,8 +164,13 @@ function merge(s) {
   return out;
 }
 
-export function save() {
+// Quien quiera saber cuándo cambió el avance (la sincronización, v50). quiet = guardado que no se vuelve a subir.
+const saveListeners = new Set();
+export function onSave(fn) { saveListeners.add(fn); return () => saveListeners.delete(fn); }
+
+export function save(quiet = false) {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn('No se pudo guardar', e); }
+  if (!quiet) for (const fn of saveListeners) { try { fn(); } catch {} }
 }
 
 export function get() { return state; }
@@ -198,6 +203,26 @@ export function importJson(text) {
   if (!state.settings.groqKey) state.settings.groqKey = groqKey;
   delete state.backupOf;
   save();
+}
+
+// ---------------- Sincronización (v50) ----------------
+// Lo propio de cada aparato no viaja: las claves de IA y la voz (cada teléfono tiene otras voces y otro ritmo).
+export const DEVICE_SETTINGS = ['apiKey', 'groqKey', 'voiceURI', 'voiceEngine', 'naturalVoice', 'paceMs', 'lipUnitMs', 'voiceWords'];
+const DEVICE_FIELDS = ['storagePersisted', 'groqPause'];
+export function syncSnapshot() {
+  const copy = structuredClone(state);
+  for (const k of DEVICE_SETTINGS) delete copy.settings[k];
+  for (const k of DEVICE_FIELDS) delete copy[k];
+  return copy;
+}
+// Pone el avance que llegó del otro aparato, conservando lo propio de este.
+export function applySynced(data) {
+  if (!data || typeof data !== 'object' || !('settings' in data)) throw new Error('No es un avance de Charla');
+  const local = state;
+  state = merge(structuredClone(data));
+  for (const k of DEVICE_SETTINGS) { if (k in local.settings) state.settings[k] = local.settings[k]; else delete state.settings[k]; }
+  for (const k of DEVICE_FIELDS) { if (k in local) state[k] = local[k]; else delete state[k]; }
+  save(true);
 }
 
 // Pide al navegador que no borre los datos aunque le falte espacio. Chrome lo concede sobre todo a las apps

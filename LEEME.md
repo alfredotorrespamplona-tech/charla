@@ -456,6 +456,19 @@ No hace falta volver a instalar el APK.
   siguiente. Los modelos de respaldo de Groq son más flojos: a veces rechazan un tema propio, arman mal un
   ejercicio del taller o no cierran la despedida.
 
+### Sincronizar teléfono y computadora (v50)
+- **Ajustes → 🔄 Sincronizar teléfono y computadora**: en el aparato que tiene su avance, «Crear código»
+  (16 letras y números, sin I, O, 0 ni 1); en el otro, escribirlo y «Unir este aparato». En un aparato nuevo también
+  se puede desde la bienvenida («¿Ya usa Charla en otro aparato?»). Sin cuentas ni contraseñas.
+- Cada guardado se sube a los 8 s (`js/sync.js`, `store.onSave`); al salir de la app se sube lo pendiente; al abrirla
+  (o volver tras 30 s) se trae lo del otro aparato, solo si está en la portada, el mapa o Ajustes (nunca a mitad de
+  una charla). Si los dos cambiaron sin juntarse, pregunta con cuál quedarse.
+- No viajan las claves de IA ni lo propio de cada aparato: voz, ritmo de la voz y labios (`store.DEVICE_SETTINGS`).
+- En la nube: función de Netlify `netlify/functions/sync.mjs` (`/api/sync`, lógica en `netlify/sync-core.mjs`) que
+  guarda en Netlify Blobs (almacén `charla-sync`) bajo el SHA-256 del código, nunca el código. Necesita
+  `npm install` en `charla` (dependencia `@netlify/blobs`); `netlify.ps1` sube la función con `--functions`.
+- Quien tenga el código puede ver y cambiar su avance: no lo comparta. «Dejar de sincronizar» lo quita de ese aparato.
+
 ### Versión para computadora (v48)
 - En pantallas de 1024 px o más: **menú lateral fijo** (`js/sidenav.js`) con todas las secciones de la portada, marcando la
   abierta; se esconde durante una charla, un simulacro y la bienvenida. Las pantallas se ensanchan a 880 px y la portada a

@@ -8,6 +8,7 @@ import { checkForUpdate } from './update.js';
 import { levelStudy, levelContent } from './levelscreen.js';
 import { shortVersion } from './version.js';
 import { buildSideNav, markNav, SIDE_KEYS } from './sidenav.js';
+import * as sync from './sync.js';
 import { startConversation } from './conversation.js';
 import { chatJson, testConnection, hasAI, GROQ_MODELS, groqBlockedUntil, hourText } from './llm.js';
 import * as P from './prompts.js';
@@ -51,6 +52,25 @@ setPeopleNav({ home, chooseMission, isOpen: p => coins.isPlaceOpen(store.get(), 
 import { NATURAL_VOICES, loadNatural, disableNatural, naturalStatus, onNaturalStatus, unlockAudio } from './natural-voice.js';
 
 // ---------------- Bienvenida ----------------
+// En un aparato nuevo: traer el avance del otro aparato con el código de sincronización (v50), sin llenar nada.
+function joinFromOnboarding() {
+  const input = h('input', { placeholder: 'XXXX-XXXX-XXXX-XXXX', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', 'aria-label': 'Código de sincronización' });
+  const msg = h('small.muted', {}, 'El código está en el otro aparato: Ajustes → 🔄 Sincronizar.');
+  const btn = h('button.small', {}, 'Traer mi avance');
+  btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      await sync.join(input.value);
+      ensureNav();
+      toast('🔄 Avance traído del otro aparato. Ponga su clave de IA en Ajustes.', 'good');
+      cover();
+    } catch (e) { msg.textContent = e.message; }
+    finally { btn.disabled = false; }
+  };
+  return h('details.card.onb-sync', {}, h('summary', {}, '🔄 ¿Ya usa Charla en otro aparato? Traiga su avance'),
+    h('div.row', {}, input, btn), msg);
+}
+
 function onboarding() {
   const s = store.get();
   const data = { name: s.name, rank: s.rank, apiKey: s.settings.groqKey || s.settings.apiKey };
@@ -63,6 +83,7 @@ function onboarding() {
   mount(h('div.screen.onboarding', {},
     h('h1', {}, h('img.logo', { src: 'icon.svg', alt: '' }), 'Charla'),
     h('p', {}, 'Practique inglés hablando con personajes en lugares reales. La IA es Groq (gratis) o DeepSeek, y la voz es la de su teléfono.'),
+    joinFromOnboarding(),
     h('label', {}, '¿Cómo le llamamos?'), nameIn,
     h('label', {}, '¿Qué tanto inglés sabe?'), levels,
     h('p.muted', {}, 'Es solo un punto de partida: con su primera charla ajustamos el nivel.'),
@@ -946,6 +967,7 @@ function settings({ back = home } = {}) {
     h('div.card', {}, h('b', {}, '📒 Mi bitácora de errores'),
       h('p.muted', {}, 'Los errores de sus charlas que el coach vigila, y los de su cerebro de inglés. Desde aquí se marcan como resueltos y se copian para el cerebro.'),
       h('button.small', { onclick: () => bitacora.bitacoraScreen({ back: again }) }, `Abrir (${bitacora.activeErrors().length} activos)`)),
+    syncCard(again),
     h('div.card', {}, h('b', {}, '💾 Copia de seguridad'),
       h('p.muted', {}, safety.lastBackupText(s) + ' La copia no lleva sus claves de IA: al importarla se conservan las de este teléfono.'),
       h('p.muted', {}, safety.storageText(s)),
@@ -956,6 +978,81 @@ function settings({ back = home } = {}) {
     h('div.card', {}, h('b', {}, `📱 Versión de Charla: ${shortVersion()}`),
       h('p.muted', {}, 'Al volver a la app se revisa sola si hay una versión nueva y se actualiza.'),
       h('button.small', { onclick: () => checkForUpdate({ manual: true, beforeReload: noteAway }) }, '🔄 Buscar actualización'))));
+}
+
+// ---------------- Sincronizar teléfono y computadora (v50) ----------------
+// Pantallas donde se puede cambiar el avance sin molestar (no a mitad de una charla o un ejercicio).
+const idleScreen = () => !!document.querySelector('#app > .dashboard, #app > .home, #app > .settings');
+function refreshIdle() {
+  const y = window.scrollY;
+  if (document.querySelector('#app > .dashboard')) cover();
+  else if (document.querySelector('#app > .home')) home();
+  else return;
+  window.scrollTo(0, y);
+}
+// Los dos aparatos cambiaron algo sin sincronizar: el usuario elige con qué quedarse.
+function askConflict({ at, device }) {
+  return new Promise(resolve => {
+    let done = false;
+    const pick = v => { if (done) return; done = true; closeSheet(); resolve(v); };
+    const when = at ? new Date(at).toLocaleString('es', { weekday: 'long', hour: '2-digit', minute: '2-digit' }) : '';
+    sheet(h('div', {},
+      h('h3', {}, '🔄 Los dos aparatos tienen cambios'),
+      h('p.muted', {}, `Practicó en este aparato y también en ${device ? 'el/la ' + device : 'otro aparato'}${when ? ` (${when})` : ''} sin que se juntaran. Elija con cuál quedarse; lo otro se pierde.`),
+      h('button.primary.wide', { onclick: () => pick('theirs') }, `Traer lo del ${device || 'otro aparato'}`),
+      h('button.wide', { onclick: () => pick('mine') }, 'Quedarme con lo de este aparato')), { onClose: () => pick(null) });
+  });
+}
+function runSync() {
+  if (!sync.isOn()) return Promise.resolve();
+  return sync.syncNow({ canApply: idleScreen, onConflict: askConflict })
+    .then(r => { if (r === 'bajado') { refreshIdle(); toast('🔄 Avance actualizado con el otro aparato', 'good'); } return r; })
+    .catch(() => {});
+}
+
+function syncCard(again) {
+  const m = sync.meta();
+  const status = h('p.muted', {}, sync.statusText(m));
+  const busy = (btn, fn) => async () => {
+    btn.disabled = true;
+    try { await fn(); } catch (e) { toast(e.message, 'bad'); status.textContent = e.message; }
+    finally { btn.disabled = false; }
+  };
+  if (!m.code) {
+    const input = h('input', { placeholder: 'XXXX-XXXX-XXXX-XXXX', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', 'aria-label': 'Código de sincronización' });
+    const createBtn = h('button.small', {}, 'Crear código');
+    createBtn.onclick = busy(createBtn, async () => { await sync.create(); toast('🔄 Sincronización encendida', 'good'); again(); });
+    const joinBtn = h('button.small', {}, 'Unir este aparato');
+    joinBtn.onclick = busy(joinBtn, async () => {
+      if (!sync.normalizeCode(input.value)) throw new Error('El código tiene 16 letras y números, como ABCD-EFGH-JKLM-NPQR.');
+      if (!confirm('Lo que hay en este aparato se reemplaza por el avance guardado con ese código (sus claves de IA y su voz se quedan). ¿Seguir?')) return;
+      await sync.join(input.value);
+      toast('🔄 Avance traído del otro aparato', 'good');
+      cover();
+    });
+    return h('div.card', {}, h('b', {}, '🔄 Sincronizar teléfono y computadora'),
+      h('p.muted', {}, 'Su avance se guarda en internet con un código secreto, y el otro aparato lo trae con ese mismo código. Sin cuentas ni contraseñas. Sus claves de IA no viajan.'),
+      h('p', {}, h('b', {}, '1. '), 'En el aparato que tiene su avance: ', createBtn),
+      h('p', {}, h('b', {}, '2. '), 'En el otro aparato, escriba aquí el código:'),
+      h('div.row', {}, input, joinBtn),
+      status);
+  }
+  const codeBox = h('p.sync-code.hidden', {}, m.code);
+  const nowBtn = h('button.small', {}, 'Sincronizar ahora');
+  nowBtn.onclick = busy(nowBtn, async () => {
+    const r = await sync.syncNow({ canApply: true, onConflict: askConflict });
+    toast(r === 'bajado' ? 'Avance traído del otro aparato' : r === 'subido' ? 'Avance subido' : r === 'conflicto' ? 'Quedó sin juntar: elija un aparato' : 'Ya estaba al día', r === 'conflicto' ? 'bad' : 'good');
+    again();
+  });
+  return h('div.card', {}, h('b', {}, '🔄 Sincronizar teléfono y computadora'),
+    status,
+    h('p.muted', {}, 'Cada cambio se sube a los pocos segundos, y al abrir la app se trae lo del otro aparato. Use uno a la vez para que no se crucen.'),
+    codeBox,
+    h('div.row', {},
+      nowBtn,
+      h('button.small', { onclick: () => { codeBox.classList.toggle('hidden'); } }, '🔑 Ver código'),
+      h('button.small', { onclick: async () => { try { await navigator.clipboard.writeText(m.code); toast('Código copiado', 'good'); } catch { codeBox.classList.remove('hidden'); } } }, '📋 Copiar código'),
+      h('button.small.danger', { onclick: () => { if (confirm('¿Dejar de sincronizar este aparato? Su avance se queda aquí; el otro aparato sigue con el código.')) { sync.leave(); again(); } } }, 'Dejar de sincronizar')));
 }
 
 // Qué IA se está usando hoy: llamadas y tokens de Groq (gratis) y de DeepSeek, y si Groq está en pausa.
@@ -1014,8 +1111,9 @@ function updateCheck() {
   checkForUpdate({ busy: busyScreen, beforeReload: noteAway });
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) return noteAway();
+  if (document.hidden) { sync.flush(); return noteAway(); }
   updateCheck();
+  if (awayAt && Date.now() - awayAt > 30000) runSync();
   // Volvió sin que la app se cerrara: la pantalla queda igual. La portada y el inicio se
   // actualizan (meta del día, racha, mensajes) sin moverse de donde estaba.
   if (awayAt && Date.now() - awayAt > 60000) {
@@ -1040,6 +1138,8 @@ export function boot() {
   const recent = away && Date.now() - away.at < RETURN_WINDOW_MS;
   const s = store.get();
   if (s.onboarded) ensureNav();
+  sync.watchStore();
+  runSync();
   if (recent && away.screen === 'convo' && s.onboarded && s.draft) return resumeDraft(s.draft);
   if (recent && away.screen === 'home' && s.onboarded) { markNav('map'); return home(); }
   if (recent && away.screen === 'mil' && s.onboarded) return milScreen({ home: cover });
