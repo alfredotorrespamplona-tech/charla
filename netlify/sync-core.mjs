@@ -1,14 +1,16 @@
 // Sincronización entre aparatos (v50): la lógica del servidor, sin depender de Netlify (así se prueba con node --test).
 // Cada usuario tiene un código secreto (XXXX-XXXX-XXXX-XXXX). En la nube se guarda bajo el SHA-256 del código,
 // nunca el código mismo. Lo guardado es el avance de la app SIN las claves de IA (el teléfono las quita antes).
+import { createHash } from 'node:crypto';
+
 export const CODE_RE = /^[A-HJ-NP-Z2-9]{4}(-[A-HJ-NP-Z2-9]{4}){3}$/;
 export const MAX_BYTES = 4 * 1024 * 1024;
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 
+// node:crypto y no el «crypto» global: el Node de Netlify no siempre lo tiene (fallaba con «crypto is not defined»).
 export async function keyFor(code) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('charla-sync:' + code));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  return createHash('sha256').update('charla-sync:' + code).digest('hex');
 }
 
 // store: { get(key) → objeto | null, set(key, objeto), del(key) }.
